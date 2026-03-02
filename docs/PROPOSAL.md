@@ -26,6 +26,7 @@
 * Verified Student Community: Unlike open WhatsApp groups, our platform requires sellers to verify their identity via a @constructor.university email.
 * Status Updates: Students can mark items as "For Sale" or "Sold" via the WhatsApp bot.
 * Magic Link Access: Sellers manage their dashboard via a secure, passwordless link sent directly to their WhatsApp.
+* Use Gemini to parse sales listings and images for auto-listing generation without userinput. 
 
 ### 4. Risk Mitigation
 

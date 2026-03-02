@@ -8,6 +8,7 @@
 * Pico.css (mobile-first styling)
 * Fetch API (REST communication)
 * State-based view toggling (x-show)
+* GeminiAPI
 
 ## Responsibilities
 
@@ -31,6 +32,7 @@ Controller → Service → Repository → PostgreSQL
 * TokenService
 * ScheduledCleanupService
 * SecurityConfiguration (JWT-based)
+* AIFunctions
 
 ## Responsibilities
 
@@ -40,6 +42,7 @@ Controller → Service → Repository → PostgreSQL
 * Listing creation, update, deletion
 * Expiry lifecycle management
 * Magic link generation
+* Handling message parsing and image recognition
 
 ---
 

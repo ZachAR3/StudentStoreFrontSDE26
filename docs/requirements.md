@@ -15,7 +15,7 @@
 ## 2. Functional Requirements
 
 ### 2.1 WhatsApp Bot Engine
-**Message Processing:** Extract text, pricing, and media from forwarded messages and direct inputs.
+**Message Processing:** Extract text, pricing, and media from forwarded messages and direct inputs using Gemini + traditional methods.
 **Email Verification:** Validate @constructor.university domains, send 6-digit OTP, verify within 10 minutes.
 **Listing Preview:** Generate visual previews with inline edit buttons (Price, Description, Confirm).
 **Magic Links:** Generate secure, time-limited tokens (1-hour expiry) for dashboard access.
