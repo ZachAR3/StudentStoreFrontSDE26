@@ -1,3 +1,6 @@
+Teodor Cristescu, [3/2/2026 3:42 PM]
+# Constructor Campus Storefront
+
 ## System Architecture
 
 # 1. Frontend Architecture (PWA Storefront)
@@ -17,6 +20,9 @@
 * One-click WhatsApp contact links
 * Seller dashboard (via magic link)
 
+## Design Rationale
+
+The project intentionally avoids heavy SPA frameworks (React/Vue) due to limited scope and low state complexity. The frontend is optimized for zero-install mobile usage and simplicity.
 
 # 2. Backend Architecture (Spring Boot – Kotlin)
 
@@ -53,15 +59,19 @@ Controller → Service → Repository → PostgreSQL
 
 ## Responsibilities
 
-* Create sales listings
+* Join campus sales group
 * Listen for forwarded messages
-* Regex-based keyword detection (e.g., price)
+* Regex-based keyword detection (e.g., price, currency indicators)
 * Extract structured listing data
 * Generate preview messages
 * Send renewal reminders
-* Provide magic links to view your listings on the web app
+* Send dashboard magic links
 
 ## Interaction Model
 
 The bot parses user messages and forwards structured listing data to the Spring Boot API via REST endpoints.
 
+
+
+#
+this is the architecture artifact. If you have any suggestions, tell me so I can change it. I will push it in like 2 hours
