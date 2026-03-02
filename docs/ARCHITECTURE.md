@@ -69,9 +69,4 @@ Controller → Service → Repository → PostgreSQL
 
 ## Interaction Model
 
-The bot parses user messages and forwards structured listing data to the Spring Boot API via REST endpoints.
-
-
-
-#
-this is the architecture artifact. If you have any suggestions, tell me so I can change it. I will push it in like 2 hours
+The bot parses user messages and forwards structured listing data to the Spring Boot API via REST 
