@@ -1,4 +1,4 @@
-package com.studentStoreFront.Backend
+package com.studentstorefront
 
 import org.springframework.data.jpa.repository.JpaRepository
 

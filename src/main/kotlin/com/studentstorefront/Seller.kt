@@ -1,4 +1,4 @@
-package com.studentStoreFront.Backend
+package com.studentstorefront
 
 import jakarta.persistence.Entity
 import jakarta.persistence.GeneratedValue

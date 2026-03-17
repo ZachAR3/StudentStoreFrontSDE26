@@ -1,1 +1,1 @@
-rootProject.name = "Backend"
+rootProject.name = "StudentStoreFrontSDE26"
