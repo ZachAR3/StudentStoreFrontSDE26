@@ -1,4 +1,4 @@
-package com.studentStoreFront.Backend
+package com.studentstorefront
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
