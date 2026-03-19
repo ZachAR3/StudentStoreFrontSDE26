@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Student Storefront</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="/js/app.js" defer></script>
+</head>
+<body>
+    <main class="container">
+        <nav>
+            <ul>
+                <li><strong>Student Storefront</strong></li>
+            </ul>
+        </nav>
+
+        <div x-data="storefrontData()">
+            <h2>Public Listings</h2>
+
+            <p x-show="isLoading" aria-busy="true">Loading posts...</p>
+
+            <article x-show="errorMessage" class="pico-color-red-500" x-text="errorMessage"></article>
+
+            <div class="grid" x-show="!isLoading">
+                <template x-for="post in posts" :key="post.id">
+                    <article>
+                        <header>
+                            <h3 x-text="post.title"></h3>
+                            <mark x-show="post.isSellerVerified">Verified Student ✓</mark>
+                        </header>
+                        <p x-text="post.description"></p>
+                        <footer>
+                            <strong x-text="'$' + post.price"></strong>
+                            <a :href="'https://wa.me/' + post.sellerPhone" role="button" class="outline">Contact Seller</a>
+                        </footer>
+                    </article>
+                </template>
+            </div>
+
+            <p x-show="!isLoading && posts.length === 0">No listings found.</p>
+        </div>
+    </main>
+</body>
+</html>
