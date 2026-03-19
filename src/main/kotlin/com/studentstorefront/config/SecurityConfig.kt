@@ -1,4 +1,4 @@
-package com.studentstorefront
+package com.studentstorefront.config
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -19,7 +19,7 @@ class SecurityConfig {
             .csrf { it.disable() }
             .formLogin { it.disable() }
             .httpBasic { it.disable() }
-        
+
         return http.build()
     }
 }

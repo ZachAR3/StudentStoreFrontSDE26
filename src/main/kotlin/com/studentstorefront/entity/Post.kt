@@ -1,4 +1,4 @@
-package com.studentstorefront
+package com.studentstorefront.entity
 
 
 import jakarta.persistence.Entity
