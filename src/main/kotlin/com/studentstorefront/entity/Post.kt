@@ -12,7 +12,7 @@ import jakarta.persistence.JoinColumn
 
 @Entity
 @Table(name = "posts")
-class Post (
+data class Post (
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) val postId: Long? = null,
     val imageUrl: String = "",
     val description: String = "",
