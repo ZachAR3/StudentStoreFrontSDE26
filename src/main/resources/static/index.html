@@ -5,42 +5,84 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Student Storefront</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <script src="/js/app.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script src="/js/app.js" defer></script>
 </head>
 <body>
-    <main class="container">
+    <main class="container" x-data="storefrontData()">
         <nav>
             <ul>
                 <li><strong>Student Storefront</strong></li>
             </ul>
         </nav>
 
-        <div x-data="storefrontData()">
+        <section>
+            <h2>Create New Listing</h2>
+            
+            <article x-show="errorMessage" style="background-color: #fee2e2; border-color: #ef4444; color: #b91c1c;">
+                <p x-text="errorMessage"></p>
+            </article>
+
+            <form @submit.prevent="createPost()">
+                <div class="grid">
+                    <label for="title">Title
+                        <input type="text" id="title" placeholder="Item Name" x-model="newPost.title" required>
+                    </label>
+                    <label for="price">Price ($)
+                        <input type="number" step="0.01" id="price" placeholder="0.00" x-model.number="newPost.price" required>
+                    </label>
+                </div>
+                
+                <div class="grid">
+                    <label for="imageUrl">Image URL
+                        <input type="text" id="imageUrl" placeholder="https://..." x-model="newPost.imageUrl" required>
+                    </label>
+                    <label for="category">Category
+                        <select id="category" x-model="newPost.category">
+                            <option value="General">General</option>
+                            <option value="Books">Books</option>
+                            <option value="Electronics">Electronics</option>
+                            <option value="Furniture">Furniture</option>
+                        </select>
+                    </label>
+                </div>
+
+                <label for="description">Description
+                    <textarea id="description" placeholder="Describe your item..." x-model="newPost.description" required></textarea>
+                </label>
+
+                <button type="submit" :aria-busy="isLoading">Post Listing</button>
+            </form>
+        </section>
+
+        <hr>
+
+        <section>
             <h2>Public Listings</h2>
 
-            <p x-show="isLoading" aria-busy="true">Loading posts...</p>
+            <p x-show="isLoading && posts.length === 0" aria-busy="true">Loading posts...</p>
 
-            <article x-show="errorMessage" class="pico-color-red-500" x-text="errorMessage"></article>
-
-            <div class="grid" x-show="!isLoading">
-                <template x-for="post in posts" :key="post.id">
+            <div class="grid" x-show="!isLoading || posts.length > 0">
+                <template x-for="post in posts" :key="post.postId">
                     <article>
                         <header>
+                            <img :src="post.imageUrl" :alt="post.title" style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px; margin-bottom: 1rem;">
                             <h3 x-text="post.title"></h3>
-                            <mark x-show="post.isSellerVerified">Verified Student ✓</mark>
                         </header>
                         <p x-text="post.description"></p>
                         <footer>
                             <strong x-text="'$' + post.price"></strong>
-                            <a :href="'https://wa.me/' + post.sellerPhone" role="button" class="outline">Contact Seller</a>
+                            <div style="margin-top: 1rem;">
+                                <small x-text="'Seller: ' + post.seller.name"></small><br>
+                                <a :href="'mailto:' + post.seller.email" role="button" class="outline">Contact Seller</a>
+                            </div>
                         </footer>
                     </article>
                 </template>
             </div>
 
-            <p x-show="!isLoading && posts.length === 0">No listings found.</p>
-        </div>
+            <p x-show="!isLoading && posts.length === 0">No listings found. Be the first to post!</p>
+        </section>
     </main>
 </body>
 </html>

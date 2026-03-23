@@ -10,10 +10,14 @@ import java.time.LocalDateTime
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.JoinColumn
 
+import java.math.BigDecimal
+
 @Entity
 @Table(name = "posts")
 data class Post (
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) val postId: Long? = null,
+    val title: String = "",
+    val price: BigDecimal = BigDecimal.ZERO,
     val imageUrl: String = "",
     val description: String = "",
     val category: String = "",
@@ -23,5 +27,4 @@ data class Post (
     @ManyToOne
     @JoinColumn(name = "seller_id")
     val seller: Seller? = null
-
 )

@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
+import java.math.BigDecimal
 
 @Service
 @Transactional
@@ -22,7 +23,7 @@ class PostService(
 ) {
 
     fun createPost(postRequestDTO: PostRequestDTO): PostResponseDTO {
-        val seller = findSellerById(postRequestDTO.sellerId)
+        val seller = findSellerById(postRequestDTO.sellerId!!)
         val post = createPostEntity(postRequestDTO, seller)
         val savedPost = postRepository.save(post)
         return mapToResponseDTO(savedPost)
@@ -89,10 +90,12 @@ class PostService(
 
     private fun createPostEntity(postRequestDTO: PostRequestDTO, seller: Seller): Post {
         return Post(
+            title = postRequestDTO.title,
+            price = postRequestDTO.price,
             imageUrl = postRequestDTO.imageUrl,
             description = postRequestDTO.description,
             category = postRequestDTO.category,
-            isSold = postRequestDTO.isSold,
+            isSold = postRequestDTO.isSold ?: false,
             createdAt = LocalDateTime.now(),
             expiresAt = postRequestDTO.expiresAt,
             seller = seller
@@ -101,6 +104,8 @@ class PostService(
 
     private fun updatePostEntity(existingPost: Post, postUpdateDTO: PostUpdateDTO): Post {
         return existingPost.copy(
+            title = postUpdateDTO.title ?: existingPost.title,
+            price = postUpdateDTO.price ?: existingPost.price,
             imageUrl = postUpdateDTO.imageUrl ?: existingPost.imageUrl,
             description = postUpdateDTO.description ?: existingPost.description,
             category = postUpdateDTO.category ?: existingPost.category,
@@ -112,6 +117,8 @@ class PostService(
     private fun mapToResponseDTO(post: Post): PostResponseDTO {
         return PostResponseDTO(
             postId = post.postId!!,
+            title = post.title,
+            price = post.price,
             imageUrl = post.imageUrl,
             description = post.description,
             category = post.category,

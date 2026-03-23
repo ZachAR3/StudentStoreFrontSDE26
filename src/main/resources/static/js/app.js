@@ -1,62 +1,101 @@
 document.addEventListener('alpine:init', () => {
+    console.log("Alpine init firing, registering storefrontData...");
     Alpine.data('storefrontData', () => ({
         posts: [],
         isLoading: true,
         errorMessage: '',
-
-        // init() runs automatically when the component loads
-        init() {
-            this.fetchListings();
+        newPost: {
+            title: '',
+            price: null,
+            description: '',
+            imageUrl: '',
+            category: 'General', // Default category
+            sellerId: 1 // Default seller for prototype
         },
 
-        async fetchListings() {
+        init() {
+            this.fetchPosts();
+        },
+
+        async fetchPosts() {
+            console.log("Fetching posts...");
             this.isLoading = true;
             this.errorMessage = '';
             try {
-                // TODO: Uncomment the block below once the Spring Boot Postgres backend is implemented at /api/listings
-                /*
-                const response = await fetch('/api/listings');
-
+                const response = await fetch('/api/posts');
+                console.log("Fetch response status:", response.status);
+                
                 if (!response.ok) {
-                    throw new Error('Network response was not ok');
+                    const text = await response.text();
+                    console.error("Fetch failed:", text);
+                    throw new Error('Failed to fetch listings');
                 }
-
-                this.posts = await response.json();
-                */
-
-                // Temporary Placeholder data so the site runs without the backend
-                this.posts = [
-                    {
-                        id: 1,
-                        title: "Calculus: Early Transcendentals",
-                        description: "Hardcover, slightly used, perfect for MATH101.",
-                        price: 55.00,
-                        isSellerVerified: true,
-                        sellerPhone: "491761234567"
-                    },
-                    {
-                        id: 2,
-                        title: "Ergonomic Office Chair",
-                        description: "Adjustable height and lumbar support. Pickup from North Campus.",
-                        price: 80.00,
-                        isSellerVerified: false,
-                        sellerPhone: "491769876543"
-                    },
-                    {
-                        id: 3,
-                        title: "Dell 24-inch Monitor",
-                        description: "Full HD, HDMI and DisplayPort inputs. Great for a dual-monitor setup.",
-                        price: 110.00,
-                        isSellerVerified: true,
-                        sellerPhone: "491762223334"
-                    }
-                ];
+                
+                const data = await response.json();
+                console.log("Fetched data:", data);
+                // Spring Data Page object returns items in the 'content' field
+                this.posts = data.content || [];
             } catch (error) {
-                console.error("Failed to fetch listings:", error);
-                this.errorMessage = "Could not load listings at this time.";
+                console.error("Fetch error:", error);
+                this.errorMessage = "Could not load listings. " + error.message;
             } finally {
                 this.isLoading = false;
             }
+        },
+
+        async createPost() {
+            console.log("Creating post with data:", JSON.stringify(this.newPost));
+            this.isLoading = true;
+            this.errorMessage = '';
+            try {
+                const response = await fetch('/api/posts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.newPost)
+                });
+
+                console.log("Create response status:", response.status);
+
+                if (!response.ok) {
+                    let errorMsg = 'Failed to create listing';
+                    try {
+                        const errorData = await response.json();
+                        errorMsg = errorData.message || errorMsg;
+                    } catch (e) {
+                        const text = await response.text();
+                        errorMsg = text || errorMsg;
+                    }
+                    throw new Error(errorMsg);
+                }
+
+                const createdPost = await response.json();
+                console.log("Created post successfully:", createdPost);
+                
+                // Add new post to local state and reset form
+                if (Array.isArray(this.posts)) {
+                    this.posts.unshift(createdPost);
+                } else {
+                    this.posts = [createdPost];
+                }
+                this.resetForm();
+                alert("Listing posted successfully!");
+            } catch (error) {
+                console.error("Create error:", error);
+                this.errorMessage = error.message;
+            } finally {
+                this.isLoading = false;
+            }
+        },
+
+        resetForm() {
+            this.newPost = {
+                title: '',
+                price: null,
+                description: '',
+                imageUrl: '',
+                category: 'General',
+                sellerId: 1
+            };
         }
     }));
 });
