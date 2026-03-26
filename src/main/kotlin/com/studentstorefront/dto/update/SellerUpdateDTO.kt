@@ -21,6 +21,9 @@ data class SellerUpdateDTO(
     )
     val phoneNumber: String? = null,
 
-    @field:Size(min = 6, message = "Password must be at least 6 characters")
+    @field:Pattern(
+        regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$",
+        message = "Password must contain at least 8 characters with uppercase, lowercase, digit, and special character"
+    )
     val password: String? = null
 )
