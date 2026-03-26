@@ -4,6 +4,7 @@ import com.studentstorefront.dto.request.PostRequestDTO
 import com.studentstorefront.dto.response.PostResponseDTO
 import com.studentstorefront.dto.response.SellerResponseDTO
 import com.studentstorefront.dto.update.PostUpdateDTO
+import com.studentstorefront.entity.Category
 import com.studentstorefront.entity.Post
 import com.studentstorefront.entity.Seller
 import com.studentstorefront.repository.PostRepository
@@ -13,7 +14,7 @@ import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
-import java.math.BigDecimal
+
 
 @Service
 @Transactional
@@ -41,7 +42,7 @@ class PostService(
     }
 
     @Transactional(readOnly = true)
-    fun getPostsByCategory(category: String, pageable: Pageable): Page<PostResponseDTO> {
+    fun getPostsByCategory(category: Category, pageable: Pageable): Page<PostResponseDTO> {
         return postRepository.findByCategory(category, pageable).map { mapToResponseDTO(it) }
     }
 

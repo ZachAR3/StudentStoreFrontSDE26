@@ -3,6 +3,7 @@ package com.studentstorefront.controller
 import com.studentstorefront.dto.request.PostRequestDTO
 import com.studentstorefront.dto.response.PostResponseDTO
 import com.studentstorefront.dto.update.PostUpdateDTO
+import com.studentstorefront.entity.Category
 import com.studentstorefront.service.PostService
 import jakarta.validation.Valid
 import org.springframework.data.domain.Page
@@ -42,8 +43,16 @@ class PostController(private val postService: PostService) {
         @PathVariable category: String,
         @PageableDefault(size = 20) pageable: Pageable
     ): ResponseEntity<Page<PostResponseDTO>> {
-        val posts = postService.getPostsByCategory(category, pageable)
-        return ResponseEntity.ok(posts)
+        val categoryEnum = runCatching {
+            Category.valueOf(category.uppercase())
+        }.getOrNull()
+
+        return if (categoryEnum != null) {
+            val posts = postService.getPostsByCategory(categoryEnum, pageable)
+            ResponseEntity.ok(posts)
+        } else {
+            ResponseEntity.badRequest().build()
+        }
     }
 
     @GetMapping("/seller/{sellerId}")

@@ -1,15 +1,7 @@
 package com.studentstorefront.entity
 
-
-import jakarta.persistence.Entity
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.Table
+import jakarta.persistence.*
 import java.time.LocalDateTime
-import jakarta.persistence.ManyToOne
-import jakarta.persistence.JoinColumn
-
 import java.math.BigDecimal
 
 @Entity
@@ -20,7 +12,8 @@ data class Post (
     val price: BigDecimal = BigDecimal.ZERO,
     val imageUrl: String = "",
     val description: String = "",
-    val category: String = "",
+    @Enumerated(EnumType.STRING)
+    val category: Category = Category.UNASSIGNED,
     val isSold: Boolean = false,
     val createdAt: LocalDateTime = LocalDateTime.now(),
     val expiresAt: LocalDateTime? = null,

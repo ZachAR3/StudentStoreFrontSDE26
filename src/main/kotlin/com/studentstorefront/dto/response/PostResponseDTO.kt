@@ -1,7 +1,7 @@
 package com.studentstorefront.dto.response
 
+import com.studentstorefront.entity.Category
 import java.time.LocalDateTime
-
 import java.math.BigDecimal
 
 data class PostResponseDTO(
@@ -10,7 +10,7 @@ data class PostResponseDTO(
     val price: BigDecimal,
     val imageUrl: String,
     val description: String,
-    val category: String,
+    val category: Category,
     val isSold: Boolean,
     val createdAt: LocalDateTime,
     val expiresAt: LocalDateTime?,
