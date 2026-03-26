@@ -7,13 +7,15 @@ import com.studentstorefront.entity.Seller
 import com.studentstorefront.repository.SellerRepository
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 @Service
 @Transactional
 class SellerService(
-    private val sellerRepository: SellerRepository
+    private val sellerRepository: SellerRepository,
+    private val passwordEncoder: PasswordEncoder
 ) {
 
     fun createSeller(sellerRequestDTO: SellerRequestDTO): SellerResponseDTO {
@@ -78,7 +80,7 @@ class SellerService(
             name = sellerRequestDTO.name,
             email = sellerRequestDTO.email,
             phoneNumber = sellerRequestDTO.phoneNumber,
-            password = sellerRequestDTO.password // Note: In production, hash this password
+            password = passwordEncoder.encode(sellerRequestDTO.password)!! // Hash the password
         )
     }
 
@@ -87,7 +89,7 @@ class SellerService(
             name = sellerUpdateDTO.name ?: existingSeller.name,
             email = sellerUpdateDTO.email ?: existingSeller.email,
             phoneNumber = sellerUpdateDTO.phoneNumber ?: existingSeller.phoneNumber,
-            password = sellerUpdateDTO.password ?: existingSeller.password // Note: Hash if updated
+            password = sellerUpdateDTO.password?.let { passwordEncoder.encode(it) } ?: existingSeller.password
         )
     }
 
