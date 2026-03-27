@@ -7,3 +7,8 @@ services:
       POSTGRES_PASSWORD: CHANGE_THIS
     ports:
       - "5432:5432"
+    volumes:
+      - db_persistency:/var/lib/postgresql
+
+volumes:
+  db_persistency:
