@@ -8,6 +8,5 @@ enum class Category(val displayName: String) {
     SPORTS("Sports"),
     FOOD("Food"),
     SERVICES("Services"),
-    OTHER("Other"),
-    UNASSIGNED("Unassigned")
+    OTHER("Other")
 }

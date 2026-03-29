@@ -13,7 +13,7 @@ data class Post (
     val imageUrl: String = "",
     val description: String = "",
     @Enumerated(EnumType.STRING)
-    val category: Category = Category.UNASSIGNED,
+    val category: Category = Category.OTHER,
     val isSold: Boolean = false,
     val createdAt: LocalDateTime = LocalDateTime.now(),
     val expiresAt: LocalDateTime? = null,
