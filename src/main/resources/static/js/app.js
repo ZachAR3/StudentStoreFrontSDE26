@@ -9,7 +9,7 @@ document.addEventListener('alpine:init', () => {
             price: null,
             description: '',
             imageUrl: '',
-            category: 'General', // Default category
+            category: 'OTHER', // Default category
             sellerId: 1 // Default seller for prototype
         },
 
@@ -93,7 +93,7 @@ document.addEventListener('alpine:init', () => {
                 price: null,
                 description: '',
                 imageUrl: '',
-                category: 'General',
+                category: 'OTHER',
                 sellerId: 1
             };
         }
