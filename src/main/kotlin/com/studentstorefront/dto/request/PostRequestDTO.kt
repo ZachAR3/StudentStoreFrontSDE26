@@ -8,7 +8,7 @@ import java.math.BigDecimal
 
 data class PostRequestDTO(
     @field:NotBlank(message = "Title is required")
-    @field:Size(min = 5, max = 200, message = "Title must be between 5 and 200 characters")
+    @field:Size(max = 100, message = "Title must be up to 100 characters")
     val title: String,
 
     @field:NotNull(message = "Price is required")

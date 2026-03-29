@@ -7,7 +7,7 @@ import java.time.LocalDateTime
 import java.math.BigDecimal
 
 data class PostUpdateDTO(
-    @field:Size(min = 5, max = 200, message = "Title must be between 5 and 200 characters")
+    @field:Size(max = 100, message = "Title must be up to 100 characters")
     val title: String? = null,
 
     @field:DecimalMin(value = "0.01", message = "Price must be greater than 0")
