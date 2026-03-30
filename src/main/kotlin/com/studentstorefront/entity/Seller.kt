@@ -1,17 +1,20 @@
 package com.studentstorefront.entity
 
-import jakarta.persistence.Entity
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.Table
+import jakarta.persistence.*
+import java.time.LocalDateTime
 
 @Entity
 @Table(name = "sellers")
-data class Seller (
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) val sellerId: Long? = null,
+data class Seller(
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    val sellerId: Long? = null,
     val name: String = "",
+    @Column(unique = true)
     val email: String = "",
     val phoneNumber: String = "",
-    val password: String = ""
+    val password: String = "",
+    @Enumerated(EnumType.STRING)
+    val role: Role = Role.SELLER,
+    val isEnabled: Boolean = true,
+    val createdAt: LocalDateTime = LocalDateTime.now()
 )
