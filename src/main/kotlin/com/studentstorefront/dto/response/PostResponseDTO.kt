@@ -1,6 +1,6 @@
 package com.studentstorefront.dto.response
 
-import com.studentstorefront.entity.Category
+import com.studentstorefront.enums.Category
 import java.time.LocalDateTime
 import java.math.BigDecimal
 

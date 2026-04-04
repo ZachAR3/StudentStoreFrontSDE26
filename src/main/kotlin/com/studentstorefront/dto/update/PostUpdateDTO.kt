@@ -1,6 +1,6 @@
 package com.studentstorefront.dto.update
 
-import com.studentstorefront.entity.Category
+import com.studentstorefront.enums.Category
 import jakarta.validation.constraints.*
 import org.hibernate.validator.constraints.URL
 import java.time.LocalDateTime

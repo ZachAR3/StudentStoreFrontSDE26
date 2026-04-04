@@ -1,5 +1,6 @@
 package com.studentstorefront.entity
 
+import com.studentstorefront.enums.Role
 import jakarta.persistence.*
 import java.time.LocalDateTime
 

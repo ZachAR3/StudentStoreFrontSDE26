@@ -1,5 +1,6 @@
 package com.studentstorefront.entity
 
+import com.studentstorefront.enums.Category
 import jakarta.persistence.*
 import java.time.LocalDateTime
 import java.math.BigDecimal

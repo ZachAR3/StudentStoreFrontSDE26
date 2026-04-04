@@ -1,4 +1,4 @@
-package com.studentstorefront.entity
+package com.studentstorefront.enums
 
 enum class Category(val displayName: String) {
     ELECTRONICS("Electronics"),

@@ -4,7 +4,7 @@ import com.studentstorefront.dto.request.PostRequestDTO
 import com.studentstorefront.dto.response.PostResponseDTO
 import com.studentstorefront.dto.response.SellerResponseDTO
 import com.studentstorefront.dto.update.PostUpdateDTO
-import com.studentstorefront.entity.Category
+import com.studentstorefront.enums.Category
 import com.studentstorefront.entity.Post
 import com.studentstorefront.entity.Seller
 import com.studentstorefront.repository.PostRepository

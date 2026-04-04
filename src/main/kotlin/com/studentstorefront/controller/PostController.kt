@@ -3,7 +3,7 @@ package com.studentstorefront.controller
 import com.studentstorefront.dto.request.PostRequestDTO
 import com.studentstorefront.dto.response.PostResponseDTO
 import com.studentstorefront.dto.update.PostUpdateDTO
-import com.studentstorefront.entity.Category
+import com.studentstorefront.enums.Category
 import com.studentstorefront.service.PostService
 import jakarta.validation.Valid
 import org.springframework.data.domain.Page
