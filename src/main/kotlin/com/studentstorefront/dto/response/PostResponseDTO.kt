@@ -8,7 +8,7 @@ data class PostResponseDTO(
     val postId: Long,
     val title: String,
     val price: BigDecimal,
-    val imageUrl: String,
+    val mediaUrls: List<String>,
     val description: String,
     val category: Category,
     val isSold: Boolean,

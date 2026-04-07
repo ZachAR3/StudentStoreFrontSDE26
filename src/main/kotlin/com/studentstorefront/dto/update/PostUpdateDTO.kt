@@ -14,8 +14,9 @@ data class PostUpdateDTO(
     @field:DecimalMax(value = "999999.99", message = "Price cannot exceed 999,999.99")
     val price: BigDecimal? = null,
 
-    @field:URL(message = "Image URL must be valid")
-    val imageUrl: String? = null,
+    @field:Size(min = 1, max = 5, message = "At least one image URL is required")
+    val imageUrlList: List<@NotBlank(message = "Url images must not be blank")
+    @URL(message = "Image URL must be valid") String>? = null,
 
     @field:Size(min = 10, max = 1000, message = "Description must be between 10 and 1000 characters")
     val description: String? = null,

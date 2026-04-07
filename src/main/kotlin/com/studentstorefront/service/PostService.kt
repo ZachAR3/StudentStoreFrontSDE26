@@ -7,8 +7,11 @@ import com.studentstorefront.dto.update.PostUpdateDTO
 import com.studentstorefront.enums.Category
 import com.studentstorefront.entity.Post
 import com.studentstorefront.entity.Seller
+import com.studentstorefront.entity.PostMedia
+import com.studentstorefront.repository.PostMediaRepository
 import com.studentstorefront.repository.PostRepository
 import com.studentstorefront.repository.SellerRepository
+import org.hibernate.internal.util.collections.ArrayHelper.forEach
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
@@ -20,13 +23,15 @@ import java.time.LocalDateTime
 @Transactional
 class PostService(
     private val postRepository: PostRepository,
-    private val sellerRepository: SellerRepository
+    private val sellerRepository: SellerRepository,
+    private val PostMediaRepository: PostMediaRepository
 ) {
 
     fun createPost(postRequestDTO: PostRequestDTO): PostResponseDTO {
         val seller = findSellerById(postRequestDTO.sellerId!!)
         val post = createPostEntity(postRequestDTO, seller)
         val savedPost = postRepository.save(post)
+        PostMediaRepository.saveAll(postRequestDTO.imageUrlList.map { PostMedia(post = savedPost, mediaUrl = it) })
         return mapToResponseDTO(savedPost)
     }
 
@@ -60,6 +65,11 @@ class PostService(
         val existingPost = findPostById(postId)
         val updatedPost = updatePostEntity(existingPost, postUpdateDTO)
         val savedPost = postRepository.save(updatedPost)
+        if (postUpdateDTO.imageUrlList != null) {
+            PostMediaRepository.deleteAll(PostMediaRepository.findByPost_postId(postId))
+            PostMediaRepository.saveAll(postUpdateDTO.imageUrlList.map { PostMedia(post = savedPost, mediaUrl = it) })
+
+        }
         return mapToResponseDTO(savedPost)
     }
 
@@ -93,7 +103,6 @@ class PostService(
         return Post(
             title = postRequestDTO.title,
             price = postRequestDTO.price,
-            imageUrl = postRequestDTO.imageUrl,
             description = postRequestDTO.description,
             category = postRequestDTO.category,
             isSold = postRequestDTO.isSold ?: false,
@@ -107,7 +116,6 @@ class PostService(
         return existingPost.copy(
             title = postUpdateDTO.title ?: existingPost.title,
             price = postUpdateDTO.price ?: existingPost.price,
-            imageUrl = postUpdateDTO.imageUrl ?: existingPost.imageUrl,
             description = postUpdateDTO.description ?: existingPost.description,
             category = postUpdateDTO.category ?: existingPost.category,
             isSold = postUpdateDTO.isSold ?: existingPost.isSold,
@@ -120,7 +128,7 @@ class PostService(
             postId = post.postId!!,
             title = post.title,
             price = post.price,
-            imageUrl = post.imageUrl,
+            mediaUrls = PostMediaRepository.findByPost_postId(post.postId!!).map { it.mediaUrl },
             description = post.description,
             category = post.category,
             isSold = post.isSold,
