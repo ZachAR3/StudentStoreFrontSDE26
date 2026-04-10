@@ -4,89 +4,367 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Student Storefront</title>
+    <!-- Pico CSS for modular, high-quality semantic styling -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <link rel="stylesheet" href="/css/custom.css">
     <script src="/js/app.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        /* Base modular styles designed for reuse across different domains (e.g., e-commerce, restaurants) */
+        :root {
+            --header-height: 75px;
+        }
+        
+        .app-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--pico-background-color);
+            border-bottom: 1px solid var(--pico-muted-border-color);
+            height: var(--header-height);
+            display: flex;
+            align-items: center;
+        }
+
+        .app-header nav {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .search-container {
+            flex-grow: 1;
+            max-width: 600px;
+            margin: 0 2rem;
+        }
+
+        .search-container input[type="search"] {
+            margin-bottom: 0;
+            border-radius: 2rem;
+            background-color: var(--pico-form-element-background-color);
+        }
+
+        /* Generic Item Card Module */
+        .item-card {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            transition: box-shadow 0.2s ease;
+        }
+
+        .item-card:hover {
+            box-shadow: var(--pico-box-shadow);
+        }
+
+        .item-card header {
+            padding: 0;
+            position: relative;
+            overflow: hidden;
+            border-radius: calc(var(--pico-border-radius) * 2) calc(var(--pico-border-radius) * 2) 0 0;
+        }
+
+        .item-image {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+
+        .item-card:hover .item-image {
+            transform: scale(1.05);
+        }
+
+        .item-badge {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 0.2rem 0.8rem;
+            border-radius: 1rem;
+            font-size: 0.8rem;
+            font-weight: bold;
+            backdrop-filter: blur(4px);
+        }
+
+        .item-content {
+            padding: 1.5rem;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .item-title {
+            margin-bottom: 0.5rem;
+            font-size: 1.25rem;
+        }
+
+        .item-description {
+            font-size: 0.95rem;
+            color: var(--pico-muted-color);
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+            flex-grow: 1;
+        }
+
+        .item-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding: 0 1.5rem 1.5rem 1.5rem;
+        }
+
+        .item-price {
+            font-size: 1.5rem;
+            color: var(--pico-primary);
+            font-weight: bold;
+        }
+
+        /* View Container */
+        .view-container {
+            padding-top: 2rem;
+            padding-bottom: 4rem;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Forms */
+        .auth-card {
+            max-width: 500px;
+            margin: 2rem auto;
+            padding: 2.5rem;
+            border: 1px solid var(--pico-muted-border-color);
+            border-radius: var(--pico-border-radius);
+            box-shadow: var(--pico-box-shadow);
+        }
+    </style>
 </head>
-<body>
-    <main class="container" x-data="storefrontData()">
-        <nav>
+<body x-data="storefrontData()">
+    <!-- ========================================== -->
+    <!-- MODULAR HEADER                             -->
+    <!-- ========================================== -->
+    <header class="app-header">
+        <nav class="container">
+            <!-- Brand -->
             <ul>
-                <li><strong>Student Storefront</strong></li>
+                <li>
+                    <a href="#" @click.prevent="navigateTo('listings')" class="contrast" style="text-decoration: none; font-size: 1.2rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <svg xmlns="http://www.w3.org/にあ2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                        <strong>Campus Store</strong>
+                    </a>
+                </li>
+            </ul>
+            
+            <!-- Global Search -->
+            <div class="search-container">
+                <input type="search" x-model="searchQuery" placeholder="Search items, descriptions, or tags...">
+            </div>
+
+            <!-- Actions -->
+            <ul>
+                <!-- Guest Actions -->
+                <template x-if="!isLoggedIn">
+                    <li style="display: flex; gap: 0.5rem;">
+                        <button class="outline" @click="navigateTo('login')" style="margin-bottom: 0; padding: 0.4rem 1rem;">Log In</button>
+                        <button @click="navigateTo('register')" style="margin-bottom: 0; padding: 0.4rem 1rem;">Sign Up</button>
+                    </li>
+                </template>
+                
+                <!-- Authenticated User Actions -->
+                <template x-if="isLoggedIn">
+                    <li style="display: flex; gap: 1rem; align-items: center;">
+                        <button @click="navigateTo('createListing')" style="margin-bottom: 0; padding: 0.4rem 1rem;">+ Create Listing</button>
+                        <a href="#" @click.prevent="handleLogout()" class="secondary" style="font-size: 0.9rem;">Log Out</a>
+                    </li>
+                </template>
             </ul>
         </nav>
+    </header>
 
-        <section>
-            <h2>Create New Listing</h2>
+    <main class="container">
+        
+        <!-- ========================================== -->
+        <!-- VIEW: LISTINGS (HOMEPAGE)                  -->
+        <!-- ========================================== -->
+        <div class="view-container" x-show="currentView === 'listings'">
             
-            <article x-show="errorMessage" style="background-color: #fee2e2; border-color: #ef4444; color: #b91c1c;">
-                <p x-text="errorMessage"></p>
-            </article>
-
-            <form @submit.prevent="createPost()">
-                <div class="grid">
-                    <label for="title">Title
-                        <input type="text" id="title" placeholder="Item Name" x-model="newPost.title" required>
-                    </label>
-                    <label for="price">Price ($)
-                        <input type="number" step="0.01" id="price" placeholder="0.00" x-model.number="newPost.price" required>
-                    </label>
+            <!-- Dynamic Filters Bar -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; background: var(--pico-card-background-color); padding: 1rem 1.5rem; border-radius: var(--pico-border-radius); border: 1px solid var(--pico-muted-border-color);">
+                <div style="display: flex; gap: 1rem; flex-grow: 1; align-items: center;">
+                    <strong style="white-space: nowrap;">Category:</strong>
+                    <select x-model="selectedCategory" @change="fetchPosts()" style="margin-bottom: 0; width: auto; min-width: 150px; padding: 0.4rem 1rem;">
+                        <option value="">All Categories</option>
+                        <option value="ELECTRONICS">Electronics</option>
+                        <option value="BOOKS">Books</option>
+                        <option value="CLOTHING">Clothing</option>
+                        <option value="FURNITURE">Furniture</option>
+                        <option value="SPORTS">Sports</option>
+                        <option value="FOOD">Food</option>
+                        <option value="SERVICES">Services</option>
+                        <option value="OTHER">Other</option>
+                    </select>
                 </div>
                 
-                <div class="grid">
-                    <label for="imageUrl">Image URL
-                        <input type="text" id="imageUrl" placeholder="https://..." x-model="newPost.imageUrl" required>
-                    </label>
-                    <label for="category">Category
-                        <select id="category" x-model="newPost.category">
-                            <option value="ELECTRONICS">Electronics</option>
-                            <option value="BOOKS">Books</option>
-                            <option value="CLOTHING">Clothing</option>
-                            <option value="FURNITURE">Furniture</option>
-                            <option value="SPORTS">Sports</option>
-                            <option value="FOOD">Food</option>
-                            <option value="SERVICES">Services</option>
-                            <option value="OTHER">Other</option>
-                        </select>
-                    </label>
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <strong style="white-space: nowrap;">Sort By:</strong>
+                    <select x-model="sortBy" style="margin-bottom: 0; width: auto; padding: 0.4rem 1rem;">
+                        <option value="newest">Newest First</option>
+                        <option value="oldest">Oldest First</option>
+                        <option value="price-asc">Price: Low to High</option>
+                        <option value="price-desc">Price: High to Low</option>
+                    </select>
                 </div>
+            </div>
 
-                <label for="description">Description
-                    <textarea id="description" placeholder="Describe your item..." x-model="newPost.description" required></textarea>
-                </label>
+            <!-- Loading State -->
+            <div x-show="isLoading" style="text-align: center; padding: 4rem;">
+                <span aria-busy="true" style="font-size: 1.2rem; color: var(--pico-muted-color);">Loading inventory...</span>
+            </div>
 
-                <button type="submit" :aria-busy="isLoading">Post Listing</button>
-            </form>
-        </section>
-
-        <hr>
-
-        <section>
-            <h2>Public Listings</h2>
-
-            <p x-show="isLoading && posts.length === 0" aria-busy="true">Loading posts...</p>
-
-            <div class="grid" x-show="!isLoading || posts.length > 0">
-                <template x-for="post in posts" :key="post.postId">
-                    <article>
+            <!-- Generic Item Grid Module -->
+            <div class="grid" x-show="!isLoading" style="grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 2rem;">
+                <template x-for="post in filteredPosts" :key="post.postId">
+                    <article class="item-card">
                         <header>
-                            <img :src="post.imageUrl" :alt="post.title" style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px; margin-bottom: 1rem;">
-                            <h3 x-text="post.title"></h3>
+                            <img :src="post.mediaUrls && post.mediaUrls.length > 0 ? post.mediaUrls[0] : 'https://placehold.co/600x400?text=No+Image'" 
+                                 :alt="post.title" class="item-image" loading="lazy">
+                            <span class="item-badge" x-text="post.category"></span>
                         </header>
-                        <p x-text="post.description"></p>
-                        <footer>
-                            <strong x-text="'$' + post.price"></strong>
-                            <div style="margin-top: 1rem;">
-                                <small x-text="'Seller: ' + post.seller.name"></small><br>
-                                <a :href="'mailto:' + post.seller.email" role="button" class="outline">Contact Seller</a>
+                        <div class="item-content">
+                            <h3 class="item-title" x-text="post.title"></h3>
+                            <p class="item-description" x-text="post.description"></p>
+                        </div>
+                        <footer class="item-footer">
+                            <div>
+                                <div class="item-price" x-text="'$' + post.price"></div>
+                                <small style="color: var(--pico-muted-color);" x-text="new Date(post.createdAt).toLocaleDateString()"></small>
+                            </div>
+                            <div style="text-align: right;">
+                                <small x-text="post.seller.name" style="display: block; margin-bottom: 0.3rem; color: var(--pico-muted-color);"></small>
+                                <a :href="'mailto:' + post.seller.email" role="button" class="outline contrast" style="padding: 0.3rem 0.8rem; font-size: 0.8rem; border-radius: 1rem;">Contact</a>
                             </div>
                         </footer>
                     </article>
                 </template>
             </div>
 
-            <p x-show="!isLoading && posts.length === 0">No listings found. Be the first to post!</p>
-        </section>
+            <!-- Empty State -->
+            <div x-show="!isLoading && filteredPosts.length === 0" style="text-align: center; padding: 5rem 2rem; border: 1px dashed var(--pico-muted-border-color); border-radius: var(--pico-border-radius);">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="color: var(--pico-muted-color); margin-bottom: 1rem;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <h3 style="margin-bottom: 0.5rem;">No items found</h3>
+                <p style="color: var(--pico-muted-color); margin-bottom: 1.5rem;">Try adjusting your filters or searching for something else.</p>
+                <button class="outline secondary" @click="clearFilters()">Clear All Filters</button>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- VIEW: CREATE LISTING                       -->
+        <!-- ========================================== -->
+        <div class="view-container" x-show="currentView === 'createListing'">
+            <div class="auth-card" style="max-width: 800px;">
+                <h2 style="margin-bottom: 2rem;">Post a New Item</h2>
+                
+                <article x-show="errorMessage" style="background-color: #fee2e2; border-color: #ef4444; color: #b91c1c; padding: 1rem; margin-bottom: 2rem; border-radius: var(--pico-border-radius);">
+                    <p x-text="errorMessage" style="margin: 0;"></p>
+                </article>
+
+                <form @submit.prevent="createPost()">
+                    <div class="grid">
+                        <label>Title
+                            <input type="text" placeholder="What are you offering?" x-model="newPost.title" required>
+                        </label>
+                        <label>Price ($)
+                            <input type="number" step="0.01" placeholder="0.00" x-model.number="newPost.price" required>
+                        </label>
+                    </div>
+                    
+                    <div class="grid">
+                        <label>Image URL
+                            <input type="url" placeholder="https://..." x-model="newPost.imageUrl" required>
+                        </label>
+                        <label>Category
+                            <select x-model="newPost.category" required>
+                                <option value="ELECTRONICS">Electronics</option>
+                                <option value="BOOKS">Books</option>
+                                <option value="CLOTHING">Clothing</option>
+                                <option value="FURNITURE">Furniture</option>
+                                <option value="SPORTS">Sports</option>
+                                <option value="FOOD">Food</option>
+                                <option value="SERVICES">Services</option>
+                                <option value="OTHER">Other</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <label>Description
+                        <textarea placeholder="Provide details about the condition, pickup location, or ingredients..." x-model="newPost.description" rows="5" required></textarea>
+                    </label>
+
+                    <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
+                        <button type="button" class="outline secondary" @click="navigateTo('listings')">Cancel</button>
+                        <button type="submit" :aria-busy="isLoading">Publish Listing</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- VIEW: LOGIN                                -->
+        <!-- ========================================== -->
+        <div class="view-container" x-show="currentView === 'login'">
+            <article class="auth-card">
+                <h2 style="text-align: center; margin-bottom: 2rem;">Welcome Back</h2>
+                <form @submit.prevent="handleLogin()">
+                    <label>Email Address
+                        <input type="email" x-model="loginForm.email" placeholder="name@domain.com" required>
+                    </label>
+                    <label>Password
+                        <input type="password" x-model="loginForm.password" placeholder="••••••••" required>
+                    </label>
+                    <button type="submit" style="width: 100%; margin-top: 1rem;">Log In</button>
+                </form>
+                <div style="text-align: center; margin-top: 1.5rem;">
+                    <small style="color: var(--pico-muted-color);">Don't have an account? <a href="#" @click.prevent="navigateTo('register')">Sign up</a></small>
+                </div>
+            </article>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- VIEW: REGISTER                             -->
+        <!-- ========================================== -->
+        <div class="view-container" x-show="currentView === 'register'">
+            <article class="auth-card">
+                <h2 style="text-align: center; margin-bottom: 2rem;">Create an Account</h2>
+                <form @submit.prevent="handleRegister()">
+                    <label>Full Name
+                        <input type="text" x-model="registerForm.name" placeholder="John Doe" required>
+                    </label>
+                    <label>Email Address
+                        <input type="email" x-model="registerForm.email" placeholder="name@domain.com" required>
+                        <small style="color: var(--pico-muted-color);">Used for account verification.</small>
+                    </label>
+                    <label>Contact Number
+                        <input type="tel" x-model="registerForm.phone" placeholder="+1..." required>
+                    </label>
+                    <label>Password
+                        <input type="password" x-model="registerForm.password" placeholder="Create a strong password" required>
+                    </label>
+                    <button type="submit" style="width: 100%; margin-top: 1rem;">Create Account</button>
+                </form>
+                <div style="text-align: center; margin-top: 1.5rem;">
+                    <small style="color: var(--pico-muted-color);">Already have an account? <a href="#" @click.prevent="navigateTo('login')">Log in</a></small>
+                </div>
+            </article>
+        </div>
+
     </main>
 </body>
 </html>

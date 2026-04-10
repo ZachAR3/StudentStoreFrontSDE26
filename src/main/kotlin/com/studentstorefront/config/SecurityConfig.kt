@@ -24,9 +24,18 @@ class SecurityConfig(
         http
             .authorizeHttpRequests { auth ->
                 auth
+                    // Public API endpoints
                     .requestMatchers("/api/auth/**").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/posts/**").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/sellers").permitAll() // Allow registration
+                    
+                    // Static resources (Frontend)
+                    .requestMatchers("/", "/index.html", "/static/**", "/css/**", "/js/**", "/favicon.ico").permitAll()
+                    
+                    // Documentation
                     .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                    
+                    // All other requests require authentication
                     .anyRequest().authenticated()
             }
             .csrf { it.disable() }
