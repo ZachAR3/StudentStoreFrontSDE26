@@ -8,4 +8,5 @@ import org.springframework.stereotype.Repository
 interface SellerRepository: JpaRepository<Seller, Long> {
     fun findByEmail(email: String): Seller?
     fun existsByEmail(email: String): Boolean
+    fun findByPhoneNumber(phoneNumber: String): Seller?
 }

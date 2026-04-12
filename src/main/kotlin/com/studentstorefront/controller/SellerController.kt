@@ -43,6 +43,13 @@ class SellerController(private val sellerService: SellerService) {
         return ResponseEntity.ok(seller)
     }
 
+    @GetMapping("/by-phone")
+    fun getSellerByPhone(@RequestParam phone: String): ResponseEntity<SellerResponseDTO> {
+        val seller = sellerService.getSellerByPhone(phone)
+            ?: return ResponseEntity.notFound().build()
+        return ResponseEntity.ok(seller)
+    }
+
     @PutMapping("/{sellerId}")
     fun updateSeller(
         @PathVariable sellerId: Long,

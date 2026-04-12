@@ -12,6 +12,7 @@ data class Seller(
     val name: String = "",
     @Column(unique = true)
     val email: String = "",
+    @Column(unique = true)
     val phoneNumber: String = "",
     val password: String = "",
     @Enumerated(EnumType.STRING)
