@@ -1,6 +1,8 @@
 package com.studentstorefront.config
 
 import com.studentstorefront.service.JwtService
+import io.jsonwebtoken.ExpiredJwtException
+import io.jsonwebtoken.JwtException
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -30,23 +32,41 @@ class JwtAuthenticationFilter(
         }
 
         val jwt = authHeader.substring(7)
-        val userEmail = jwtService.extractUsername(jwt)
 
-        if (userEmail != null && SecurityContextHolder.getContext().authentication == null) {
-            val userDetails = userDetailsService.loadUserByUsername(userEmail)
+        try {
+            val userEmail = jwtService.extractUsername(jwt)
 
-            if (jwtService.isTokenValid(jwt, userDetails)) {
-                val authToken = UsernamePasswordAuthenticationToken(
-                    userDetails,
-                    null,
-                    userDetails.authorities
-                )
-                authToken.details = WebAuthenticationDetailsSource().buildDetails(request)
+            if (userEmail != null && SecurityContextHolder.getContext().authentication == null) {
+                val userDetails = userDetailsService.loadUserByUsername(userEmail)
 
-                SecurityContextHolder.getContext().authentication = authToken
+                if (jwtService.isTokenValid(jwt, userDetails)) {
+                    val authToken = UsernamePasswordAuthenticationToken(
+                        userDetails,
+                        null,
+                        userDetails.authorities
+                    )
+                    authToken.details = WebAuthenticationDetailsSource().buildDetails(request)
+                    SecurityContextHolder.getContext().authentication = authToken
+                }
             }
+        } catch (ex: ExpiredJwtException) {
+            sendErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "Token has expired")
+            return
+        } catch (ex: JwtException) {
+            sendErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid token")
+            return
+        } catch (ex: Exception) {
+            sendErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "Authentication failed")
+            return
         }
 
         filterChain.doFilter(request, response)
+    }
+
+    private fun sendErrorResponse(response: HttpServletResponse, status: Int, message: String) {
+        response.status = status
+        response.contentType = "application/json"
+        response.characterEncoding = "UTF-8"
+        response.writer.write("""{"message": "$message"}""")
     }
 }

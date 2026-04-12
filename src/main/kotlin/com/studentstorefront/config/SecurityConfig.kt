@@ -1,5 +1,6 @@
 package com.studentstorefront.config
 
+import jakarta.servlet.http.HttpServletResponse
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpMethod
@@ -38,6 +39,20 @@ class SecurityConfig(
                     
                     // All other requests require authentication
                     .anyRequest().authenticated()
+            }
+            .exceptionHandling { ex ->
+                ex.authenticationEntryPoint { _, response, _ ->
+                    response.status = HttpServletResponse.SC_UNAUTHORIZED
+                    response.contentType = "application/json"
+                    response.characterEncoding = "UTF-8"
+                    response.writer.write("""{"message": "Authentication required"}""")
+                }
+                ex.accessDeniedHandler { _, response, _ ->
+                    response.status = HttpServletResponse.SC_FORBIDDEN
+                    response.contentType = "application/json"
+                    response.characterEncoding = "UTF-8"
+                    response.writer.write("""{"message": "Access denied"}""")
+                }
             }
             .csrf { it.disable() }
             .formLogin { it.disable() }
