@@ -78,6 +78,7 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 | `POST` | `/api/sellers` | Create a new seller directly (bypassing auth/register if admin) |
 | `GET` | `/api/sellers/{id}` | Get details of a specific seller |
 | `GET` | `/api/sellers/email/{email}`| Get details of a specific seller by email |
+| `GET` | `/api/sellers/by-phone` | Bot-specific: Lookup seller by phone number |
 | `PUT` | `/api/sellers/{id}` | Update an existing seller |
 | `DELETE` | `/api/sellers/{id}` | Delete a seller |
 
@@ -185,3 +186,4 @@ The frontend is a **Progressive Web App (PWA)** built for speed and simplicity.
 - **AI Analysis:** Uses **Google Gemini** (`gemini-2.0-flash-lite`) to classify if a group message is a valid listing and to parse structured data from natural language.
 - **Image Hosting:** Integrates with **Cloudinary** for storing and serving listing images.
 - **Consent Mechanism:** The bot tracks user consent state when users interact with it. Consent is explicitly registered or denied via chat before interactions or uploads to the platform occur.
+- **Auth Status:** While the frontend includes UI and polling logic for "Login with WhatsApp" and "Link WhatsApp," the corresponding backend endpoints (`/api/auth/whatsapp/**`) are currently placeholders and not yet implemented in the backend. Standard email/password authentication is the active method.
