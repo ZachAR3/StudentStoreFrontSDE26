@@ -1,97 +1,157 @@
-const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require("qrcode-terminal");
-const {uploadImage} = require("./services/claudinary.js");
-const {GeminiMessageParser, GeminiContextClassifier} = require("./services/botGeminiService.js");
-const NOT_CONSENTED_TO_MESSAGE_UPLOAD = new Set();
-const consentedUsers = new Set();
-const pendingResponses = new Map();
-const pendingListings = new Map();
-const userTimers = new Map();
-const TARGET_GROUP_TEST = "120363406751456779@g.us"
+const fs                                          = require('fs')
+const { Client, LocalAuth }                        = require('whatsapp-web.js')
+const qrcode                                       = require('qrcode-terminal')
+const { uploadImage }                              = require('./services/claudinary.js')
+const { createPost }                               = require('./services/springServices.js')
+const { GeminiMessageParser, GeminiContextClassifier } = require('./services/botGeminiService.js')
 
-// consentedUsers.add("40723136087") FOR TESTING ONLY FOR TEODOR
-// g.us = gc
-// c.us = private contacts
-const client = new Client({
-    authStrategy: new LocalAuth()
-});
+// ─── Persistent state ────────────────────────────────────────────────────────
+const NOT_CONSENTED_TO_MESSAGE_UPLOAD = new Set()
+const consentedUsers                  = new Set()
+const pendingResponses                = new Map()   // users who were asked but haven't replied
+const pendingListings                 = new Map()   // in-progress listings per user
+const userTimers                      = new Map()   // per-user 5-min classification timers
 
-client.once("ready", () => console.log("Bot is ready!"));
+// Persistence mechanism that loads consented users from disk (consentedUsersPersistence.JSON file)
+JSON.parse(fs.readFileSync('consentedUsersPersistence.json', 'utf8'))
+    .forEach(number => consentedUsers.add(number))
 
-client.on ("qr", qr => {qrcode.generate(qr, {small: true}); });
+// ─── Config ───────────────────────────────────────────────────────────────────
+const TARGET_GROUP = '120363406751456779@g.us'
+// const TEST_USER = '40723136087' FOR TESTING ONLY
 
-client.on("message", async msg => {
-    console.log("author:", msg.author, "from:", msg.from)
+// ─── WhatsApp client ──────────────────────────────────────────────────────────
+const client = new Client({ authStrategy: new LocalAuth() })
+
+client.once('ready', () => console.log('Bot is ready!'))
+client.on('qr', qr => qrcode.generate(qr, { small: true }))
+
+// ─── Message handler ────────────────────────────────────────────────────────
+client.on('message', async msg => {
+    console.log('author:', msg.author, '| from:', msg.from)
+
     const contact = await msg.getContact()
+
     if (!pendingListings.has(contact.number)) {
-        pendingListings.set(contact.number, {imageUrls: [], messages: [], createdAt: Date.now(), isListing: false})
+        pendingListings.set(contact.number, {
+            imageUrls : [],   // { data, mimetype } objects
+            messages  : [],   // text bodies
+            createdAt : Date.now(),
+            isListing : false
+        })
     }
 
-    if (msg.from.endsWith("@g.us") && msg.from === TARGET_GROUP_TEST ) {
-        const timer = setTimeout(async() => {
-            console.log("5 minutes passed, sending to gemini for context classification")
-            const response = await GeminiContextClassifier(pendingListings.get(contact.number).messages)
-            if (response == "YES") {
+    // ── Group messages ────────────────────────────────────────────────────────
+    if (msg.from.endsWith('@g.us') && msg.from === TARGET_GROUP) {
+
+        // Reset the 5-minute classification timer on every new message
+        const classificationTimer = setTimeout(async () => {
+            console.log('5 min passed — sending to Gemini for classification')
+
+            // TODO: uncomment when API key is available
+            // const geminiResponse = await GeminiContextClassifier(pendingListings.get(contact.number).messages)
+            const geminiResponse = 'YES'   // MOCK — remove when API works
+
+            if (geminiResponse === 'YES') {
                 pendingListings.get(contact.number).isListing = true
-                console.log("gemini determined valid message, sending message to user")
+                console.log('Gemini: valid listing detected — asking user for consent')
+
                 if (!consentedUsers.has(contact.number) && !pendingResponses.has(contact.number)) {
-                    //console.log("Message to be sent in DM: Hello, this is friendly marketplace bot, do you consent to" +
-                    //    "adding ur listing to marketplace? Reply with yes or no ONLY")
-                    client.sendMessage(contact.number + "@c.us", "Hello, this is friendly marketplace bot, do you consent to blah blah")
+                    await client.sendMessage(
+                        contact.number + '@c.us',
+                        'Hello! I am the StudentStoreFront bot. ' +
+                        'I noticed you may be selling something. ' +
+                        'Do you consent to adding your listing to our marketplace? Reply YES or NO.'
+                    )
                     pendingResponses.set(contact.number, contact.number)
+                } else if (consentedUsers.has(contact.number)) {
+                    //TODO: implement the pasting to the group directly
                 }
-            }
-            else if (response == "NO") {
+            } else {
                 pendingListings.delete(contact.number)
-                console.log("gemini determined invalid message, deleting it")
+                console.log('Gemini: not a listing — discarding')
             }
 
-        }, 300000 )
+        }, 30000)   //TODO:  change back to 300000 (5 min) for production
 
         clearTimeout(userTimers.get(contact.number))
-        userTimers.set(contact.number, timer)
+        userTimers.set(contact.number, classificationTimer)
 
+        // Collect media
         if (msg.hasMedia) {
-            const picture = await msg.downloadMedia();
-            pendingListings.get(contact.number).imageUrls.push(picture.data)
+            const picture = await msg.downloadMedia()
+            pendingListings.get(contact.number).imageUrls.push({
+                data     : picture.data,
+                mimetype : picture.mimetype
+            })
         }
 
-        if (msg.body !== "") {
+        // Collect text
+        if (msg.body !== '') {
             pendingListings.get(contact.number).messages.push(msg.body)
         }
 
-        if (consentedUsers.has(contact.number)) {
-            console.log("consented user, sending to gemini + pushing to db")
-                    //TODO: push media to cloudinary, call gemini API on the description + photos
-                    //TODO: after gemini, push items to db and frontend
-        }
-
     }
 
-    if (msg.from.endsWith("@c.us")) {
-        const response = msg.body.toLowerCase();
-        if (response === "yes") {
-            console.log("person consented to message upload")
+    // ── DM responses (consent flow) ───────────────────────────────────────────
+    if (msg.from.endsWith('@c.us') || msg.from.endsWith('@lid')) {
+        const dmResponse = msg.body.toLowerCase().trim()
+
+        if (dmResponse === 'yes') {
+            console.log('User consented — processing listing')
+
             consentedUsers.add(contact.number)
-            //TODO: push current listing to marketplace
-            pendingListings.delete(contact.number)
+            fs.writeFileSync('consentedUsersPersistence.json', JSON.stringify([...consentedUsers]))
+
+            const currentUserListing = pendingListings.get(contact.number)
+
+            // Upload images to Cloudinary
+            const cloudinaryUrls = []
+            for (const image of currentUserListing.imageUrls) {
+                const base64 = `data:${image.mimetype};base64,${image.data}`
+                const url    = await uploadImage(base64)
+                cloudinaryUrls.push(url)
+            }
+            console.log('Cloudinary URLs:', cloudinaryUrls)
+
+            // Parse listing fields with Gemini
+            // TODO: uncomment when API key is available
+            // const parsedListing = await GeminiMessageParser(currentUserListing.messages.join('\n'))
+            const parsedListing = {   // MOCK — remove when API works
+                title       : 'Test Item',
+                price       : 100,
+                description : 'Test description that is long enough for validation',
+                category    : 'ELECTRONICS'
+            }
+
+            // TODO: look up sellerId by contact.number via GET /api/sellers/phone/{number}
+            const sellerId = 1   // PLACEHOLDER — replace with real DB lookup
+
+            await createPost(parsedListing, cloudinaryUrls, sellerId)
+
+            await client.sendMessage(
+                contact.number + '@c.us',
+                'Your listing has been uploaded successfully!'
+            )
+
             pendingResponses.delete(contact.number)
-        }
-        else if (response === "no") {
+            pendingListings.delete(contact.number)
+
+        } else if (dmResponse === 'no') {
             NOT_CONSENTED_TO_MESSAGE_UPLOAD.add(contact.number)
-            console.log("person did not consent to message upload")
+            console.log('User declined consent')
         }
     }
+})
 
-});
-
-//a cleanup function that runs every 3 hours to delete any listing whose message has not been answered
+// ─── Cleanup: remove stale listings every 3 hours (12-hour expiry) ────────────
 setInterval(() => {
-    pendingListings.forEach((value, key) => {
-        if (value.createdAt + 1000 * 60 * 60 * 12 < Date.now()) {
-            pendingListings.delete(key)
+    pendingListings.forEach((listing, phoneNumber) => {
+        if (listing.createdAt + 1000 * 60 * 60 * 12 < Date.now()) {
+            pendingListings.delete(phoneNumber)
+            console.log('Expired listing removed for:', phoneNumber)
         }
     })
 }, 3 * 60 * 60 * 1000)
 
-client.initialize();
+client.initialize()
