@@ -47,6 +47,12 @@ class SellerService(
         return mapToResponseDTO(seller)
     }
 
+    @Transactional(readOnly = true)
+    fun getSellerByPhone(phone: String): SellerResponseDTO? {
+        val seller = sellerRepository.findByPhoneNumber(phone) ?: return null
+        return mapToResponseDTO(seller)
+    }
+
     fun updateSeller(sellerId: Long, sellerUpdateDTO: SellerUpdateDTO): SellerResponseDTO {
         val existingSeller = findSellerById(sellerId)
 
