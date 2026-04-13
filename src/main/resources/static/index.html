@@ -157,7 +157,7 @@
             <ul>
                 <li>
                     <a href="#" @click.prevent="navigateTo('listings')" class="contrast" style="text-decoration: none; font-size: 1.2rem; display: flex; align-items: center; gap: 0.5rem;">
-                        <svg xmlns="http://www.w3.org/にあ2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
                         <strong>Campus Store</strong>
                     </a>
                 </li>
@@ -420,6 +420,11 @@
         <div class="view-container" x-show="currentView === 'register'">
             <article class="auth-card">
                 <h2 style="text-align: center; margin-bottom: 2rem;">Create an Account</h2>
+                
+                <article x-show="errorMessage" style="background-color: #fee2e2; border-color: #ef4444; color: #b91c1c; padding: 1rem; margin-bottom: 2rem; border-radius: var(--pico-border-radius);">
+                    <p x-text="errorMessage" style="margin: 0;"></p>
+                </article>
+
                 <form @submit.prevent="handleRegister()">
                     <label>Full Name
                         <input type="text" x-model="registerForm.name" placeholder="John Doe" required>
@@ -434,7 +439,7 @@
                     <label>Password
                         <input type="password" x-model="registerForm.password" placeholder="Create a strong password" required>
                     </label>
-                    <button type="submit" style="width: 100%; margin-top: 1rem;">Create Account</button>
+                    <button type="submit" style="width: 100%; margin-top: 1rem;" :aria-busy="isLoading">Create Account</button>
                 </form>
                 <div style="text-align: center; margin-top: 1.5rem;">
                     <small style="color: var(--pico-muted-color);">Already have an account? <a href="#" @click.prevent="navigateTo('login')">Log in</a></small>
