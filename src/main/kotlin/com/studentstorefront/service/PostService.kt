@@ -5,6 +5,7 @@ import com.studentstorefront.dto.response.PostResponseDTO
 import com.studentstorefront.dto.response.SellerResponseDTO
 import com.studentstorefront.dto.update.PostUpdateDTO
 import com.studentstorefront.enums.Category
+import com.studentstorefront.enums.Role
 import com.studentstorefront.entity.Post
 import com.studentstorefront.entity.Seller
 import com.studentstorefront.entity.PostMedia
@@ -14,6 +15,8 @@ import com.studentstorefront.repository.SellerRepository
 import org.hibernate.internal.util.collections.ArrayHelper.forEach
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.security.access.AccessDeniedException
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
@@ -24,14 +27,16 @@ import java.time.LocalDateTime
 class PostService(
     private val postRepository: PostRepository,
     private val sellerRepository: SellerRepository,
-    private val PostMediaRepository: PostMediaRepository
+    private val postMediaRepository: PostMediaRepository
 ) {
 
     fun createPost(postRequestDTO: PostRequestDTO): PostResponseDTO {
-        val seller = findSellerById(postRequestDTO.sellerId!!)
+        val current = getCurrentSeller()
+        val sellerId = if (current.role == Role.ADMIN) postRequestDTO.sellerId!! else current.sellerId!!
+        val seller = findSellerById(sellerId)
         val post = createPostEntity(postRequestDTO, seller)
         val savedPost = postRepository.save(post)
-        PostMediaRepository.saveAll(postRequestDTO.imageUrlList.map { PostMedia(post = savedPost, mediaUrl = it) })
+        postMediaRepository.saveAll(postRequestDTO.imageUrlList.map { PostMedia(post = savedPost, mediaUrl = it) })
         return mapToResponseDTO(savedPost)
     }
 
@@ -63,25 +68,26 @@ class PostService(
 
     fun updatePost(postId: Long, postUpdateDTO: PostUpdateDTO): PostResponseDTO {
         val existingPost = findPostById(postId)
+        assertOwnerOrAdmin(existingPost)
         val updatedPost = updatePostEntity(existingPost, postUpdateDTO)
         val savedPost = postRepository.save(updatedPost)
         if (postUpdateDTO.imageUrlList != null) {
-            PostMediaRepository.deleteAll(PostMediaRepository.findByPost_postId(postId))
-            PostMediaRepository.saveAll(postUpdateDTO.imageUrlList.map { PostMedia(post = savedPost, mediaUrl = it) })
+            postMediaRepository.deleteAll(postMediaRepository.findByPost_postId(postId))
+            postMediaRepository.saveAll(postUpdateDTO.imageUrlList.map { PostMedia(post = savedPost, mediaUrl = it) })
 
         }
         return mapToResponseDTO(savedPost)
     }
 
     fun deletePost(postId: Long) {
-        if (!postRepository.existsById(postId)) {
-            throw IllegalArgumentException("Post not found with id: $postId")
-        }
+        val post = findPostById(postId)
+        assertOwnerOrAdmin(post)
         postRepository.deleteById(postId)
     }
 
     fun markAsSold(postId: Long): PostResponseDTO {
         val post = findPostById(postId)
+        assertOwnerOrAdmin(post)
         val updatedPost = post.copy(isSold = true)
         val savedPost = postRepository.save(updatedPost)
         return mapToResponseDTO(savedPost)
@@ -128,7 +134,7 @@ class PostService(
             postId = post.postId!!,
             title = post.title,
             price = post.price,
-            mediaUrls = PostMediaRepository.findByPost_postId(post.postId!!).map { it.mediaUrl },
+            mediaUrls = postMediaRepository.findByPost_postId(post.postId!!).map { it.mediaUrl },
             description = post.description,
             category = post.category,
             isSold = post.isSold,
@@ -145,5 +151,18 @@ class PostService(
             email = seller.email,
             phoneNumber = seller.phoneNumber
         )
+    }
+
+    private fun getCurrentSeller(): Seller {
+        val email = SecurityContextHolder.getContext().authentication?.name
+        return sellerRepository.findByEmail(email.toString())
+            ?: throw IllegalArgumentException("Authenticated seller not found")
+    }
+
+    private fun assertOwnerOrAdmin(post: Post) {
+        val current = getCurrentSeller()
+        if (current.role != Role.ADMIN && post.seller?.sellerId != current.sellerId) {
+            throw AccessDeniedException("You do not own this post")
+        }
     }
 }

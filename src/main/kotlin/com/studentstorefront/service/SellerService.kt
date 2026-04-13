@@ -4,9 +4,12 @@ import com.studentstorefront.dto.request.SellerRequestDTO
 import com.studentstorefront.dto.response.SellerResponseDTO
 import com.studentstorefront.dto.update.SellerUpdateDTO
 import com.studentstorefront.entity.Seller
+import com.studentstorefront.enums.Role
 import com.studentstorefront.repository.SellerRepository
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.security.access.AccessDeniedException
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -55,6 +58,10 @@ class SellerService(
 
     fun updateSeller(sellerId: Long, sellerUpdateDTO: SellerUpdateDTO): SellerResponseDTO {
         val existingSeller = findSellerById(sellerId)
+        val current = getCurrentSeller()
+        if (current.role != Role.ADMIN && existingSeller.sellerId != current.sellerId) {
+            throw AccessDeniedException("You do not have permission to update this account")
+        }
 
         // Check if email is being updated and if it already exists
         sellerUpdateDTO.email?.let { newEmail ->
@@ -76,6 +83,12 @@ class SellerService(
     }
 
     // Private helper methods
+    private fun getCurrentSeller(): Seller {
+        val email = SecurityContextHolder.getContext().authentication?.name
+        return sellerRepository.findByEmail(email.toString())
+            ?: throw IllegalArgumentException("Authenticated seller not found")
+    }
+
     private fun findSellerById(sellerId: Long): Seller {
         return sellerRepository.findById(sellerId)
             .orElseThrow { IllegalArgumentException("Seller not found with id: $sellerId") }

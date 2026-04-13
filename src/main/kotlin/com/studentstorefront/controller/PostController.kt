@@ -11,6 +11,7 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.web.PageableDefault
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.*
 
 @RestController
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.*
 class PostController(private val postService: PostService) {
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
     fun createPost(@Valid @RequestBody postRequestDTO: PostRequestDTO): ResponseEntity<PostResponseDTO> {
         val createdPost = postService.createPost(postRequestDTO)
         return ResponseEntity.status(HttpStatus.CREATED).body(createdPost)
@@ -73,6 +75,7 @@ class PostController(private val postService: PostService) {
     }
 
     @PutMapping("/{postId}")
+    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
     fun updatePost(
         @PathVariable postId: Long,
         @Valid @RequestBody postUpdateDTO: PostUpdateDTO
@@ -82,12 +85,14 @@ class PostController(private val postService: PostService) {
     }
 
     @PatchMapping("/{postId}/mark-sold")
+    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
     fun markAsSold(@PathVariable postId: Long): ResponseEntity<PostResponseDTO> {
         val updatedPost = postService.markAsSold(postId)
         return ResponseEntity.ok(updatedPost)
     }
 
     @DeleteMapping("/{postId}")
+    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
     fun deletePost(@PathVariable postId: Long): ResponseEntity<Void> {
         postService.deletePost(postId)
         return ResponseEntity.noContent().build()
