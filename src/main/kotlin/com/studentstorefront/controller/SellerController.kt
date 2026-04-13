@@ -10,6 +10,7 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.web.PageableDefault
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.*
 
 @RestController
@@ -24,6 +25,7 @@ class SellerController(private val sellerService: SellerService) {
     }
 
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     fun getAllSellers(
         @PageableDefault(size = 20) pageable: Pageable
     ): ResponseEntity<Page<SellerResponseDTO>> {
@@ -32,12 +34,14 @@ class SellerController(private val sellerService: SellerService) {
     }
 
     @GetMapping("/{sellerId}")
+    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
     fun getSellerById(@PathVariable sellerId: Long): ResponseEntity<SellerResponseDTO> {
         val seller = sellerService.getSellerById(sellerId)
         return ResponseEntity.ok(seller)
     }
 
     @GetMapping("/email/{email}")
+    @PreAuthorize("hasRole('ADMIN')")
     fun getSellerByEmail(@PathVariable email: String): ResponseEntity<SellerResponseDTO> {
         val seller = sellerService.getSellerByEmail(email)
         return ResponseEntity.ok(seller)
@@ -51,6 +55,7 @@ class SellerController(private val sellerService: SellerService) {
     }
 
     @PutMapping("/{sellerId}")
+    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
     fun updateSeller(
         @PathVariable sellerId: Long,
         @Valid @RequestBody sellerUpdateDTO: SellerUpdateDTO
@@ -60,6 +65,7 @@ class SellerController(private val sellerService: SellerService) {
     }
 
     @DeleteMapping("/{sellerId}")
+    @PreAuthorize("hasRole('ADMIN')")
     fun deleteSeller(@PathVariable sellerId: Long): ResponseEntity<Void> {
         sellerService.deleteSeller(sellerId)
         return ResponseEntity.noContent().build()
