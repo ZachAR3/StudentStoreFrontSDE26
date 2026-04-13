@@ -181,6 +181,10 @@
                 <!-- Authenticated User Actions -->
                 <template x-if="isLoggedIn">
                     <li style="display: flex; gap: 1rem; align-items: center;">
+                        <span x-text="'Hi, ' + user.name" style="font-size: 0.9rem; font-weight: bold;"></span>
+                        <template x-if="!user.phoneNumber">
+                            <button class="outline contrast" @click="navigateTo('linkWhatsapp')" style="margin-bottom: 0; padding: 0.2rem 0.6rem; font-size: 0.8rem;">Link WhatsApp</button>
+                        </template>
                         <button @click="navigateTo('createListing')" style="margin-bottom: 0; padding: 0.4rem 1rem;">+ Create Listing</button>
                         <a href="#" @click.prevent="handleLogout()" class="secondary" style="font-size: 0.9rem;">Log Out</a>
                     </li>
@@ -322,6 +326,11 @@
         <div class="view-container" x-show="currentView === 'login'">
             <article class="auth-card">
                 <h2 style="text-align: center; margin-bottom: 2rem;">Welcome Back</h2>
+                
+                <article x-show="errorMessage" style="background-color: #fee2e2; border-color: #ef4444; color: #b91c1c; padding: 1rem; margin-bottom: 2rem; border-radius: var(--pico-border-radius);">
+                    <p x-text="errorMessage" style="margin: 0;"></p>
+                </article>
+
                 <form @submit.prevent="handleLogin()">
                     <label>Email Address
                         <input type="email" x-model="loginForm.email" placeholder="name@domain.com" required>
@@ -329,10 +338,78 @@
                     <label>Password
                         <input type="password" x-model="loginForm.password" placeholder="••••••••" required>
                     </label>
-                    <button type="submit" style="width: 100%; margin-top: 1rem;">Log In</button>
+                    <button type="submit" style="width: 100%; margin-top: 1rem;" :aria-busy="isLoading">Log In</button>
                 </form>
+
+                <hr style="margin: 2rem 0;">
+
+                <button class="outline contrast" @click="initWhatsappLogin()" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    Login with WhatsApp
+                </button>
+
                 <div style="text-align: center; margin-top: 1.5rem;">
                     <small style="color: var(--pico-muted-color);">Don't have an account? <a href="#" @click.prevent="navigateTo('register')">Sign up</a></small>
+                </div>
+            </article>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- VIEW: LINK WHATSAPP                        -->
+        <!-- ========================================== -->
+        <div class="view-container" x-show="currentView === 'linkWhatsapp'">
+            <article class="auth-card">
+                <h2 style="text-align: center; margin-bottom: 2rem;">Link Your WhatsApp</h2>
+                
+                <article x-show="errorMessage" style="background-color: #fee2e2; border-color: #ef4444; color: #b91c1c; padding: 1rem; margin-bottom: 2rem; border-radius: var(--pico-border-radius);">
+                    <p x-text="errorMessage" style="margin: 0;"></p>
+                </article>
+
+                <div x-show="whatsappLinkForm.step === 1">
+                    <p>Enter your phone number to receive a verification code on WhatsApp.</p>
+                    <form @submit.prevent="initWhatsappLink()">
+                        <label>Phone Number
+                            <input type="tel" x-model="whatsappLinkForm.phone" placeholder="+49123456789" required>
+                        </label>
+                        <button type="submit" style="width: 100%; margin-top: 1rem;" :aria-busy="isLoading">Send Code</button>
+                    </form>
+                </div>
+
+                <div x-show="whatsappLinkForm.step === 2">
+                    <p>Enter the 6-digit code sent to your WhatsApp.</p>
+                    <form @submit.prevent="verifyWhatsappLink()">
+                        <label>Verification Code
+                            <input type="text" x-model="whatsappLinkForm.otp" placeholder="123456" maxlength="6" required>
+                        </label>
+                        <button type="submit" style="width: 100%; margin-top: 1rem;" :aria-busy="isLoading">Verify Code</button>
+                        <button type="button" class="outline secondary" style="width: 100%; margin-top: 0.5rem;" @click="whatsappLinkForm.step = 1">Back</button>
+                    </form>
+                </div>
+            </article>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- VIEW: WHATSAPP LOGIN (POLLING)             -->
+        <!-- ========================================== -->
+        <div class="view-container" x-show="currentView === 'whatsappLogin'">
+            <article class="auth-card" style="text-align: center;">
+                <h2 style="margin-bottom: 2rem;">Login with WhatsApp</h2>
+                
+                <div x-show="!whatsappLogin.token" aria-busy="true">Initializing session...</div>
+
+                <div x-show="whatsappLogin.token">
+                    <p style="margin-bottom: 2rem;">To log in, please send the following token to our WhatsApp Bot:</p>
+                    
+                    <div style="background: var(--pico-secondary-background); padding: 1.5rem; border-radius: var(--pico-border-radius); font-family: monospace; font-size: 1.2rem; border: 2px dashed var(--pico-muted-border-color); margin-bottom: 2rem; word-break: break-all;">
+                        <span x-text="whatsappLogin.token"></span>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 1rem;">
+                        <span aria-busy="true">Waiting for bot verification...</span>
+                        <p style="font-size: 0.9rem; color: var(--pico-muted-color);">Once the bot receives your token, you'll be logged in automatically.</p>
+                    </div>
+
+                    <button class="outline secondary" style="margin-top: 2rem;" @click="navigateTo('login')">Cancel</button>
                 </div>
             </article>
         </div>
@@ -352,7 +429,7 @@
                         <small style="color: var(--pico-muted-color);">Used for account verification.</small>
                     </label>
                     <label>Contact Number
-                        <input type="tel" x-model="registerForm.phone" placeholder="+1..." required>
+                        <input type="tel" x-model="registerForm.phoneNumber" placeholder="+1..." required>
                     </label>
                     <label>Password
                         <input type="password" x-model="registerForm.password" placeholder="Create a strong password" required>

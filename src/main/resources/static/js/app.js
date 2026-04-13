@@ -1,8 +1,10 @@
 document.addEventListener('alpine:init', () => {
     Alpine.data('storefrontData', () => ({
         // App State (SPA Navigation)
-        currentView: 'listings', // 'listings', 'login', 'register', 'createListing'
-        isLoggedIn: false, 
+        currentView: 'listings', // 'listings', 'login', 'register', 'createListing', 'linkWhatsapp', 'whatsappLogin'
+        isLoggedIn: !!localStorage.getItem('token'), 
+        user: JSON.parse(localStorage.getItem('user') || 'null'),
+        token: localStorage.getItem('token') || '',
         
         // Data State
         posts: [],
@@ -15,12 +17,20 @@ document.addEventListener('alpine:init', () => {
         sortBy: 'newest', 
         
         // Forms State
-        newPost: { title: '', price: null, description: '', imageUrl: '', category: 'OTHER', sellerId: 1 },
+        newPost: { title: '', price: null, description: '', imageUrl: '', category: 'OTHER' },
         loginForm: { email: '', password: '' },
-        registerForm: { name: '', email: '', phone: '', password: '' },
+        registerForm: { name: '', email: '', phoneNumber: '', password: '' },
+        
+        // WhatsApp Integration State
+        whatsappLinkForm: { phone: '', otp: '', step: 1 }, // step 1: phone, step 2: otp
+        whatsappLogin: { token: '', status: 'PENDING', interval: null },
 
         init() {
             this.fetchPosts();
+            // If logged in but no user data, try to fetch it or clear token
+            if (this.isLoggedIn && !this.user) {
+                this.handleLogout();
+            }
         },
 
         // Navigation Method
@@ -28,29 +38,174 @@ document.addEventListener('alpine:init', () => {
             this.currentView = view;
             window.scrollTo(0, 0);
             this.errorMessage = ''; // Clear any active errors
+            
+            // Clean up intervals if leaving whatsappLogin
+            if (view !== 'whatsappLogin' && this.whatsappLogin.interval) {
+                clearInterval(this.whatsappLogin.interval);
+                this.whatsappLogin.interval = null;
+            }
         },
 
-        // Auth Methods (UI Only implementation for now)
-        handleLogin() {
-            console.log("Login attempt with:", this.loginForm.email);
-            // TODO: Integrate actual backend POST /api/auth/login
-            this.isLoggedIn = true;
-            this.loginForm = { email: '', password: '' }; // reset form
-            this.navigateTo('listings');
+        // API Helper
+        async apiFetch(endpoint, options = {}) {
+            const headers = {
+                'Content-Type': 'application/json',
+                ...options.headers
+            };
+            if (this.token) {
+                headers['Authorization'] = `Bearer ${this.token}`;
+            }
+            const response = await fetch(endpoint, { ...options, headers });
+            if (response.status === 401) {
+                this.handleLogout();
+                throw new Error('Session expired. Please log in again.');
+            }
+            return response;
+        },
+
+        // Auth Methods
+        async handleLogin() {
+            this.isLoading = true;
+            this.errorMessage = '';
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.loginForm)
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Login failed');
+                }
+                
+                const data = await response.json();
+                this.saveAuth(data);
+                this.loginForm = { email: '', password: '' };
+                this.navigateTo('listings');
+            } catch (error) {
+                this.errorMessage = error.message;
+            } finally {
+                this.isLoading = false;
+            }
         },
         
-        handleRegister() {
-            console.log("Register attempt for:", this.registerForm.email);
-            // TODO: Integrate actual backend POST /api/auth/register
+        async handleRegister() {
+            this.isLoading = true;
+            this.errorMessage = '';
+            try {
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.registerForm)
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Registration failed');
+                }
+                
+                const data = await response.json();
+                this.saveAuth(data);
+                this.registerForm = { name: '', email: '', phoneNumber: '', password: '' };
+                this.navigateTo('listings');
+            } catch (error) {
+                this.errorMessage = error.message;
+            } finally {
+                this.isLoading = false;
+            }
+        },
+
+        saveAuth(data) {
+            this.token = data.token;
+            this.user = data.seller;
             this.isLoggedIn = true;
-            this.registerForm = { name: '', email: '', phone: '', password: '' }; // reset form
-            this.navigateTo('listings');
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('user', JSON.stringify(data.seller));
         },
 
         handleLogout() {
-            // TODO: Clear local storage JWT tokens later
             this.isLoggedIn = false;
+            this.user = null;
+            this.token = '';
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
             this.navigateTo('listings');
+        },
+
+        // WhatsApp Phase 2: Linking
+        async initWhatsappLink() {
+            this.isLoading = true;
+            try {
+                // TODO: Backend should handle sending OTP to this.whatsappLinkForm.phone
+                const response = await this.apiFetch('/api/auth/whatsapp/link/init', {
+                    method: 'POST',
+                    body: JSON.stringify({ phoneNumber: this.whatsappLinkForm.phone })
+                });
+                if (!response.ok) throw new Error('Failed to send OTP');
+                this.whatsappLinkForm.step = 2;
+            } catch (error) {
+                this.errorMessage = error.message;
+            } finally {
+                this.isLoading = false;
+            }
+        },
+
+        async verifyWhatsappLink() {
+            this.isLoading = true;
+            try {
+                const response = await this.apiFetch('/api/auth/whatsapp/link/verify', {
+                    method: 'POST',
+                    body: JSON.stringify({ otp: this.whatsappLinkForm.otp })
+                });
+                if (!response.ok) throw new Error('Invalid OTP');
+                
+                // Refresh user data (phone is now linked)
+                const userData = await response.json();
+                this.user = userData;
+                localStorage.setItem('user', JSON.stringify(userData));
+                
+                alert('WhatsApp successfully linked!');
+                this.navigateTo('listings');
+            } catch (error) {
+                this.errorMessage = error.message;
+            } finally {
+                this.isLoading = false;
+            }
+        },
+
+        // WhatsApp Phase 3: Login
+        async initWhatsappLogin() {
+            this.isLoading = true;
+            this.navigateTo('whatsappLogin');
+            try {
+                const response = await fetch('/api/auth/whatsapp/login/init', { method: 'POST' });
+                const data = await response.json();
+                this.whatsappLogin.token = data.token;
+                this.startWhatsappLoginPolling();
+            } catch (error) {
+                this.errorMessage = 'Could not initialize WhatsApp login.';
+            } finally {
+                this.isLoading = false;
+            }
+        },
+
+        startWhatsappLoginPolling() {
+            if (this.whatsappLogin.interval) clearInterval(this.whatsappLogin.interval);
+            
+            this.whatsappLogin.interval = setInterval(async () => {
+                try {
+                    const response = await fetch(`/api/auth/whatsapp/login/status?token=${this.whatsappLogin.token}`);
+                    if (response.status === 200) {
+                        const data = await response.json();
+                        this.saveAuth(data);
+                        clearInterval(this.whatsappLogin.interval);
+                        this.navigateTo('listings');
+                    }
+                } catch (e) {
+                    console.error("Polling error", e);
+                }
+            }, 3000);
         },
 
         // Computed property for filtering and sorting
@@ -93,7 +248,6 @@ document.addEventListener('alpine:init', () => {
             this.isLoading = true;
             this.errorMessage = '';
             try {
-                // Server-side category filtering
                 const url = this.selectedCategory ? `/api/posts/category/${this.selectedCategory}` : '/api/posts';
                 const response = await fetch(url);
                 if (!response.ok) throw new Error('Failed to fetch data from the server.');
@@ -117,13 +271,15 @@ document.addEventListener('alpine:init', () => {
 
             this.isLoading = true;
             try {
-                // Map local single image URL to the API's array requirement
-                const postData = { ...this.newPost, imageUrlList: [this.newPost.imageUrl] };
+                const postData = { 
+                    ...this.newPost, 
+                    imageUrlList: [this.newPost.imageUrl],
+                    sellerId: this.user.sellerId 
+                };
                 delete postData.imageUrl;
 
-                const response = await fetch('/api/posts', {
+                const response = await this.apiFetch('/api/posts', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(postData)
                 });
 
@@ -135,8 +291,7 @@ document.addEventListener('alpine:init', () => {
                 const createdPost = await response.json();
                 this.posts.unshift(createdPost);
                 
-                // Reset and navigate back to listings
-                this.newPost = { title: '', price: null, description: '', imageUrl: '', category: 'OTHER', sellerId: 1 };
+                this.newPost = { title: '', price: null, description: '', imageUrl: '', category: 'OTHER' };
                 this.navigateTo('listings');
                 alert("Successfully published!");
             } catch (error) {
