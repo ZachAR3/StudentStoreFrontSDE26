@@ -2,15 +2,13 @@ const fs                                          = require('fs')
 const { Client, LocalAuth }                        = require('whatsapp-web.js')
 const qrcode                                       = require('qrcode-terminal')
 const { uploadImage }                              = require('./services/claudinary.js')
-const { createPost }                               = require('./services/springServices.js')
+const { createPost, getSellerByPhone }             = require('./services/springServices.js')
 const { GeminiMessageParser, GeminiContextClassifier } = require('./services/botGeminiService.js')
 
 // ─── Persistent state ────────────────────────────────────────────────────────
 const NOT_CONSENTED_TO_MESSAGE_UPLOAD = new Set()
 const consentedUsers                  = new Set()
-const pendingResponses                = new Map()   // users who were asked but haven't replied
-const pendingListings                 = new Map()   // in-progress listings per user
-const userTimers                      = new Map()   // per-user 5-min classification timers
+const userState                       = new Map()
 
 // Persistence mechanism that loads consented users from disk (consentedUsersPersistence.JSON file)
 JSON.parse(fs.readFileSync('consentedUsersPersistence.json', 'utf8'))
@@ -19,6 +17,31 @@ JSON.parse(fs.readFileSync('consentedUsersPersistence.json', 'utf8'))
 // ─── Config ───────────────────────────────────────────────────────────────────
 const TARGET_GROUP = '120363406751456779@g.us'
 // const TEST_USER = '40723136087' FOR TESTING ONLY
+
+
+// ─── Helper function ───────────────────────────────────────────────────────────────────
+
+async function processListing(contact, currentUserListing) {
+    // Cloudinary upload
+
+    const cloudinaryUrls = []
+    for (const image of currentUserListing.imageUrls) {
+        const base64 = `data:${image.mimetype};base64,${image.data}`
+        const url    = await uploadImage(base64)
+        cloudinaryUrls.push(url)
+    }
+
+    // const parsedListing = await GeminiMessageParser(currentUserListing.messages.join('\n')) -> To be uncommented when API works
+    const parsedListing = { title: 'Test', price: 100, description: 'Test description long enough', category: 'ELECTRONICS' }
+
+    // Get seller
+    const seller = await getSellerByPhone(contact.number)
+    if (!seller) return null
+
+    await createPost(parsedListing, cloudinaryUrls, seller.sellerId)
+    return true
+}
+
 
 // ─── WhatsApp client ──────────────────────────────────────────────────────────
 const client = new Client({ authStrategy: new LocalAuth() })
@@ -32,12 +55,17 @@ client.on('message', async msg => {
 
     const contact = await msg.getContact()
 
-    if (!pendingListings.has(contact.number)) {
-        pendingListings.set(contact.number, {
-            imageUrls : [],   // { data, mimetype } objects
-            messages  : [],   // text bodies
-            createdAt : Date.now(),
-            isListing : false
+    if (!userState.has(contact.number)) {
+        userState.set(contact.number, {
+            listing: {
+                imageUrls: [],
+                messages: [],
+                createdAt: Date.now(),
+                isListing: false
+            },
+            consentPending: false,
+            registrationPending: false,
+            timer: null
         })
     }
 
@@ -49,38 +77,43 @@ client.on('message', async msg => {
             console.log('5 min passed — sending to Gemini for classification')
 
             // TODO: uncomment when API key is available
-            // const geminiResponse = await GeminiContextClassifier(pendingListings.get(contact.number).messages)
+            // const geminiResponse = await GeminiContextClassifier(userState.get(contact.number).listing.messages)
             const geminiResponse = 'YES'   // MOCK — remove when API works
 
             if (geminiResponse === 'YES') {
-                pendingListings.get(contact.number).isListing = true
+                userState.get(contact.number).listing.isListing = true
                 console.log('Gemini: valid listing detected — asking user for consent')
 
-                if (!consentedUsers.has(contact.number) && !pendingResponses.has(contact.number)) {
+                if (!consentedUsers.has(contact.number) && !userState.get(contact.number).consentPending) {
                     await client.sendMessage(
                         contact.number + '@c.us',
                         'Hello! I am the StudentStoreFront bot. ' +
                         'I noticed you may be selling something. ' +
                         'Do you consent to adding your listing to our marketplace? Reply YES or NO.'
                     )
-                    pendingResponses.set(contact.number, contact.number)
+                    userState.get(contact.number).consentPending = true
                 } else if (consentedUsers.has(contact.number)) {
-                    //TODO: implement the pasting to the group directly
+                    const success = await processListing(contact, userState.get(contact.number).listing)
+
+                    if (success) {
+                        await client.sendMessage(contact.number + '@c.us', 'Your listing has been uploaded successfully!')
+                        userState.delete(contact.number)
+                    }
                 }
             } else {
-                pendingListings.delete(contact.number)
+                userState.delete(contact.number)
                 console.log('Gemini: not a listing — discarding')
             }
 
         }, 30000)   //TODO:  change back to 300000 (5 min) for production
 
-        clearTimeout(userTimers.get(contact.number))
-        userTimers.set(contact.number, classificationTimer)
+        clearTimeout(userState.get(contact.number).timer)
+        userState.get(contact.number).timer = classificationTimer
 
         // Collect media
         if (msg.hasMedia) {
             const picture = await msg.downloadMedia()
-            pendingListings.get(contact.number).imageUrls.push({
+            userState.get(contact.number).listing.imageUrls.push({
                 data     : picture.data,
                 mimetype : picture.mimetype
             })
@@ -88,7 +121,7 @@ client.on('message', async msg => {
 
         // Collect text
         if (msg.body !== '') {
-            pendingListings.get(contact.number).messages.push(msg.body)
+            userState.get(contact.number).listing.messages.push(msg.body)
         }
 
     }
@@ -103,52 +136,51 @@ client.on('message', async msg => {
             consentedUsers.add(contact.number)
             fs.writeFileSync('consentedUsersPersistence.json', JSON.stringify([...consentedUsers]))
 
-            const currentUserListing = pendingListings.get(contact.number)
+            const success = await processListing(contact, userState.get(contact.number).listing)
 
-            // Upload images to Cloudinary
-            const cloudinaryUrls = []
-            for (const image of currentUserListing.imageUrls) {
-                const base64 = `data:${image.mimetype};base64,${image.data}`
-                const url    = await uploadImage(base64)
-                cloudinaryUrls.push(url)
-            }
-            console.log('Cloudinary URLs:', cloudinaryUrls)
-
-            // Parse listing fields with Gemini
-            // TODO: uncomment when API key is available
-            // const parsedListing = await GeminiMessageParser(currentUserListing.messages.join('\n'))
-            const parsedListing = {   // MOCK — remove when API works
-                title       : 'Test Item',
-                price       : 100,
-                description : 'Test description that is long enough for validation',
-                category    : 'ELECTRONICS'
+            if (!success) {
+                await client.sendMessage(contact.number + '@c.us',
+                    'You need to register first! Visit http://localhost:8080 and click Sign Up. ' +
+                    'Reply "registered" when done and I will upload your listing automatically.')
+                userState.get(contact.number).registrationPending = true
+                return
             }
 
-            // TODO: look up sellerId by contact.number via GET /api/sellers/phone/{number}
-            const sellerId = 1   // PLACEHOLDER — replace with real DB lookup
-
-            await createPost(parsedListing, cloudinaryUrls, sellerId)
 
             await client.sendMessage(
                 contact.number + '@c.us',
                 'Your listing has been uploaded successfully!'
             )
 
-            pendingResponses.delete(contact.number)
-            pendingListings.delete(contact.number)
+            userState.get(contact.number).consentPending = false
+            userState.delete(contact.number)
 
         } else if (dmResponse === 'no') {
             NOT_CONSENTED_TO_MESSAGE_UPLOAD.add(contact.number)
             console.log('User declined consent')
         }
+
+        // This is the handle for the registration. Next sprint I'll add a webhook so the bot knows when the registration is done
+        else if (dmResponse === 'registered') {
+            if (userState.get(contact.number)?.registrationPending) {
+                const success = await processListing(contact, userState.get(contact.number).listing)
+                if (success) {
+                    await client.sendMessage(contact.number + '@c.us', 'Your listing has been uploaded successfully!')
+                    userState.delete(contact.number)
+                } else {
+                    await client.sendMessage(contact.number + '@c.us', 'Could not find your account. Make sure you registered with this phone number!')
+                }
+            }
+        }
+
     }
 })
 
 // ─── Cleanup: remove stale listings every 3 hours (12-hour expiry) ────────────
 setInterval(() => {
-    pendingListings.forEach((listing, phoneNumber) => {
-        if (listing.createdAt + 1000 * 60 * 60 * 12 < Date.now()) {
-            pendingListings.delete(phoneNumber)
+    userState.forEach((state, phoneNumber) => {
+        if (state.listing.createdAt + 1000 * 60 * 60 * 12 < Date.now()) {
+            userState.delete(phoneNumber)
             console.log('Expired listing removed for:', phoneNumber)
         }
     })

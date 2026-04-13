@@ -21,4 +21,16 @@ async function createPost(geminiListing, cloudinaryUrls, sellerId) {
     }
 }
 
-module.exports = {createPost}
+async function getSellerByPhone(phoneNumber) {
+    try {
+        const response = await axios.get(`${process.env.SPRING_BASE_URL}/api/sellers`, {
+            params: { phone: phoneNumber }
+        })
+        return response.data
+    } catch (error) {
+        console.error('Seller not found:', error)
+        return null
+    }
+}
+
+module.exports = {createPost, getSellerByPhone}
