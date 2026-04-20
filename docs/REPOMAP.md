@@ -26,21 +26,24 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 │   ├── main/
 │   │   ├── kotlin/com/studentstorefront/
 │   │   │   ├── config/        # Security (JWT, Spring Security), OpenApi, System, and DataLoader
-│   │   │   ├── controller/    # REST Endpoints (Auth, Post, Seller)
+│   │   │   ├── controller/    # REST Endpoints (Auth, Post, Seller, WhatsAppQrLogin)
 │   │   │   ├── dto/           # Data Transfer Objects (request, response, update)
-│   │   │   ├── entity/        # JPA Entities (Post, PostMedia, Seller)
-│   │   │   ├── enums/         # Enums (Category, Role)
+│   │   │   ├── entity/        # JPA Entities (Post, PostMedia, Seller, WhatsAppLoginSession)
+│   │   │   ├── enums/         # Enums (Category, Role, WhatsAppSessionStatus)
 │   │   │   ├── exception/     # Global Exception Handling
-│   │   │   ├── repository/    # Database Access Layers (Post, PostMedia, Seller)
-│   │   │   └── service/       # Business Logic (JwtService, UserDetailsService, PostService, SellerService)
+│   │   │   ├── repository/    # Database Access Layers (Post, PostMedia, Seller, WhatsAppLoginSession)
+│   │   │   └── service/       # Business Logic (JwtService, UserDetailsService, PostService, SellerService, WhatsAppQrLoginService)
 │   │   └── resources/
 │   │       ├── static/        # Frontend (index.html, css/custom.css, js/app.js)
-│   │       └── application.properties # Database & App config
-│   └── test/                  # Automated tests
+│   │       └── application.properties # Database, JWT & WhatsApp bot config
+│   └── test/
+│       └── kotlin/com/studentstorefront/
+│           ├── service/       # Unit tests (WhatsAppQrLoginServiceTest — MockK, no Spring context)
+│           └── controller/    # Integration tests (WhatsAppQrLoginControllerTest — MockMvc + Testcontainers)
 ├── bot/                       # Node.js WhatsApp Bot integration
 │   ├── src/
-│   │   ├── WhatsappBot.js     # Main bot script with user consent logic
-│   │   └── services/          # Bot services (Gemini parser, Cloudinary upload)
+│   │   ├── WhatsappBot.js     # Main bot script: consent flow + QR login handler
+│   │   └── services/          # springServices.js, botGeminiService.js, claudinary.js
 │   └── package.json           # Bot dependencies
 └── docker-compose.yaml        # Local PostgreSQL setup
 ```
@@ -51,10 +54,14 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 
 ### **Authentication** (`/api/auth`)
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `POST` | `/api/auth/register` | Register a new seller and receive a JWT Bearer token |
-| `POST` | `/api/auth/login` | Authenticate with email/password and receive a JWT Bearer token |
+| Method | Endpoint | Auth | Description |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/auth/register` | Public | Register a new seller and receive a JWT Bearer token |
+| `POST` | `/api/auth/login` | Public | Authenticate with email/password and receive a JWT Bearer token |
+| `POST` | `/api/auth/whatsapp/session` | Public | Create a WhatsApp QR login session; returns `sessionId`, `qrContent` (wa.me deep link), and `expiresAt` |
+| `GET` | `/api/auth/whatsapp/session/{sessionId}` | Public | Poll session status; returns `PENDING`, `COMPLETED` (with `claimToken`), `EXPIRED`, `PHONE_NOT_LINKED`, or `CLAIMED` |
+| `POST` | `/api/auth/whatsapp/confirm` | `X-Bot-Api-Key` header | Bot-only: confirm a login by supplying `loginToken` + `phoneNumber`; transitions session to `COMPLETED` and generates a `claimToken` |
+| `POST` | `/api/auth/whatsapp/claim` | Public | Exchange a one-time `claimToken` for a JWT; returns 410 Gone if already used or expired |
 
 ### **Post Management** (`/api/posts`)
 
@@ -84,7 +91,33 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 
 #### **Data Formats (JSON)**
 
-**Auth Response:**
+**WhatsApp Session Response (`POST /api/auth/whatsapp/session`):**
+```json
+{
+  "sessionId": "a1b2c3d4-...",
+  "qrContent": "https://wa.me/15551234567?text=login%3Af7e8d9c0-...",
+  "expiresAt": "2026-04-21T14:35:00"
+}
+```
+
+**WhatsApp Poll Response (`GET /api/auth/whatsapp/session/{sessionId}`):**
+```json
+{ "status": "PENDING",    "claimToken": null }
+{ "status": "COMPLETED",  "claimToken": "x9y8z7w6-..." }
+{ "status": "EXPIRED",    "claimToken": null }
+```
+
+**WhatsApp Confirm Request (`POST /api/auth/whatsapp/confirm`) — bot only:**
+```json
+{ "loginToken": "f7e8d9c0-...", "phoneNumber": "15559876543" }
+```
+
+**WhatsApp Claim Request (`POST /api/auth/whatsapp/claim`):**
+```json
+{ "claimToken": "x9y8z7w6-..." }
+```
+
+**Auth Response (login, register, and claim all return this shape):**
 ```json
 {
   "token": "eyJhbGciOiJIUz...",
@@ -163,6 +196,20 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 - `isEnabled`: Boolean active status flag
 - `createdAt`: Timestamp
 
+### **WhatsAppLoginSession** (table: `whatsapp_login_sessions`)
+- `id`: Primary Key (UUID)
+- `sessionId`: UUID shared with the frontend for polling (unique)
+- `loginToken`: UUID embedded in the QR code / wa.me deep link (unique)
+- `claimToken`: UUID issued on bot confirmation, exchanged once for a JWT (unique, nullable)
+- `status`: Enum — `PENDING` → `COMPLETED` → `CLAIMED`; or `EXPIRED` / `PHONE_NOT_LINKED`
+- `sellerId`: FK to `sellers.sellerId` (populated when bot confirms a matching phone)
+- `phoneNumber`: Raw phone number received from bot (audit log)
+- `creatorIp`: IP address of the browser that created the session
+- `createdAt`: Session creation timestamp
+- `expiresAt`: `createdAt + 5 minutes`; session rejects confirmation after this
+- `completedAt`: Timestamp when bot confirmed the login
+- `claimedAt`: Timestamp when frontend exchanged claimToken for JWT (terminal state)
+
 ---
 
 ## 5. Frontend Architecture
@@ -179,11 +226,21 @@ The frontend is a **Progressive Web App (PWA)** built for speed and simplicity.
 
 ### **Security & University Verification**
 - Access and registrations enforce `@constructor.university` email domains to ensure a high-trust local community.
-- Authentication relies on **JSON Web Tokens (JWT)** generated during login or registration to secure backend endpoints. 
+- Authentication relies on **JSON Web Tokens (JWT)** generated during login, registration, or WhatsApp QR login to secure backend endpoints.
 
 ### **WhatsApp Bot Bridge**
 - **Bot Engine:** The Node.js application (`whatsapp-web.js`) acts as a bridge.
 - **AI Analysis:** Uses **Google Gemini** (`gemini-2.0-flash-lite`) to classify if a group message is a valid listing and to parse structured data from natural language.
 - **Image Hosting:** Integrates with **Cloudinary** for storing and serving listing images.
 - **Consent Mechanism:** The bot tracks user consent state when users interact with it. Consent is explicitly registered or denied via chat before interactions or uploads to the platform occur.
-- **Auth Status:** While the frontend includes UI and polling logic for "Login with WhatsApp" and "Link WhatsApp," the corresponding backend endpoints (`/api/auth/whatsapp/**`) are currently placeholders and not yet implemented in the backend. Standard email/password authentication is the active method.
+
+### **WhatsApp QR Login**
+- **Flow:** Frontend calls `POST /session` → receives a `wa.me` deep link rendered as a QR code → user scans with phone → WhatsApp pre-fills `login:<token>` to the bot → bot calls `POST /confirm` with the token and sender's phone → backend looks up the Seller, issues a `claimToken`, marks session `COMPLETED` → frontend polls until `COMPLETED` → calls `POST /claim` with the `claimToken` → receives JWT.
+- **Session TTL:** 5 minutes from creation. `claimToken` TTL: 5 minutes from bot confirmation. Both are single-use.
+- **Bot authentication:** `POST /confirm` is guarded by `X-Bot-Api-Key` header (shared secret).
+- **Cleanup:** `@Scheduled` job runs every 5 minutes to expire stale `PENDING` sessions.
+- **Required env vars:** `WHATSAPP_BOT_PHONE` (bot number without `+`), `BOT_API_KEY` (set on both backend and bot).
+
+### **Testing**
+- **Unit tests** (`WhatsAppQrLoginServiceTest`): 19 tests covering all service branches using MockK — no Spring context loaded.
+- **Integration tests** (`WhatsAppQrLoginControllerTest`): 14 tests covering full HTTP stack using MockMvc + Testcontainers (real PostgreSQL). Each test runs in a rolled-back transaction for isolation.
