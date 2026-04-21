@@ -43,4 +43,18 @@ async function getSellerByPhone(phoneNumber) {
     }
 }
 
-module.exports = {createPost, getSellerByPhone}
+async function confirmWhatsAppLogin(loginToken, phoneNumber) {
+    try {
+        const response = await axios.post(
+            `${process.env.SPRING_BASE_URL}/api/auth/whatsapp/confirm`,
+            { loginToken, phoneNumber },
+            { headers: { 'X-Bot-Api-Key': process.env.BOT_API_KEY } }
+        )
+        return response.data.result
+    } catch (error) {
+        console.error('WhatsApp login confirm failed:', error.message)
+        return null
+    }
+}
+
+module.exports = { createPost, getSellerByPhone, confirmWhatsAppLogin }

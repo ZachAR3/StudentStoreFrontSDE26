@@ -2,7 +2,7 @@ const fs                                          = require('fs')
 const { Client, LocalAuth }                        = require('whatsapp-web.js')
 const qrcode                                       = require('qrcode-terminal')
 const { uploadImage }                              = require('./services/claudinary.js')
-const { createPost, getSellerByPhone }             = require('./services/springServices.js')
+const { createPost, getSellerByPhone, confirmWhatsAppLogin } = require('./services/springServices.js')
 const { GeminiMessageParser, GeminiContextClassifier } = require('./services/botGeminiService.js')
 
 // ─── Persistent state ────────────────────────────────────────────────────────
@@ -149,6 +149,24 @@ client.on('message', async msg => {
     // ── DM responses (consent flow) ───────────────────────────────────────────
     if (msg.from.endsWith('@c.us') || msg.from.endsWith('@lid')) {
         const dmResponse = msg.body.toLowerCase().trim()
+
+        // ── QR login handler ─────────────────────────────────────────────────
+        const loginMatch = msg.body.match(/^login:([0-9a-f-]{36})$/i)
+        if (loginMatch) {
+            const result = await confirmWhatsAppLogin(loginMatch[1], contact.number)
+            if (result === 'OK') {
+                await client.sendMessage(contact.number + '@c.us', 'Login successful! Go back to your browser.')
+            } else if (result === 'EXPIRED') {
+                await client.sendMessage(contact.number + '@c.us', 'This login link has expired. Please request a new QR code.')
+            } else if (result === 'PHONE_NOT_LINKED') {
+                await client.sendMessage(contact.number + '@c.us', 'This number is not registered. Please sign up at http://localhost:8080.')
+            } else if (result === 'ALREADY_USED') {
+                await client.sendMessage(contact.number + '@c.us', 'This login link was already used.')
+            } else {
+                await client.sendMessage(contact.number + '@c.us', 'Login failed due to a server error. Please try again.')
+            }
+            return
+        }
 
         if (dmResponse === 'yes') {
             if (!userState.get(contact.number)?.consentPending) return
