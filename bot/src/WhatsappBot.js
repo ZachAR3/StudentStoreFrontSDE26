@@ -6,8 +6,8 @@ const { createPost, getSellerByPhone, confirmWhatsAppLogin } = require('./servic
 const { GeminiMessageParser, GeminiContextClassifier } = require('./services/botGeminiService.js')
 
 // ─── Persistent state ────────────────────────────────────────────────────────
-const NOT_CONSENTED_TO_MESSAGE_UPLOAD = new Set()
-const consentedUsers                  = new Set()
+const NOT_CONSENTED_TO_MESSAGE_UPLOAD     = new Set()
+const consentedUsers                      = new Set()
 const userState                       = new Map()
 
 // Persistence mechanism that loads consented users from disk (consentedUsersPersistence.JSON file)
@@ -111,14 +111,18 @@ client.on('message', async msg => {
                 } else if (consentedUsers.has(contact.number)) {
                     const success = await processListing(contact, userState.get(contact.number).listing)
 
-                    if (success) {
-                        try {
+                    try {
+                        if (success === true) {
                             await client.sendMessage(contact.number + '@c.us', 'Your listing has been uploaded successfully!')
-                            userState.delete(contact.number)
-                        } catch (error) {
-                            console.error('Failed to send success message:', error)
+                        } else if (success === null) {
+                            await client.sendMessage(contact.number + '@c.us', 'Could not find your account. Please re-register.')
+                        } else {
+                            await client.sendMessage(contact.number + '@c.us', 'Something went wrong uploading your listing. Please try again later.')
                         }
+                    } catch (error) {
+                        console.error('Failed to send post-listing message:', error)
                     }
+                    userState.delete(contact.number)
                 }
             } else {
                 userState.delete(contact.number)
@@ -172,23 +176,9 @@ client.on('message', async msg => {
             if (!userState.get(contact.number)?.consentPending) return
             console.log('User consented — processing listing')
 
-            consentedUsers.add(contact.number)
-            try {
-                fs.writeFileSync('consentedUsersPersistence.json', JSON.stringify([...consentedUsers]))
+            const success = await processListing(contact, userState.get(contact.number).listing)
 
-            }
-            catch (error) {
-                console.error('Error saving consented users:', error)
-                }
-
-            let success = await processListing(contact, userState.get(contact.number).listing)
-
-            if (success == null) {
-                success = false
-                console.error('Listing processing failed — setting success to false')
-            }
-
-            if (!success) {
+            if (success === null) {
                 try {
                     const appBaseUrl = process.env.APP_BASE_URL || 'http://localhost:8080'
                     await client.sendMessage(contact.number + '@c.us',
@@ -201,12 +191,28 @@ client.on('message', async msg => {
                 return
             }
 
+            if (success === false) {
+                try {
+                    await client.sendMessage(contact.number + '@c.us',
+                        'Something went wrong uploading your listing. Please try again later.')
+                } catch (error) {
+                    console.error('Failed to send error message:', error)
+                }
+                return
+            }
+
+            consentedUsers.add(contact.number)
+            try {
+                fs.writeFileSync('consentedUsersPersistence.json', JSON.stringify([...consentedUsers]))
+            } catch (error) {
+                console.error('Error saving consented users:', error)
+            }
+
             try {
                 await client.sendMessage(
                     contact.number + '@c.us',
                     'Your listing has been uploaded successfully!'
                 )
-                userState.get(contact.number).consentPending = false
                 userState.delete(contact.number)
             } catch (error) {
                 console.error('Failed to send success message:', error)
@@ -214,6 +220,7 @@ client.on('message', async msg => {
 
         } else if (dmResponse === 'no') {
             NOT_CONSENTED_TO_MESSAGE_UPLOAD.add(contact.number)
+            userState.delete(contact.number)
             console.log('User declined consent')
         }
 

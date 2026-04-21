@@ -13,9 +13,9 @@ async function createPost(geminiListing, cloudinaryUrls, sellerId) {
             imageUrlList: cloudinaryUrls,
             sellerId: sellerId,
             isSold: false,
-            expiresAt: new Date(Date.now() + POST_EXPIRY_HOURS * 60 * 60 * 1000).toISOString()
+            expiresAt: new Date(Date.now() + POST_EXPIRY_HOURS * 60 * 60 * 1000).toISOString().slice(0, 19)
 
-        })
+        }, { headers: { 'X-Bot-Api-Key': process.env.BOT_API_KEY } })
         return response.data
     }
     catch(error) {
@@ -33,7 +33,7 @@ async function getSellerByPhone(phoneNumber) {
     }
 
     try {
-        const response = await axios.get(`${process.env.SPRING_BASE_URL}/api/sellers`, {
+        const response = await axios.get(`${process.env.SPRING_BASE_URL}/api/sellers/by-phone`, {
             params: { phone: phoneNumber }
         })
         return response.data
