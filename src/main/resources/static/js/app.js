@@ -10,6 +10,7 @@ document.addEventListener('alpine:init', () => {
         posts: [],
         isLoading: true,
         errorMessage: '',
+        successMessage: '',
         
         // Filter/Search/Sort state
         searchQuery: '',
@@ -19,7 +20,7 @@ document.addEventListener('alpine:init', () => {
         // Forms State
         newPost: { title: '', price: null, description: '', imageUrl: '', category: 'OTHER' },
         loginForm: { email: '', password: '' },
-        registerForm: { name: '', email: '', phoneNumber: '', password: '' },
+        registerForm: { name: '', email: '', phoneNumber: '', password: '', confirmPassword: '' },
         
         // WhatsApp Integration State
         whatsappLinkForm: { phone: '', otp: '', step: 1 }, // step 1: phone, step 2: otp
@@ -37,7 +38,8 @@ document.addEventListener('alpine:init', () => {
         navigateTo(view) {
             this.currentView = view;
             window.scrollTo(0, 0);
-            this.errorMessage = ''; // Clear any active errors
+            this.errorMessage = '';
+            this.successMessage = '';
             
             // Clean up intervals if leaving whatsappLogin
             if (view !== 'whatsappLogin' && this.whatsappLogin.interval) {
@@ -90,14 +92,56 @@ document.addEventListener('alpine:init', () => {
             }
         },
         
+        // Password & Form Validation Helpers
+        isPasswordValid(password) {
+            return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(password);
+        },
+
+        passwordStrength(password) {
+            let score = 0;
+            if (/[a-z]/.test(password)) score++;
+            if (/[A-Z]/.test(password)) score++;
+            if (/\d/.test(password)) score++;
+            if (/[@$!%*?&]/.test(password)) score++;
+            if (password.length >= 8) score++;
+            return score;
+        },
+
+        isRegisterFormValid() {
+            const f = this.registerForm;
+            return f.name && f.name.length >= 2 && f.name.length <= 100
+                && f.email && f.email.endsWith('@constructor.university')
+                && f.phoneNumber && /^\+?[0-9]{10,15}$/.test(f.phoneNumber)
+                && f.password && this.isPasswordValid(f.password)
+                && f.confirmPassword && f.confirmPassword === f.password;
+        },
+
         async handleRegister() {
             this.isLoading = true;
             this.errorMessage = '';
+            this.successMessage = '';
+
+            // Client-side validation
+            if (!this.isRegisterFormValid()) {
+                const errors = [];
+                const f = this.registerForm;
+                if (!f.name || f.name.length < 2) errors.push('Name must be at least 2 characters');
+                if (!f.email || !f.email.endsWith('@constructor.university')) errors.push('Must use a @constructor.university email');
+                if (!f.phoneNumber || !/^\+?[0-9]{10,15}$/.test(f.phoneNumber)) errors.push('Phone must be 10-15 digits, optionally starting with +');
+                if (!f.password || !this.isPasswordValid(f.password)) errors.push('Password must have 8+ chars with uppercase, lowercase, digit, and special character');
+                if (f.confirmPassword !== f.password) errors.push('Passwords do not match');
+                this.errorMessage = errors.join('. ');
+                this.isLoading = false;
+                return;
+            }
+
             try {
+                // Send only the fields the backend expects (exclude confirmPassword)
+                const { confirmPassword, ...registrationData } = this.registerForm;
                 const response = await fetch('/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(this.registerForm)
+                    body: JSON.stringify(registrationData)
                 });
                 
                 if (!response.ok) {
@@ -107,7 +151,7 @@ document.addEventListener('alpine:init', () => {
                 
                 const data = await response.json();
                 this.saveAuth(data);
-                this.registerForm = { name: '', email: '', phoneNumber: '', password: '' };
+                this.registerForm = { name: '', email: '', phoneNumber: '', password: '', confirmPassword: '' };
                 this.navigateTo('listings');
             } catch (error) {
                 this.errorMessage = error.message;

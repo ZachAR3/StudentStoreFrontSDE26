@@ -1,5 +1,6 @@
 package com.studentstorefront.exception
 
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
@@ -12,6 +13,16 @@ class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException::class)
     fun handleIllegalArgumentException(ex: IllegalArgumentException): ResponseEntity<Map<String, String>> {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("message" to (ex.message ?: "Invalid request")))
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException::class)
+    fun handleDataIntegrityViolation(ex: DataIntegrityViolationException): ResponseEntity<Map<String, String>> {
+        val message = when {
+            ex.message?.contains("email") == true -> "An account with this email already exists"
+            ex.message?.contains("phone_number") == true -> "An account with this phone number already exists"
+            else -> "A record with this data already exists"
+        }
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(mapOf("message" to message))
     }
 
     @ExceptionHandler(MethodArgumentNotValidException::class)

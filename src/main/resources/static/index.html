@@ -422,29 +422,95 @@
         <!-- ========================================== -->
         <div class="view-container" x-show="currentView === 'register'">
             <article class="auth-card">
-                <h2 style="text-align: center; margin-bottom: 2rem;">Create an Account</h2>
+                <h2 style="text-align: center; margin-bottom: 0.5rem;">Create an Account</h2>
+                <p style="text-align: center; color: var(--pico-muted-color); margin-bottom: 2rem;">Join the Constructor University marketplace</p>
                 
-                <article x-show="errorMessage" style="background-color: #fee2e2; border-color: #ef4444; color: #b91c1c; padding: 1rem; margin-bottom: 2rem; border-radius: var(--pico-border-radius);">
+                <!-- Success message -->
+                <article x-show="successMessage" style="background-color: #dcfce7; border: 1px solid #22c55e; color: #15803d; padding: 1rem; margin-bottom: 2rem; border-radius: var(--pico-border-radius);">
+                    <p x-text="successMessage" style="margin: 0;"></p>
+                </article>
+
+                <!-- Error message -->
+                <article x-show="errorMessage" style="background-color: #fee2e2; border: 1px solid #ef4444; color: #b91c1c; padding: 1rem; margin-bottom: 2rem; border-radius: var(--pico-border-radius);">
                     <p x-text="errorMessage" style="margin: 0;"></p>
                 </article>
 
-                <form @submit.prevent="handleRegister()">
-                    <label>Full Name
-                        <input type="text" x-model="registerForm.name" placeholder="John Doe" required>
+                <form @submit.prevent="handleRegister()" id="register-form">
+                    <!-- Full Name -->
+                    <label for="register-name">Full Name
+                        <input type="text" id="register-name" x-model="registerForm.name" placeholder="John Doe" required
+                               minlength="2" maxlength="100"
+                               :aria-invalid="registerForm.name && (registerForm.name.length < 2 || registerForm.name.length > 100) ? 'true' : (registerForm.name.length >= 2 ? 'false' : null)">
+                        <small x-show="registerForm.name && registerForm.name.length < 2" style="color: #ef4444;">Name must be at least 2 characters.</small>
                     </label>
-                    <label>Email Address
-                        <input type="email" x-model="registerForm.email" placeholder="name@domain.com" required>
-                        <small style="color: var(--pico-muted-color);">Used for account verification.</small>
+
+                    <!-- Email -->
+                    <label for="register-email">University Email
+                        <input type="email" id="register-email" x-model="registerForm.email" placeholder="yourname@constructor.university" required
+                               :aria-invalid="registerForm.email && !registerForm.email.endsWith('@constructor.university') ? 'true' : (registerForm.email.endsWith('@constructor.university') ? 'false' : null)">
+                        <small x-show="registerForm.email && !registerForm.email.endsWith('@constructor.university')" style="color: #ef4444;">Must be a @constructor.university email address.</small>
+                        <small x-show="!registerForm.email || registerForm.email.endsWith('@constructor.university')" style="color: var(--pico-muted-color);">Use your Constructor University email.</small>
                     </label>
-                    <label>Contact Number
-                        <input type="tel" x-model="registerForm.phoneNumber" placeholder="+1..." required>
+
+                    <!-- Phone Number -->
+                    <label for="register-phone">Phone Number (WhatsApp)
+                        <input type="tel" id="register-phone" x-model="registerForm.phoneNumber" placeholder="+491234567890" required
+                               :aria-invalid="registerForm.phoneNumber && !/^\+?[0-9]{10,15}$/.test(registerForm.phoneNumber) ? 'true' : (/^\+?[0-9]{10,15}$/.test(registerForm.phoneNumber) ? 'false' : null)">
+                        <small x-show="registerForm.phoneNumber && !/^\+?[0-9]{10,15}$/.test(registerForm.phoneNumber)" style="color: #ef4444;">10–15 digits, may start with +</small>
+                        <small x-show="!registerForm.phoneNumber || /^\+?[0-9]{10,15}$/.test(registerForm.phoneNumber)" style="color: var(--pico-muted-color);">Used for WhatsApp QR login and buyer contact.</small>
                     </label>
-                    <label>Password
-                        <input type="password" x-model="registerForm.password" placeholder="Create a strong password" required>
+
+                    <!-- Password -->
+                    <label for="register-password">Password
+                        <input type="password" id="register-password" x-model="registerForm.password" placeholder="Min 8 chars, upper + lower + digit + special" required
+                               :aria-invalid="registerForm.password && !isPasswordValid(registerForm.password) ? 'true' : (isPasswordValid(registerForm.password) ? 'false' : null)">
                     </label>
-                    <button type="submit" style="width: 100%; margin-top: 1rem;" :aria-busy="isLoading">Create Account</button>
+
+                    <!-- Password strength indicators -->
+                    <div x-show="registerForm.password" style="margin-top: -0.5rem; margin-bottom: 1rem;">
+                        <div style="display: flex; gap: 0.3rem; margin-bottom: 0.5rem;">
+                            <div style="height: 4px; flex: 1; border-radius: 2px; transition: background 0.3s;"
+                                 :style="{ background: passwordStrength(registerForm.password) >= 1 ? (passwordStrength(registerForm.password) >= 4 ? '#22c55e' : passwordStrength(registerForm.password) >= 3 ? '#eab308' : '#ef4444') : '#e5e7eb' }"></div>
+                            <div style="height: 4px; flex: 1; border-radius: 2px; transition: background 0.3s;"
+                                 :style="{ background: passwordStrength(registerForm.password) >= 2 ? (passwordStrength(registerForm.password) >= 4 ? '#22c55e' : passwordStrength(registerForm.password) >= 3 ? '#eab308' : '#ef4444') : '#e5e7eb' }"></div>
+                            <div style="height: 4px; flex: 1; border-radius: 2px; transition: background 0.3s;"
+                                 :style="{ background: passwordStrength(registerForm.password) >= 3 ? (passwordStrength(registerForm.password) >= 4 ? '#22c55e' : '#eab308') : '#e5e7eb' }"></div>
+                            <div style="height: 4px; flex: 1; border-radius: 2px; transition: background 0.3s;"
+                                 :style="{ background: passwordStrength(registerForm.password) >= 4 ? '#22c55e' : '#e5e7eb' }"></div>
+                        </div>
+                        <div style="font-size: 0.8rem; display: flex; flex-wrap: wrap; gap: 0.3rem 1rem;">
+                            <span :style="{ color: /[a-z]/.test(registerForm.password) ? '#22c55e' : '#9ca3af' }">
+                                <span x-text="/[a-z]/.test(registerForm.password) ? '✓' : '○'"></span> lowercase
+                            </span>
+                            <span :style="{ color: /[A-Z]/.test(registerForm.password) ? '#22c55e' : '#9ca3af' }">
+                                <span x-text="/[A-Z]/.test(registerForm.password) ? '✓' : '○'"></span> uppercase
+                            </span>
+                            <span :style="{ color: /\d/.test(registerForm.password) ? '#22c55e' : '#9ca3af' }">
+                                <span x-text="/\d/.test(registerForm.password) ? '✓' : '○'"></span> digit
+                            </span>
+                            <span :style="{ color: /[@$!%*?&]/.test(registerForm.password) ? '#22c55e' : '#9ca3af' }">
+                                <span x-text="/[@$!%*?&]/.test(registerForm.password) ? '✓' : '○'"></span> special (@$!%*?&)
+                            </span>
+                            <span :style="{ color: registerForm.password.length >= 8 ? '#22c55e' : '#9ca3af' }">
+                                <span x-text="registerForm.password.length >= 8 ? '✓' : '○'"></span> 8+ characters
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Confirm Password -->
+                    <label for="register-confirm-password">Confirm Password
+                        <input type="password" id="register-confirm-password" x-model="registerForm.confirmPassword" placeholder="Re-enter your password" required
+                               :aria-invalid="registerForm.confirmPassword && registerForm.confirmPassword !== registerForm.password ? 'true' : (registerForm.confirmPassword && registerForm.confirmPassword === registerForm.password ? 'false' : null)">
+                        <small x-show="registerForm.confirmPassword && registerForm.confirmPassword !== registerForm.password" style="color: #ef4444;">Passwords do not match.</small>
+                    </label>
+
+                    <button type="submit" id="register-submit" style="width: 100%; margin-top: 1rem;" :aria-busy="isLoading"
+                            :disabled="!isRegisterFormValid()">Create Account</button>
                 </form>
-                <div style="text-align: center; margin-top: 1.5rem;">
+
+                <hr style="margin: 2rem 0;">
+
+                <div style="text-align: center;">
                     <small style="color: var(--pico-muted-color);">Already have an account? <a href="#" @click.prevent="navigateTo('login')">Log in</a></small>
                 </div>
             </article>

@@ -27,6 +27,11 @@ class SellerService(
             throw IllegalArgumentException("Email already exists: ${sellerRequestDTO.email}")
         }
 
+        // Check if phone number already exists
+        if (sellerRepository.findByPhoneNumber(sellerRequestDTO.phoneNumber) != null) {
+            throw IllegalArgumentException("Phone number already registered: ${sellerRequestDTO.phoneNumber}")
+        }
+
         val seller = createSellerEntity(sellerRequestDTO)
         val savedSeller = sellerRepository.save(seller)
         return mapToResponseDTO(savedSeller)
