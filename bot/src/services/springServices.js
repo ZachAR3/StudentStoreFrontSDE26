@@ -1,6 +1,8 @@
 const axios = require('axios');
 require('dotenv').config()
 
+const POST_EXPIRY_HOURS = 48
+
 async function createPost(geminiListing, cloudinaryUrls, sellerId) {
     try {
         const response = await axios.post(`${process.env.SPRING_BASE_URL}/api/posts`, {
@@ -11,17 +13,25 @@ async function createPost(geminiListing, cloudinaryUrls, sellerId) {
             imageUrlList: cloudinaryUrls,
             sellerId: sellerId,
             isSold: false,
-            expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
+            expiresAt: new Date(Date.now() + POST_EXPIRY_HOURS * 60 * 60 * 1000).toISOString()
 
         })
         return response.data
     }
     catch(error) {
-    console.log(error)
+        
+     console.error('Post creation failed:', error); 
+     return false;
+
     }
 }
 
 async function getSellerByPhone(phoneNumber) {
+    if (!phoneNumber || !/^\d{10,15}$/.test(phoneNumber)) {
+        console.error('Invalid phone number format:', phoneNumber)
+        return null
+    }
+
     try {
         const response = await axios.get(`${process.env.SPRING_BASE_URL}/api/sellers`, {
             params: { phone: phoneNumber }

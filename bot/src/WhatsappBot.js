@@ -11,34 +11,41 @@ const consentedUsers                  = new Set()
 const userState                       = new Map()
 
 // Persistence mechanism that loads consented users from disk (consentedUsersPersistence.JSON file)
-JSON.parse(fs.readFileSync('consentedUsersPersistence.json', 'utf8'))
+try {
+    JSON.parse(fs.readFileSync('consentedUsersPersistence.json', 'utf8'))
     .forEach(number => consentedUsers.add(number))
+}
+catch (error) {
+    console.error('Error loading consented users:', error)
+}
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 const TARGET_GROUP = '120363406751456779@g.us'
+const LISTING_EXPIRY_HOURS = 12
 // const TEST_USER = '40723136087' FOR TESTING ONLY
 
 
 // ─── Helper function ───────────────────────────────────────────────────────────────────
 
 async function processListing(contact, currentUserListing) {
-    // Cloudinary upload
-
-    const cloudinaryUrls = []
-    for (const image of currentUserListing.imageUrls) {
-        const base64 = `data:${image.mimetype};base64,${image.data}`
-        const url    = await uploadImage(base64)
-        cloudinaryUrls.push(url)
-    }
+    
+// Cloudinary upload 
+    const uploadResults = await Promise.all(
+        currentUserListing.imageUrls.map(image => {
+            const base64 = `data:${image.mimetype};base64,${image.data}`
+            return uploadImage(base64)
+        })
+    )
+    const cloudinaryUrls = uploadResults.filter(url => url !== null)
 
     // const parsedListing = await GeminiMessageParser(currentUserListing.messages.join('\n')) -> To be uncommented when API works
     const parsedListing = { title: 'Test', price: 100, description: 'Test description long enough', category: 'ELECTRONICS' }
 
-    // Get seller
     const seller = await getSellerByPhone(contact.number)
     if (!seller) return null
 
-    await createPost(parsedListing, cloudinaryUrls, seller.sellerId)
+    const result = await createPost(parsedListing, cloudinaryUrls, seller.sellerId)
+    if (!result) return false
     return true
 }
 
@@ -76,28 +83,41 @@ client.on('message', async msg => {
         const classificationTimer = setTimeout(async () => {
             console.log('5 min passed — sending to Gemini for classification')
 
-            // TODO: uncomment when API key is available
             // const geminiResponse = await GeminiContextClassifier(userState.get(contact.number).listing.messages)
             const geminiResponse = 'YES'   // MOCK — remove when API works
 
             if (geminiResponse === 'YES') {
+                if (!userState.has(contact.number)) return
                 userState.get(contact.number).listing.isListing = true
                 console.log('Gemini: valid listing detected — asking user for consent')
 
+                if (NOT_CONSENTED_TO_MESSAGE_UPLOAD.has(contact.number)) {
+                    console.log('User previously declined consent — skipping')
+                    return
+                }
+
                 if (!consentedUsers.has(contact.number) && !userState.get(contact.number).consentPending) {
-                    await client.sendMessage(
-                        contact.number + '@c.us',
-                        'Hello! I am the StudentStoreFront bot. ' +
-                        'I noticed you may be selling something. ' +
-                        'Do you consent to adding your listing to our marketplace? Reply YES or NO.'
-                    )
-                    userState.get(contact.number).consentPending = true
+                    try {
+                        await client.sendMessage(
+                            contact.number + '@c.us',
+                            'Hello! I am the StudentStoreFront bot. ' +
+                            'I noticed you may be selling something. ' +
+                            'Do you consent to adding your listing to our marketplace? Reply YES or NO.'
+                        )
+                        userState.get(contact.number).consentPending = true
+                    } catch (error) {
+                        console.error('Failed to send consent message:', error)
+                    }
                 } else if (consentedUsers.has(contact.number)) {
                     const success = await processListing(contact, userState.get(contact.number).listing)
 
                     if (success) {
-                        await client.sendMessage(contact.number + '@c.us', 'Your listing has been uploaded successfully!')
-                        userState.delete(contact.number)
+                        try {
+                            await client.sendMessage(contact.number + '@c.us', 'Your listing has been uploaded successfully!')
+                            userState.delete(contact.number)
+                        } catch (error) {
+                            console.error('Failed to send success message:', error)
+                        }
                     }
                 }
             } else {
@@ -131,29 +151,48 @@ client.on('message', async msg => {
         const dmResponse = msg.body.toLowerCase().trim()
 
         if (dmResponse === 'yes') {
+            if (!userState.get(contact.number)?.consentPending) return
             console.log('User consented — processing listing')
 
             consentedUsers.add(contact.number)
-            fs.writeFileSync('consentedUsersPersistence.json', JSON.stringify([...consentedUsers]))
+            try {
+                fs.writeFileSync('consentedUsersPersistence.json', JSON.stringify([...consentedUsers]))
 
-            const success = await processListing(contact, userState.get(contact.number).listing)
+            }
+            catch (error) {
+                console.error('Error saving consented users:', error)
+                }
+
+            let success = await processListing(contact, userState.get(contact.number).listing)
+
+            if (success == null) {
+                success = false
+                console.error('Listing processing failed — setting success to false')
+            }
 
             if (!success) {
-                await client.sendMessage(contact.number + '@c.us',
-                    'You need to register first! Visit http://localhost:8080 and click Sign Up. ' +
-                    'Reply "registered" when done and I will upload your listing automatically.')
-                userState.get(contact.number).registrationPending = true
+                try {
+                    const appBaseUrl = process.env.APP_BASE_URL || 'http://localhost:8080'
+                    await client.sendMessage(contact.number + '@c.us',
+                        `You need to register first! Visit ${appBaseUrl} and click Sign Up. ` +
+                        'Reply "registered" when done and I will upload your listing automatically.')
+                    userState.get(contact.number).registrationPending = true
+                } catch (error) {
+                    console.error('Failed to send registration prompt:', error)
+                }
                 return
             }
 
-
-            await client.sendMessage(
-                contact.number + '@c.us',
-                'Your listing has been uploaded successfully!'
-            )
-
-            userState.get(contact.number).consentPending = false
-            userState.delete(contact.number)
+            try {
+                await client.sendMessage(
+                    contact.number + '@c.us',
+                    'Your listing has been uploaded successfully!'
+                )
+                userState.get(contact.number).consentPending = false
+                userState.delete(contact.number)
+            } catch (error) {
+                console.error('Failed to send success message:', error)
+            }
 
         } else if (dmResponse === 'no') {
             NOT_CONSENTED_TO_MESSAGE_UPLOAD.add(contact.number)
@@ -165,10 +204,18 @@ client.on('message', async msg => {
             if (userState.get(contact.number)?.registrationPending) {
                 const success = await processListing(contact, userState.get(contact.number).listing)
                 if (success) {
-                    await client.sendMessage(contact.number + '@c.us', 'Your listing has been uploaded successfully!')
-                    userState.delete(contact.number)
+                    try {
+                        await client.sendMessage(contact.number + '@c.us', 'Your listing has been uploaded successfully!')
+                        userState.delete(contact.number)
+                    } catch (error) {
+                        console.error('Failed to send success message:', error)
+                    }
                 } else {
-                    await client.sendMessage(contact.number + '@c.us', 'Could not find your account. Make sure you registered with this phone number!')
+                    try {
+                        await client.sendMessage(contact.number + '@c.us', 'Could not find your account. Make sure you registered with this phone number!')
+                    } catch (error) {
+                        console.error('Failed to send error message:', error)
+                    }
                 }
             }
         }
@@ -179,7 +226,7 @@ client.on('message', async msg => {
 // ─── Cleanup: remove stale listings every 3 hours (12-hour expiry) ────────────
 setInterval(() => {
     userState.forEach((state, phoneNumber) => {
-        if (state.listing.createdAt + 1000 * 60 * 60 * 12 < Date.now()) {
+        if (state.listing.createdAt + LISTING_EXPIRY_HOURS * 60 * 60 * 1000 < Date.now()) {
             userState.delete(phoneNumber)
             console.log('Expired listing removed for:', phoneNumber)
         }

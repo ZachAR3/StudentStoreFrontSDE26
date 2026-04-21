@@ -8,14 +8,11 @@ cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME
 });
 
-// Log the configuration
-console.log(cloudinary.config());
-
 const uploadImage = async (imagePath) => {
         const options = {
             use_filename: true,
-            unique_filename: false,
-            overwrite: true,
+            unique_filename: true,
+            overwrite: false,
         };
 
         try {
@@ -24,7 +21,8 @@ const uploadImage = async (imagePath) => {
             console.log(result);
             return result.secure_url;
         } catch (error) {
-            console.error(error);
+            console.error('Error uploading image:', error);
+            return null
         }
     };
 
