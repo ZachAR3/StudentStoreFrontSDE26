@@ -27,18 +27,35 @@ async function createPost(geminiListing, cloudinaryUrls, sellerId) {
 }
 
 async function getSellerByPhone(phoneNumber) {
-    if (!phoneNumber || !/^\d{10,15}$/.test(phoneNumber)) {
+    if (!phoneNumber) return null
+
+    // Normalize: Strip everything except digits
+    const digitsOnly = phoneNumber.replace(/\D/g, '')
+
+    if (digitsOnly.length < 10 || digitsOnly.length > 15) {
         console.error('Invalid phone number format:', phoneNumber)
         return null
     }
 
     try {
-        const response = await axios.get(`${process.env.SPRING_BASE_URL}/api/sellers/by-phone`, {
-            params: { phone: phoneNumber }
+        // Try searching with '+' prefix first (matching your current DB/DataLoader format)
+        let response = await axios.get(`${process.env.SPRING_BASE_URL}/api/sellers/by-phone`, {
+            params: { phone: `+${digitsOnly}` }
         })
+
+        // If not found with '+', try the raw digits (in case backend is updated)
+        if (!response.data && digitsOnly !== phoneNumber) {
+            response = await axios.get(`${process.env.SPRING_BASE_URL}/api/sellers/by-phone`, {
+                params: { phone: digitsOnly }
+            })
+        }
+
         return response.data
     } catch (error) {
-        console.error('Seller not found:', error)
+        // Only log if it's not a 404 (404 is expected if seller isn't registered)
+        if (error.response?.status !== 404) {
+            console.error('Seller lookup error:', error.message)
+        }
         return null
     }
 }

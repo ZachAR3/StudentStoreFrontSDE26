@@ -4,6 +4,7 @@ const qrcode                                       = require('qrcode-terminal')
 const { uploadImage }                              = require('./services/claudinary.js')
 const { createPost, getSellerByPhone, confirmWhatsAppLogin } = require('./services/springServices.js')
 const { GeminiMessageParser, GeminiContextClassifier } = require('./services/botGeminiService.js')
+const { startWebhookServer }                          = require('./services/webhookService.js')
 
 // ─── Persistent state ────────────────────────────────────────────────────────
 const NOT_CONSENTED_TO_MESSAGE_UPLOAD     = new Set()
@@ -22,8 +23,6 @@ catch (error) {
 // ─── Config ───────────────────────────────────────────────────────────────────
 const TARGET_GROUP = '120363406751456779@g.us'
 const LISTING_EXPIRY_HOURS = 12
-// const TEST_USER = '40723136087' FOR TESTING ONLY
-
 
 // ─── Helper function ───────────────────────────────────────────────────────────────────
 
@@ -38,8 +37,11 @@ async function processListing(contact, currentUserListing) {
     )
     const cloudinaryUrls = uploadResults.filter(url => url !== null)
 
-    // const parsedListing = await GeminiMessageParser(currentUserListing.messages.join('\n')) -> To be uncommented when API works
-    const parsedListing = { title: 'Test', price: 100, description: 'Test description long enough', category: 'ELECTRONICS' }
+    const parsedListing = await GeminiMessageParser(currentUserListing.messages.join('\n'))
+    if (!parsedListing) {
+        console.error('Failed to parse listing with Gemini')
+        return false
+    }
 
     const seller = await getSellerByPhone(contact.number)
     if (!seller) return null
@@ -83,8 +85,10 @@ client.on('message', async msg => {
         const classificationTimer = setTimeout(async () => {
             console.log('5 min passed — sending to Gemini for classification')
 
-            // const geminiResponse = await GeminiContextClassifier(userState.get(contact.number).listing.messages)
-            const geminiResponse = 'YES'   // MOCK — remove when API works
+            const state = userState.get(contact.number)
+            if (!state) return
+
+            const geminiResponse = await GeminiContextClassifier(state.listing.messages)
 
             if (geminiResponse === 'YES') {
                 if (!userState.has(contact.number)) return
@@ -259,3 +263,4 @@ setInterval(() => {
 }, 3 * 60 * 60 * 1000)
 
 client.initialize()
+startWebhookServer(client, userState, processListing, consentedUsers)
