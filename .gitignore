@@ -32,3 +32,6 @@ Thumbs.db
 #Bot
 node_modules
 bot/node_modules
+
+# VSCode
+.vscode

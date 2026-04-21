@@ -179,12 +179,16 @@ document.addEventListener('alpine:init', () => {
             this.isLoading = true;
             this.navigateTo('whatsappLogin');
             try {
-                const response = await fetch('/api/auth/whatsapp/login/init', { method: 'POST' });
+                const response = await fetch('/api/auth/whatsapp/session', { method: 'POST' });
+                if (!response.ok) throw new Error('Could not initialize session');
                 const data = await response.json();
-                this.whatsappLogin.token = data.token;
+                this.whatsappLogin.sessionId = data.sessionId;
+                this.whatsappLogin.qrContent = data.qrContent;
+                this.whatsappLogin.status = 'PENDING';
                 this.startWhatsappLoginPolling();
             } catch (error) {
                 this.errorMessage = 'Could not initialize WhatsApp login.';
+                this.navigateTo('login');
             } finally {
                 this.isLoading = false;
             }
@@ -195,17 +199,41 @@ document.addEventListener('alpine:init', () => {
             
             this.whatsappLogin.interval = setInterval(async () => {
                 try {
-                    const response = await fetch(`/api/auth/whatsapp/login/status?token=${this.whatsappLogin.token}`);
+                    const response = await fetch(`/api/auth/whatsapp/session/${this.whatsappLogin.sessionId}`);
                     if (response.status === 200) {
                         const data = await response.json();
-                        this.saveAuth(data);
-                        clearInterval(this.whatsappLogin.interval);
-                        this.navigateTo('listings');
+                        this.whatsappLogin.status = data.status;
+                        
+                        if (data.status === 'COMPLETED' && data.claimToken) {
+                            clearInterval(this.whatsappLogin.interval);
+                            await this.claimWhatsappLogin(data.claimToken);
+                        } else if (data.status === 'EXPIRED') {
+                            clearInterval(this.whatsappLogin.interval);
+                            this.errorMessage = 'Login session expired.';
+                            this.navigateTo('login');
+                        }
                     }
                 } catch (e) {
                     console.error("Polling error", e);
                 }
             }, 3000);
+        },
+
+        async claimWhatsappLogin(claimToken) {
+            try {
+                const response = await fetch('/api/auth/whatsapp/claim', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ claimToken })
+                });
+                if (!response.ok) throw new Error('Failed to claim login');
+                const data = await response.json();
+                this.saveAuth(data);
+                this.navigateTo('listings');
+            } catch (error) {
+                this.errorMessage = error.message;
+                this.navigateTo('login');
+            }
         },
 
         // Computed property for filtering and sorting

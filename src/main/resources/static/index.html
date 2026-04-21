@@ -395,18 +395,21 @@
             <article class="auth-card" style="text-align: center;">
                 <h2 style="margin-bottom: 2rem;">Login with WhatsApp</h2>
                 
-                <div x-show="!whatsappLogin.token" aria-busy="true">Initializing session...</div>
+                <div x-show="!whatsappLogin.sessionId" aria-busy="true">Initializing session...</div>
 
-                <div x-show="whatsappLogin.token">
-                    <p style="margin-bottom: 2rem;">To log in, please send the following token to our WhatsApp Bot:</p>
+                <div x-show="whatsappLogin.sessionId">
+                    <p style="margin-bottom: 1.5rem;">Scan the QR code below with your phone's camera to log in via WhatsApp:</p>
                     
-                    <div style="background: var(--pico-secondary-background); padding: 1.5rem; border-radius: var(--pico-border-radius); font-family: monospace; font-size: 1.2rem; border: 2px dashed var(--pico-muted-border-color); margin-bottom: 2rem; word-break: break-all;">
-                        <span x-text="whatsappLogin.token"></span>
+                    <div style="display: flex; justify-content: center; margin-bottom: 1.5rem;">
+                        <img :src="'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' + encodeURIComponent(whatsappLogin.qrContent)" alt="WhatsApp Login QR Code" style="border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); padding: 1rem; background: white;">
                     </div>
+                    
+                    <p style="margin-bottom: 1rem; font-size: 0.9rem; color: var(--pico-muted-color);">Or click the link below if you are on your mobile device:</p>
+                    <a :href="whatsappLogin.qrContent" target="_blank" class="secondary" style="word-break: break-all; font-size: 0.8rem;" x-text="whatsappLogin.qrContent"></a>
 
-                    <div style="display: flex; flex-direction: column; align-items: center; gap: 1rem;">
-                        <span aria-busy="true">Waiting for bot verification...</span>
-                        <p style="font-size: 0.9rem; color: var(--pico-muted-color);">Once the bot receives your token, you'll be logged in automatically.</p>
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 1rem; margin-top: 2rem;">
+                        <span aria-busy="true" x-show="whatsappLogin.status === 'PENDING'">Waiting for you to scan...</span>
+                        <span x-show="whatsappLogin.status === 'COMPLETED'" style="color: var(--pico-success);">Login confirmed! Completing...</span>
                     </div>
 
                     <button class="outline secondary" style="margin-top: 2rem;" @click="navigateTo('login')">Cancel</button>
