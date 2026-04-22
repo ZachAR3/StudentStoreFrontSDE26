@@ -10,27 +10,23 @@ if (!process.env.GEMINI_API_KEY) {
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
 
-const primaryModelName = "gemini-2.5-flash";
-const fallbackModelName = "gemini-2.5-flash-lite";
-const primaryModel = genAI.getGenerativeModel({ model: primaryModelName });
-const fallbackModel = genAI.getGenerativeModel({ model: fallbackModelName });
+const modelName = "gemini-2.5-flash-lite";
+const model = genAI.getGenerativeModel({ model: modelName });
 
-async function generateWithFallback(prompt) {
+async function generateContent(prompt) {
     try {
-        console.log(`[Gemini] Trying ${primaryModelName}...`);
-        const result = await primaryModel.generateContent(prompt);
+        console.log(`[Gemini] Calling ${modelName}...`);
+        const result = await model.generateContent(prompt);
         return result.response;
     } catch (error) {
-        console.warn(`[Gemini] ${primaryModelName} failed: ${error.message}`);
-        console.log(`[Gemini] Falling back to ${fallbackModelName}...`);
-        const result = await fallbackModel.generateContent(prompt);
-        return result.response;
+        console.error(`[Gemini] ${modelName} failed: ${error.message}`);
+        throw error;
     }
 }
 
 async function GeminiMessageParser(message) {
     try {
-        const response = await generateWithFallback(UserMessagePrompt(message));
+        const response = await generateContent(UserMessagePrompt(message));
         const text = response.text();
 
         const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -45,7 +41,7 @@ async function GeminiMessageParser(message) {
 
 async function GeminiContextClassifier(messages) {
     try {
-        const response = await generateWithFallback(classificationPrompt(messages));
+        const response = await generateContent(classificationPrompt(messages));
         const decision = response.text().trim().toUpperCase();
         // Clean up any extra text Gemini might have added
         return decision.includes('YES') ? 'YES' : 'NO';
