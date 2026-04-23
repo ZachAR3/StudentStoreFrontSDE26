@@ -1,15 +1,15 @@
 const axios = require('axios');
-require('dotenv').config()
+require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') })
 
 const POST_EXPIRY_HOURS = 48
 
 async function createPost(geminiListing, cloudinaryUrls, sellerId) {
     try {
-        const response = await axios.post(`${process.env.SPRING_BASE_URL}/api/posts`, {
+        const response = await axios.post(`${process.env.SPRING_BASE_URL}/api/posts/bot`, {
             title: geminiListing.title,
             price: geminiListing.price,
             description: geminiListing.description,
-            category: geminiListing.category,
+            category: geminiListing.category?.toUpperCase(),
             imageUrlList: cloudinaryUrls,
             sellerId: sellerId,
             isSold: false,

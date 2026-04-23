@@ -13,7 +13,7 @@ const userState                       = new Map()
 
 // Persistence mechanism that loads consented users from disk (consentedUsersPersistence.JSON file)
 try {
-    JSON.parse(fs.readFileSync('consentedUsersPersistence.json', 'utf8'))
+    JSON.parse(fs.readFileSync(require('path').join(__dirname, '../consentedUsersPersistence.json'), 'utf8'))
     .forEach(number => consentedUsers.add(number))
 }
 catch (error) {
@@ -118,15 +118,20 @@ client.on('message', async msg => {
                     try {
                         if (success === true) {
                             await client.sendMessage(contact.number + '@c.us', 'Your listing has been uploaded successfully!')
+                            userState.delete(contact.number)
                         } else if (success === null) {
-                            await client.sendMessage(contact.number + '@c.us', 'Could not find your account. Please re-register.')
+                            const appBaseUrl = process.env.APP_BASE_URL || 'http://localhost:8080'
+                            await client.sendMessage(contact.number + '@c.us',
+                                `You need to register first! Visit ${appBaseUrl} and click Sign Up. ` +
+                                'Reply "registered" when done and I will upload your listing automatically.')
+                            userState.get(contact.number).registrationPending = true
                         } else {
                             await client.sendMessage(contact.number + '@c.us', 'Something went wrong uploading your listing. Please try again later.')
+                            userState.delete(contact.number)
                         }
                     } catch (error) {
                         console.error('Failed to send post-listing message:', error)
                     }
-                    userState.delete(contact.number)
                 }
             } else {
                 userState.delete(contact.number)
@@ -207,7 +212,7 @@ client.on('message', async msg => {
 
             consentedUsers.add(contact.number)
             try {
-                fs.writeFileSync('consentedUsersPersistence.json', JSON.stringify([...consentedUsers]))
+                fs.writeFileSync(require('path').join(__dirname, '../consentedUsersPersistence.json'), JSON.stringify([...consentedUsers]))
             } catch (error) {
                 console.error('Error saving consented users:', error)
             }

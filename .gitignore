@@ -32,6 +32,8 @@ Thumbs.db
 #Bot
 node_modules
 bot/node_modules
+.wwebjs_auth/
+.wwebjs_cache/
 
 # VSCode
 .vscode

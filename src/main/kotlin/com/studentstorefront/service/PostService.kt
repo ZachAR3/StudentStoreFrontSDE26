@@ -42,6 +42,16 @@ class PostService(
         return mapToResponseDTO(savedPost)
     }
 
+    fun createPostAsBot(postRequestDTO: PostRequestDTO): PostResponseDTO {
+        val sellerId = postRequestDTO.sellerId
+            ?: throw IllegalArgumentException("sellerId is required for bot post creation")
+        val seller = findSellerById(sellerId)
+        val post = createPostEntity(postRequestDTO, seller)
+        val savedPost = postRepository.save(post)
+        postMediaRepository.saveAll(postRequestDTO.imageUrlList.map { PostMedia(post = savedPost, mediaUrl = it) })
+        return mapToResponseDTO(savedPost)
+    }
+
     @Transactional(readOnly = true)
     fun getAllPosts(pageable: Pageable): Page<PostResponseDTO> {
         return postRepository.findAll(pageable).map { mapToResponseDTO(it) }

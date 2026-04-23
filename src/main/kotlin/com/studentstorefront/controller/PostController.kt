@@ -6,6 +6,7 @@ import com.studentstorefront.dto.update.PostUpdateDTO
 import com.studentstorefront.enums.Category
 import com.studentstorefront.service.PostService
 import jakarta.validation.Valid
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.web.PageableDefault
@@ -17,12 +18,25 @@ import org.springframework.web.bind.annotation.*
 @RestController
 @RequestMapping("/api/posts")
 @CrossOrigin(origins = ["http://localhost:8080", "http://127.0.0.1:8080", "http://localhost:3000"])
-class PostController(private val postService: PostService) {
+class PostController(
+    private val postService: PostService,
+    @Value("\${whatsapp.bot.api-key}") private val botApiKey: String
+) {
 
     @PostMapping
     @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
     fun createPost(@Valid @RequestBody postRequestDTO: PostRequestDTO): ResponseEntity<PostResponseDTO> {
         val createdPost = postService.createPost(postRequestDTO)
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdPost)
+    }
+
+    @PostMapping("/bot")
+    fun createPostAsBot(
+        @RequestHeader("X-Bot-Api-Key") apiKey: String,
+        @Valid @RequestBody postRequestDTO: PostRequestDTO
+    ): ResponseEntity<PostResponseDTO> {
+        if (apiKey != botApiKey) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+        val createdPost = postService.createPostAsBot(postRequestDTO)
         return ResponseEntity.status(HttpStatus.CREATED).body(createdPost)
     }
 

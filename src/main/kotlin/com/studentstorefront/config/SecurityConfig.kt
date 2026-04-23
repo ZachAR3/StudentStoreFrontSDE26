@@ -31,6 +31,7 @@ class SecurityConfig(
                     .requestMatchers(HttpMethod.GET, "/api/posts/**").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/sellers").permitAll() // Allow registration
                     .requestMatchers(HttpMethod.GET, "/api/sellers/by-phone").permitAll() // Bot phone lookup
+                    .requestMatchers(HttpMethod.POST, "/api/posts/bot").permitAll() // Bot post creation
                     
                     // Static resources (Frontend)
                     .requestMatchers("/", "/index.html", "/static/**", "/css/**", "/js/**", "/favicon.ico").permitAll()

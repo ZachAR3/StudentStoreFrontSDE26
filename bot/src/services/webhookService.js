@@ -1,6 +1,6 @@
 const fs      = require('fs')
 const express = require('express')
-require('dotenv').config()
+require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') })
 
 function startWebhookServer(client, userState, processListing, consentedUsers) {
     const app  = express()

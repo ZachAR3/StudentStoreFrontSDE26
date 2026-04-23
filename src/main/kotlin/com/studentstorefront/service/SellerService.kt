@@ -127,11 +127,16 @@ class SellerService(
             .orElseThrow { IllegalArgumentException("Seller not found with id: $sellerId") }
     }
 
+    private fun normalizePhone(phone: String): String {
+        val digits = phone.replace(Regex("\\D"), "")
+        return "+$digits"
+    }
+
     private fun createSellerEntity(sellerRequestDTO: SellerRequestDTO): Seller {
         return Seller(
             name = sellerRequestDTO.name,
             email = sellerRequestDTO.email,
-            phoneNumber = sellerRequestDTO.phoneNumber,
+            phoneNumber = normalizePhone(sellerRequestDTO.phoneNumber),
             password = passwordEncoder.encode(sellerRequestDTO.password)!! // Hash the password
         )
     }
@@ -140,7 +145,7 @@ class SellerService(
         return existingSeller.copy(
             name = sellerUpdateDTO.name ?: existingSeller.name,
             email = sellerUpdateDTO.email ?: existingSeller.email,
-            phoneNumber = sellerUpdateDTO.phoneNumber ?: existingSeller.phoneNumber,
+            phoneNumber = sellerUpdateDTO.phoneNumber?.let { normalizePhone(it) } ?: existingSeller.phoneNumber,
             password = sellerUpdateDTO.password?.let { passwordEncoder.encode(it) } ?: existingSeller.password
         )
     }

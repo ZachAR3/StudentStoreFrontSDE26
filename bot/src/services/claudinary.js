@@ -1,5 +1,5 @@
 const { v2: cloudinary } = require('cloudinary');
-require('dotenv').config()
+require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') })
 
 cloudinary.config({
     secure: true,
