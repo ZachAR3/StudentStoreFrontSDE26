@@ -1,7 +1,7 @@
 document.addEventListener('alpine:init', () => {
     Alpine.data('storefrontData', () => ({
         // App State (SPA Navigation)
-        currentView: 'listings', // 'listings', 'login', 'register', 'createListing', 'linkWhatsapp', 'whatsappLogin'
+        currentView: 'listings', // 'listings', 'login', 'register', 'createListing', 'linkWhatsapp', 'whatsappLogin', 'profile'
         isLoggedIn: !!localStorage.getItem('token'), 
         user: JSON.parse(localStorage.getItem('user') || 'null'),
         token: localStorage.getItem('token') || '',
@@ -26,6 +26,14 @@ document.addEventListener('alpine:init', () => {
         whatsappLinkForm: { phone: '', otp: '', step: 1 }, // step 1: phone, step 2: otp
         whatsappLogin: { token: '', status: 'PENDING', interval: null },
 
+        // Profile State
+        profileSeller: null,
+        profilePosts: [],
+        profileLoading: false,
+        isOwnProfile: false,
+        showDeleteAccountModal: false,
+        deleteAccountConfirmEmail: '',
+
         init() {
             this.fetchPosts();
             // If logged in but no user data, try to fetch it or clear token
@@ -45,6 +53,15 @@ document.addEventListener('alpine:init', () => {
             if (view !== 'whatsappLogin' && this.whatsappLogin.interval) {
                 clearInterval(this.whatsappLogin.interval);
                 this.whatsappLogin.interval = null;
+            }
+
+            // Reset profile state if leaving profile
+            if (view !== 'profile') {
+                this.profileSeller = null;
+                this.profilePosts = [];
+                this.isOwnProfile = false;
+                this.showDeleteAccountModal = false;
+                this.deleteAccountConfirmEmail = '';
             }
         },
 
@@ -378,6 +395,99 @@ document.addEventListener('alpine:init', () => {
             this.selectedCategory = '';
             this.sortBy = 'newest';
             this.fetchPosts();
+        },
+
+        // ==========================================
+        // Profile Methods
+        // ==========================================
+
+        async viewProfile(sellerId) {
+            this.navigateTo('profile');
+            this.profileLoading = true;
+            this.isOwnProfile = this.isLoggedIn && this.user && this.user.sellerId === sellerId;
+
+            try {
+                // Fetch seller details
+                const sellerRes = await this.apiFetch(`/api/sellers/${sellerId}`);
+                if (!sellerRes.ok) throw new Error('Failed to load profile');
+                this.profileSeller = await sellerRes.json();
+
+                // Fetch seller's posts
+                const postsRes = await fetch(`/api/posts/seller/${sellerId}`);
+                if (!postsRes.ok) throw new Error('Failed to load listings');
+                const postsData = await postsRes.json();
+                this.profilePosts = postsData.content || [];
+            } catch (error) {
+                this.errorMessage = error.message;
+            } finally {
+                this.profileLoading = false;
+            }
+        },
+
+        async deleteProfilePost(postId) {
+            if (!confirm('Are you sure you want to delete this listing? This cannot be undone.')) return;
+            try {
+                const response = await this.apiFetch(`/api/posts/${postId}`, { method: 'DELETE' });
+                if (!response.ok) throw new Error('Failed to delete listing');
+                this.profilePosts = this.profilePosts.filter(p => p.postId !== postId);
+                // Also remove from the main posts array if present
+                this.posts = this.posts.filter(p => p.postId !== postId);
+                this.successMessage = 'Listing deleted successfully.';
+            } catch (error) {
+                this.errorMessage = error.message;
+            }
+        },
+
+        async markProfilePostSold(postId) {
+            try {
+                const response = await this.apiFetch(`/api/posts/${postId}/mark-sold`, { method: 'PATCH' });
+                if (!response.ok) throw new Error('Failed to mark as sold');
+                const updated = await response.json();
+                this.profilePosts = this.profilePosts.map(p => p.postId === postId ? updated : p);
+                // Also update in the main posts array
+                this.posts = this.posts.map(p => p.postId === postId ? updated : p);
+                this.successMessage = 'Listing marked as sold!';
+            } catch (error) {
+                this.errorMessage = error.message;
+            }
+        },
+
+        async deleteAccount() {
+            if (!this.profileSeller) return;
+            if (this.deleteAccountConfirmEmail !== this.profileSeller.email) {
+                this.errorMessage = 'Email does not match. Please type your email to confirm.';
+                return;
+            }
+            // TODO: Backend currently restricts DELETE /api/sellers/{id} to ADMIN role only.
+            // A self-delete endpoint (e.g. DELETE /api/sellers/me) needs to be added to the backend
+            // before this will work for regular SELLER users.
+            try {
+                const response = await this.apiFetch(`/api/sellers/${this.profileSeller.sellerId}`, { method: 'DELETE' });
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.message || 'Failed to delete account. This feature may require admin privileges.');
+                }
+                alert('Your account has been deleted.');
+                this.handleLogout();
+            } catch (error) {
+                this.errorMessage = error.message;
+                this.showDeleteAccountModal = false;
+            }
+        },
+
+        getInitials(name) {
+            if (!name) return '?';
+            return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+        },
+
+        getProfileAvatarColor(sellerId) {
+            const colors = [
+                '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
+                '#ec4899', '#f43f5e', '#ef4444', '#f97316',
+                '#eab308', '#22c55e', '#14b8a6', '#06b6d4',
+                '#3b82f6', '#6366f1'
+            ];
+            return colors[(sellerId || 0) % colors.length];
         }
     }));
 });

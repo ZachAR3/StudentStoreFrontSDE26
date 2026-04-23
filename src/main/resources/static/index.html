@@ -145,6 +145,222 @@
             border-radius: var(--pico-border-radius);
             box-shadow: var(--pico-box-shadow);
         }
+
+        /* Profile Styles */
+        .profile-header {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            padding: 2.5rem;
+            background: linear-gradient(135deg, var(--pico-card-background-color) 0%, var(--pico-background-color) 100%);
+            border: 1px solid var(--pico-muted-border-color);
+            border-radius: calc(var(--pico-border-radius) * 2);
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .profile-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6, #a855f7, #d946ef);
+        }
+
+        .profile-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            letter-spacing: 1px;
+        }
+
+        .profile-info h2 {
+            margin-bottom: 0.3rem;
+            font-size: 1.8rem;
+        }
+
+        .profile-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.2rem;
+            margin-top: 0.8rem;
+        }
+
+        .profile-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.9rem;
+            color: var(--pico-muted-color);
+        }
+
+        .profile-meta-item svg {
+            width: 16px;
+            height: 16px;
+            opacity: 0.7;
+        }
+
+        .profile-section-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.8rem;
+            border-bottom: 2px solid var(--pico-muted-border-color);
+        }
+
+        .profile-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            padding: 0.25rem 0.8rem;
+            border-radius: 1rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .profile-listing-card {
+            display: flex;
+            gap: 1.5rem;
+            padding: 1.2rem;
+            border: 1px solid var(--pico-muted-border-color);
+            border-radius: var(--pico-border-radius);
+            transition: all 0.2s ease;
+            margin-bottom: 1rem;
+            background: var(--pico-card-background-color);
+            align-items: center;
+        }
+
+        .profile-listing-card:hover {
+            box-shadow: var(--pico-box-shadow);
+            border-color: var(--pico-primary);
+        }
+
+        .profile-listing-image {
+            width: 120px;
+            height: 90px;
+            object-fit: cover;
+            border-radius: calc(var(--pico-border-radius));
+            flex-shrink: 0;
+        }
+
+        .profile-listing-info {
+            flex-grow: 1;
+            min-width: 0;
+        }
+
+        .profile-listing-info h4 {
+            margin-bottom: 0.2rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .profile-listing-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+
+        .profile-listing-actions button {
+            margin-bottom: 0;
+            padding: 0.3rem 0.7rem;
+            font-size: 0.78rem;
+            border-radius: 0.5rem;
+        }
+
+        .sold-badge {
+            display: inline-block;
+            background: #22c55e;
+            color: white;
+            padding: 0.15rem 0.5rem;
+            border-radius: 0.5rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+            vertical-align: middle;
+        }
+
+        .danger-zone {
+            margin-top: 3rem;
+            padding: 2rem;
+            border: 2px solid #ef4444;
+            border-radius: var(--pico-border-radius);
+            background: rgba(239, 68, 68, 0.03);
+        }
+
+        .danger-zone h4 {
+            color: #ef4444;
+            margin-bottom: 0.5rem;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .modal-card {
+            background: var(--pico-card-background-color);
+            border: 1px solid var(--pico-muted-border-color);
+            border-radius: calc(var(--pico-border-radius) * 2);
+            padding: 2.5rem;
+            max-width: 480px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .seller-link {
+            cursor: pointer;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .seller-link:hover {
+            color: var(--pico-primary) !important;
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .profile-header {
+                flex-direction: column;
+                text-align: center;
+            }
+            .profile-meta {
+                justify-content: center;
+            }
+            .profile-listing-card {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .profile-listing-image {
+                width: 100%;
+                height: 160px;
+            }
+            .profile-listing-actions {
+                justify-content: flex-end;
+            }
+        }
     </style>
 </head>
 <body x-data="storefrontData()">
@@ -181,7 +397,7 @@
                 <!-- Authenticated User Actions -->
                 <template x-if="isLoggedIn">
                     <li style="display: flex; gap: 1rem; align-items: center;">
-                        <span x-text="'Hi, ' + user.name" style="font-size: 0.9rem; font-weight: bold;"></span>
+                        <a href="#" @click.prevent="viewProfile(user.sellerId)" class="seller-link" style="font-size: 0.9rem; font-weight: bold;" x-text="'Hi, ' + user.name"></a>
                         <template x-if="!user.phoneNumber">
                             <button class="outline contrast" @click="navigateTo('linkWhatsapp')" style="margin-bottom: 0; padding: 0.2rem 0.6rem; font-size: 0.8rem;">Link WhatsApp</button>
                         </template>
@@ -252,7 +468,7 @@
                                 <small style="color: var(--pico-muted-color);" x-text="new Date(post.createdAt).toLocaleDateString()"></small>
                             </div>
                             <div style="text-align: right;">
-                                <small x-text="post.seller.name" style="display: block; margin-bottom: 0.3rem; color: var(--pico-muted-color);"></small>
+                                <a href="#" @click.prevent="viewProfile(post.seller.sellerId)" class="seller-link" x-text="post.seller.name" style="display: block; margin-bottom: 0.3rem; color: var(--pico-muted-color); font-size: 0.875rem;"></a>
                                 <a :href="'mailto:' + post.seller.email" role="button" class="outline contrast" style="padding: 0.3rem 0.8rem; font-size: 0.8rem; border-radius: 1rem;">Contact</a>
                             </div>
                         </footer>
@@ -514,6 +730,136 @@
                     <small style="color: var(--pico-muted-color);">Already have an account? <a href="#" @click.prevent="navigateTo('login')">Log in</a></small>
                 </div>
             </article>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- VIEW: PROFILE                              -->
+        <!-- ========================================== -->
+        <div class="view-container" x-show="currentView === 'profile'">
+
+            <!-- Loading -->
+            <div x-show="profileLoading" style="text-align: center; padding: 4rem;">
+                <span aria-busy="true" style="font-size: 1.2rem; color: var(--pico-muted-color);">Loading profile...</span>
+            </div>
+
+            <!-- Error if no profile loaded -->
+            <div x-show="!profileLoading && !profileSeller && errorMessage" style="text-align: center; padding: 4rem;">
+                <h3 style="margin-bottom: 0.5rem;">Profile not found</h3>
+                <p style="color: var(--pico-muted-color);" x-text="errorMessage"></p>
+                <button class="outline" @click="navigateTo('listings')" style="margin-top: 1rem;">Back to Listings</button>
+            </div>
+
+            <template x-if="profileSeller && !profileLoading">
+                <div>
+                    <!-- Success/Error Messages -->
+                    <article x-show="successMessage" style="background-color: #dcfce7; border: 1px solid #22c55e; color: #15803d; padding: 1rem; margin-bottom: 1.5rem; border-radius: var(--pico-border-radius);">
+                        <p x-text="successMessage" style="margin: 0;"></p>
+                    </article>
+                    <article x-show="errorMessage" style="background-color: #fee2e2; border: 1px solid #ef4444; color: #b91c1c; padding: 1rem; margin-bottom: 1.5rem; border-radius: var(--pico-border-radius);">
+                        <p x-text="errorMessage" style="margin: 0;"></p>
+                    </article>
+
+                    <!-- Profile Header -->
+                    <div class="profile-header">
+                        <div class="profile-avatar" :style="'background:' + getProfileAvatarColor(profileSeller.sellerId)" x-text="getInitials(profileSeller.name)"></div>
+                        <div class="profile-info">
+                            <h2>
+                                <span x-text="profileSeller.name"></span>
+                                <span x-show="isOwnProfile" class="profile-badge">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                                    You
+                                </span>
+                            </h2>
+                            <div class="profile-meta">
+                                <span class="profile-meta-item">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                                    <span x-text="profileSeller.email"></span>
+                                </span>
+                                <span class="profile-meta-item" x-show="profileSeller.phoneNumber">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                                    <span x-text="profileSeller.phoneNumber"></span>
+                                </span>
+                                <span class="profile-meta-item">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                                    <span x-text="profilePosts.length + ' listing' + (profilePosts.length !== 1 ? 's' : '')"></span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Listings Section -->
+                    <div class="profile-section-title">
+                        <h3 style="margin: 0;" x-text="isOwnProfile ? 'Your Listings' : profileSeller.name + \"'s Listings\""></h3>
+                    </div>
+
+                    <!-- No listings -->
+                    <div x-show="profilePosts.length === 0" style="text-align: center; padding: 3rem 2rem; border: 1px dashed var(--pico-muted-border-color); border-radius: var(--pico-border-radius);">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="color: var(--pico-muted-color); margin-bottom: 0.8rem;"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                        <p style="color: var(--pico-muted-color); margin: 0;" x-text="isOwnProfile ? 'You haven\'t posted any listings yet.' : 'No listings yet.'"></p>
+                        <button x-show="isOwnProfile" @click="navigateTo('createListing')" style="margin-top: 1rem;">Create Your First Listing</button>
+                    </div>
+
+                    <!-- Listings list -->
+                    <template x-for="post in profilePosts" :key="post.postId">
+                        <div class="profile-listing-card">
+                            <img :src="post.mediaUrls && post.mediaUrls.length > 0 ? post.mediaUrls[0] : 'https://placehold.co/120x90?text=No+Image'" 
+                                 :alt="post.title" class="profile-listing-image" loading="lazy">
+                            <div class="profile-listing-info">
+                                <h4>
+                                    <span x-text="post.title"></span>
+                                    <span x-show="post.isSold" class="sold-badge">SOLD</span>
+                                </h4>
+                                <div style="font-size: 0.85rem; color: var(--pico-muted-color); margin-bottom: 0.3rem;">
+                                    <span x-text="post.category" style="text-transform: capitalize;"></span>
+                                    &middot;
+                                    <span x-text="new Date(post.createdAt).toLocaleDateString()"></span>
+                                </div>
+                                <strong style="color: var(--pico-primary); font-size: 1.1rem;" x-text="'$' + post.price"></strong>
+                            </div>
+                            <div class="profile-listing-actions" x-show="isOwnProfile">
+                                <button class="outline" @click="markProfilePostSold(post.postId)" x-show="!post.isSold" title="Mark as sold">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                                    Sold
+                                </button>
+                                <button class="outline secondary" @click="deleteProfilePost(post.postId)" title="Delete listing">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Danger Zone: Delete Account (own profile only) -->
+                    <div class="danger-zone" x-show="isOwnProfile">
+                        <h4>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                            Danger Zone
+                        </h4>
+                        <p style="color: var(--pico-muted-color); margin-bottom: 1rem; font-size: 0.9rem;">Once you delete your account, all of your listings will be removed and this action cannot be undone.</p>
+                        <button class="outline" style="border-color: #ef4444; color: #ef4444; padding: 0.4rem 1.2rem;" @click="showDeleteAccountModal = true">Delete My Account</button>
+                    </div>
+
+                    <!-- Delete Account Confirmation Modal -->
+                    <div class="modal-overlay" x-show="showDeleteAccountModal" x-transition @click.self="showDeleteAccountModal = false">
+                        <div class="modal-card">
+                            <h3 style="color: #ef4444; margin-bottom: 0.5rem;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                                Delete Account
+                            </h3>
+                            <p style="color: var(--pico-muted-color); margin-bottom: 1.5rem;">This action is <strong>permanent</strong> and cannot be undone. All your listings will be deleted.</p>
+                            <label style="font-size: 0.9rem;">Type your email to confirm:
+                                <input type="email" x-model="deleteAccountConfirmEmail" :placeholder="profileSeller.email" style="margin-top: 0.5rem;">
+                            </label>
+                            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
+                                <button class="outline secondary" @click="showDeleteAccountModal = false; deleteAccountConfirmEmail = ''" style="padding: 0.4rem 1.2rem;">Cancel</button>
+                                <button style="background: #ef4444; border-color: #ef4444; padding: 0.4rem 1.2rem;" 
+                                        :disabled="deleteAccountConfirmEmail !== profileSeller.email"
+                                        @click="deleteAccount()">Delete Forever</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
         </div>
 
     </main>
