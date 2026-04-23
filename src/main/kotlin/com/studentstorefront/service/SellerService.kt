@@ -5,6 +5,7 @@ import com.studentstorefront.dto.response.SellerResponseDTO
 import com.studentstorefront.dto.update.SellerUpdateDTO
 import com.studentstorefront.entity.Seller
 import com.studentstorefront.enums.Role
+import com.studentstorefront.repository.FavouriteRepository
 import com.studentstorefront.repository.PostRepository
 import com.studentstorefront.repository.SellerRepository
 import org.springframework.data.domain.Page
@@ -20,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional
 class SellerService(
     private val sellerRepository: SellerRepository,
     private val postRepository: PostRepository,
+    private val favouriteRepository: FavouriteRepository,
     private val passwordEncoder: PasswordEncoder
 ) {
 
@@ -86,6 +88,7 @@ class SellerService(
         if (!sellerRepository.existsById(sellerId)) {
             throw IllegalArgumentException("Seller not found with id: $sellerId")
         }
+        favouriteRepository.deleteBySellerSellerId(sellerId)
         sellerRepository.deleteById(sellerId)
     }
 
@@ -104,6 +107,9 @@ class SellerService(
         // Delete all posts owned by this seller (cascades to PostMedia)
         val posts = postRepository.findBySellerSellerId(seller.sellerId!!)
         postRepository.deleteAll(posts)
+
+        // Delete all favourites by this seller
+        favouriteRepository.deleteBySellerSellerId(seller.sellerId!!)
 
         // Delete the seller
         sellerRepository.delete(seller)

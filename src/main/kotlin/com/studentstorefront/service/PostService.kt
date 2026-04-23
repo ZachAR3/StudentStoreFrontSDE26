@@ -9,6 +9,7 @@ import com.studentstorefront.enums.Role
 import com.studentstorefront.entity.Post
 import com.studentstorefront.entity.Seller
 import com.studentstorefront.entity.PostMedia
+import com.studentstorefront.repository.FavouriteRepository
 import com.studentstorefront.repository.PostMediaRepository
 import com.studentstorefront.repository.PostRepository
 import com.studentstorefront.repository.SellerRepository
@@ -27,7 +28,8 @@ import java.time.LocalDateTime
 class PostService(
     private val postRepository: PostRepository,
     private val sellerRepository: SellerRepository,
-    private val postMediaRepository: PostMediaRepository
+    private val postMediaRepository: PostMediaRepository,
+    private val favouriteRepository: FavouriteRepository
 ) {
 
     fun createPost(postRequestDTO: PostRequestDTO): PostResponseDTO {
@@ -82,6 +84,7 @@ class PostService(
     fun deletePost(postId: Long) {
         val post = findPostById(postId)
         assertOwnerOrAdmin(post)
+        favouriteRepository.deleteByPostPostId(postId)
         postRepository.deleteById(postId)
     }
 
