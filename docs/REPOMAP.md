@@ -237,7 +237,7 @@ The frontend is a **Progressive Web App (PWA)** built for speed and simplicity.
 
 **Views (SPA):**
 - **Listings** — Homepage grid of item cards with category/sort filters and search. Includes an Alpine.js interactive image carousel for multi-photo listings. Each card features quick-contact links (Email & pre-filled WhatsApp `wa.me` links).
-- **Favourites** — Grid view of saved items (currently using `localStorage` with a `TODO` for future backend connection). Accessible via the header icon.
+- **Favourites** — Grid view of saved items, fully synced with the backend via `FavouriteController`. Accessible via the header icon.
 - **Profile** — Displays seller info (avatar, name, email, phone, listing count) and their posted listings. Own-profile includes listing management (mark sold, delete) and a "Danger Zone" for account deletion with password-verified confirmation modal.
 - **Login / Register / WhatsApp Login** — Authentication flows.
 - **Create Listing** — Authenticated form for posting new items. Features a drag-and-drop upload zone supporting up to 10 local images with live previews and drag-to-reorder functionality. Uploads are handled securely via the Spring Boot backend to Cloudinary.
@@ -249,6 +249,7 @@ The frontend is a **Progressive Web App (PWA)** built for speed and simplicity.
 ### **Security & University Verification**
 - Access and registrations enforce `@constructor.university` email domains to ensure a high-trust local community.
 - Authentication relies on **JSON Web Tokens (JWT)** generated during login, registration, or WhatsApp QR login to secure backend endpoints.
+- **TODO: Known Vulnerabilities**: `POST /api/sellers` is currently public and should be restricted to admins. `GET /api/sellers/by-phone` is public and should enforce the `X-Bot-Api-Key` header to prevent PII leakage.
 
 ### **WhatsApp Bot Bridge**
 - **Bot Engine:** The Node.js application (`whatsapp-web.js`) acts as a bridge.

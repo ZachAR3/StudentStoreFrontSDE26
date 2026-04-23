@@ -1,7 +1,7 @@
 document.addEventListener('alpine:init', () => {
     Alpine.data('storefrontData', () => ({
         // App State (SPA Navigation)
-        currentView: 'listings', // 'listings', 'login', 'register', 'createListing', 'linkWhatsapp', 'whatsappLogin', 'profile', 'favourites'
+        currentView: 'listings', // 'listings', 'login', 'register', 'createListing', 'whatsappLogin', 'profile', 'favourites'
         isLoggedIn: !!localStorage.getItem('token'), 
         user: JSON.parse(localStorage.getItem('user') || 'null'),
         token: localStorage.getItem('token') || '',
@@ -26,7 +26,6 @@ document.addEventListener('alpine:init', () => {
         registerForm: { name: '', email: '', phoneNumber: '', password: '', confirmPassword: '' },
         
         // WhatsApp Integration State
-        whatsappLinkForm: { phone: '', otp: '', step: 1 }, // step 1: phone, step 2: otp
         whatsappLogin: { token: '', status: 'PENDING', interval: null },
 
         // Profile State
@@ -207,47 +206,6 @@ document.addEventListener('alpine:init', () => {
             this.favouriteIds = new Set();
             localStorage.removeItem('favourites');
             this.navigateTo('listings');
-        },
-
-        // WhatsApp Phase 2: Linking
-        async initWhatsappLink() {
-            this.isLoading = true;
-            try {
-                // TODO: Backend should handle sending OTP to this.whatsappLinkForm.phone
-                const response = await this.apiFetch('/api/auth/whatsapp/link/init', {
-                    method: 'POST',
-                    body: JSON.stringify({ phoneNumber: this.whatsappLinkForm.phone })
-                });
-                if (!response.ok) throw new Error('Failed to send OTP');
-                this.whatsappLinkForm.step = 2;
-            } catch (error) {
-                this.errorMessage = error.message;
-            } finally {
-                this.isLoading = false;
-            }
-        },
-
-        async verifyWhatsappLink() {
-            this.isLoading = true;
-            try {
-                const response = await this.apiFetch('/api/auth/whatsapp/link/verify', {
-                    method: 'POST',
-                    body: JSON.stringify({ otp: this.whatsappLinkForm.otp })
-                });
-                if (!response.ok) throw new Error('Invalid OTP');
-                
-                // Refresh user data (phone is now linked)
-                const userData = await response.json();
-                this.user = userData;
-                localStorage.setItem('user', JSON.stringify(userData));
-                
-                alert('WhatsApp successfully linked!');
-                this.navigateTo('listings');
-            } catch (error) {
-                this.errorMessage = error.message;
-            } finally {
-                this.isLoading = false;
-            }
         },
 
         // WhatsApp Phase 3: Login

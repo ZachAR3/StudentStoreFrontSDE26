@@ -553,9 +553,6 @@
                 <template x-if="isLoggedIn">
                     <li style="display: flex; gap: 1rem; align-items: center;">
                         <a href="#" @click.prevent="viewProfile(user.sellerId)" class="seller-link" style="font-size: 0.9rem; font-weight: bold;" x-text="'Hi, ' + user.name"></a>
-                        <template x-if="!user.phoneNumber">
-                            <button class="outline contrast" @click="navigateTo('linkWhatsapp')" style="margin-bottom: 0; padding: 0.2rem 0.6rem; font-size: 0.8rem;">Link WhatsApp</button>
-                        </template>
                         <button class="fav-nav-btn" :class="{ 'has-items': favouriteCount > 0 }" @click="navigateTo('favourites')" title="Favourites">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
                             <span class="fav-badge" x-show="favouriteCount > 0" x-text="favouriteCount"></span>
@@ -797,40 +794,6 @@
 
                 <div style="text-align: center; margin-top: 1.5rem;">
                     <small style="color: var(--pico-muted-color);">Don't have an account? <a href="#" @click.prevent="navigateTo('register')">Sign up</a></small>
-                </div>
-            </article>
-        </div>
-
-        <!-- ========================================== -->
-        <!-- VIEW: LINK WHATSAPP                        -->
-        <!-- ========================================== -->
-        <div class="view-container" x-show="currentView === 'linkWhatsapp'">
-            <article class="auth-card">
-                <h2 style="text-align: center; margin-bottom: 2rem;">Link Your WhatsApp</h2>
-                
-                <article x-show="errorMessage" style="background-color: #fee2e2; border-color: #ef4444; color: #b91c1c; padding: 1rem; margin-bottom: 2rem; border-radius: var(--pico-border-radius);">
-                    <p x-text="errorMessage" style="margin: 0;"></p>
-                </article>
-
-                <div x-show="whatsappLinkForm.step === 1">
-                    <p>Enter your phone number to receive a verification code on WhatsApp.</p>
-                    <form @submit.prevent="initWhatsappLink()">
-                        <label>Phone Number
-                            <input type="tel" x-model="whatsappLinkForm.phone" placeholder="+49123456789" required>
-                        </label>
-                        <button type="submit" style="width: 100%; margin-top: 1rem;" :aria-busy="isLoading">Send Code</button>
-                    </form>
-                </div>
-
-                <div x-show="whatsappLinkForm.step === 2">
-                    <p>Enter the 6-digit code sent to your WhatsApp.</p>
-                    <form @submit.prevent="verifyWhatsappLink()">
-                        <label>Verification Code
-                            <input type="text" x-model="whatsappLinkForm.otp" placeholder="123456" maxlength="6" required>
-                        </label>
-                        <button type="submit" style="width: 100%; margin-top: 1rem;" :aria-busy="isLoading">Verify Code</button>
-                        <button type="button" class="outline secondary" style="width: 100%; margin-top: 0.5rem;" @click="whatsappLinkForm.step = 1">Back</button>
-                    </form>
                 </div>
             </article>
         </div>
