@@ -32,7 +32,7 @@ document.addEventListener('alpine:init', () => {
         profileLoading: false,
         isOwnProfile: false,
         showDeleteAccountModal: false,
-        deleteAccountConfirmEmail: '',
+        deleteAccountConfirmPassword: '',
 
         init() {
             this.fetchPosts();
@@ -61,7 +61,7 @@ document.addEventListener('alpine:init', () => {
                 this.profilePosts = [];
                 this.isOwnProfile = false;
                 this.showDeleteAccountModal = false;
-                this.deleteAccountConfirmEmail = '';
+                this.deleteAccountConfirmPassword = '';
             }
         },
 
@@ -454,18 +454,18 @@ document.addEventListener('alpine:init', () => {
 
         async deleteAccount() {
             if (!this.profileSeller) return;
-            if (this.deleteAccountConfirmEmail !== this.profileSeller.email) {
-                this.errorMessage = 'Email does not match. Please type your email to confirm.';
+            if (!this.deleteAccountConfirmPassword) {
+                this.errorMessage = 'Please enter your password to confirm.';
                 return;
             }
-            // TODO: Backend currently restricts DELETE /api/sellers/{id} to ADMIN role only.
-            // A self-delete endpoint (e.g. DELETE /api/sellers/me) needs to be added to the backend
-            // before this will work for regular SELLER users.
             try {
-                const response = await this.apiFetch(`/api/sellers/${this.profileSeller.sellerId}`, { method: 'DELETE' });
+                const response = await this.apiFetch('/api/sellers/me', {
+                    method: 'DELETE',
+                    body: JSON.stringify({ password: this.deleteAccountConfirmPassword })
+                });
                 if (!response.ok) {
                     const errData = await response.json().catch(() => ({}));
-                    throw new Error(errData.message || 'Failed to delete account. This feature may require admin privileges.');
+                    throw new Error(errData.message || 'Failed to delete account.');
                 }
                 alert('Your account has been deleted.');
                 this.handleLogout();

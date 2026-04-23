@@ -87,7 +87,8 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 | `GET` | `/api/sellers/email/{email}`| Get details of a specific seller by email |
 | `GET` | `/api/sellers/by-phone` | Bot-specific: Lookup seller by phone number |
 | `PUT` | `/api/sellers/{id}` | Update an existing seller |
-| `DELETE` | `/api/sellers/{id}` | Delete a seller |
+| `DELETE` | `/api/sellers/me` | Self-service account deletion (requires password re-entry; deletes all user's posts) |
+| `DELETE` | `/api/sellers/{id}` | Delete a seller (admin only) |
 
 #### **Data Formats (JSON)**
 
@@ -165,6 +166,12 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 }
 ```
 
+**Delete Account Request (`DELETE /api/sellers/me`):**
+```json
+{ "password": "currentPassword123!" }
+```
+Returns `204 No Content` on success, `403 Forbidden` with `{"message": "Incorrect password"}` on wrong password.
+
 ---
 
 ## 4. Data Model (Core Entities)
@@ -216,9 +223,15 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 
 The frontend is a **Progressive Web App (PWA)** built for speed and simplicity.
 
-- **`index.html`**: Uses **Pico.css** for a native-feeling mobile UI. **Alpine.js** handles the reactive state (listing grid, form visibility).
-- **`js/app.js`**: Contains client-side logic to communicate with the Spring Boot backend REST API.
+- **`index.html`**: Uses **Pico.css** for a native-feeling mobile UI. **Alpine.js** handles the reactive state (listing grid, form visibility, profile view).
+- **`js/app.js`**: Contains client-side logic to communicate with the Spring Boot backend REST API. Includes SPA navigation across views: listings, login, register, create listing, WhatsApp login, and user profile.
 - **`css/custom.css`**: Supplementary styling overrides.
+
+**Views (SPA):**
+- **Listings** — Homepage grid of item cards with category/sort filters and search. Seller names on cards are clickable links to profiles.
+- **Profile** — Displays seller info (avatar, name, email, phone, listing count) and their posted listings. Own-profile includes listing management (mark sold, delete) and a "Danger Zone" for account deletion with password-verified confirmation modal.
+- **Login / Register / WhatsApp Login** — Authentication flows.
+- **Create Listing** — Authenticated form for posting new items.
 
 ---
 

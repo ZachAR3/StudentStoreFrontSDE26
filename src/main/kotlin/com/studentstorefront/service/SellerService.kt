@@ -5,6 +5,7 @@ import com.studentstorefront.dto.response.SellerResponseDTO
 import com.studentstorefront.dto.update.SellerUpdateDTO
 import com.studentstorefront.entity.Seller
 import com.studentstorefront.enums.Role
+import com.studentstorefront.repository.PostRepository
 import com.studentstorefront.repository.SellerRepository
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional
 class SellerService(
     private val sellerRepository: SellerRepository,
+    private val postRepository: PostRepository,
     private val passwordEncoder: PasswordEncoder
 ) {
 
@@ -85,6 +87,26 @@ class SellerService(
             throw IllegalArgumentException("Seller not found with id: $sellerId")
         }
         sellerRepository.deleteById(sellerId)
+    }
+
+    /**
+     * Allows the currently authenticated user to delete their own account.
+     * Requires password re-entry for safety. Deletes all associated posts first.
+     */
+    fun deleteOwnAccount(password: String) {
+        val seller = getCurrentSeller()
+
+        // Verify password
+        if (!passwordEncoder.matches(password, seller.password)) {
+            throw AccessDeniedException("Incorrect password")
+        }
+
+        // Delete all posts owned by this seller (cascades to PostMedia)
+        val posts = postRepository.findBySellerSellerId(seller.sellerId!!)
+        postRepository.deleteAll(posts)
+
+        // Delete the seller
+        sellerRepository.delete(seller)
     }
 
     // Private helper methods

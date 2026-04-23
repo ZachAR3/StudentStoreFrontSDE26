@@ -847,13 +847,13 @@
                                 Delete Account
                             </h3>
                             <p style="color: var(--pico-muted-color); margin-bottom: 1.5rem;">This action is <strong>permanent</strong> and cannot be undone. All your listings will be deleted.</p>
-                            <label style="font-size: 0.9rem;">Type your email to confirm:
-                                <input type="email" x-model="deleteAccountConfirmEmail" :placeholder="profileSeller.email" style="margin-top: 0.5rem;">
+                            <label style="font-size: 0.9rem;">Enter your password to confirm:
+                                <input type="password" x-model="deleteAccountConfirmPassword" placeholder="Your account password" style="margin-top: 0.5rem;">
                             </label>
                             <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
-                                <button class="outline secondary" @click="showDeleteAccountModal = false; deleteAccountConfirmEmail = ''" style="padding: 0.4rem 1.2rem;">Cancel</button>
+                                <button class="outline secondary" @click="showDeleteAccountModal = false; deleteAccountConfirmPassword = ''" style="padding: 0.4rem 1.2rem;">Cancel</button>
                                 <button style="background: #ef4444; border-color: #ef4444; padding: 0.4rem 1.2rem;" 
-                                        :disabled="deleteAccountConfirmEmail !== profileSeller.email"
+                                        :disabled="!deleteAccountConfirmPassword"
                                         @click="deleteAccount()">Delete Forever</button>
                             </div>
                         </div>

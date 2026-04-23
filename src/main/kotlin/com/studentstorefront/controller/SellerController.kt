@@ -1,5 +1,6 @@
 package com.studentstorefront.controller
 
+import com.studentstorefront.dto.request.DeleteAccountRequestDTO
 import com.studentstorefront.dto.request.SellerRequestDTO
 import com.studentstorefront.dto.response.SellerResponseDTO
 import com.studentstorefront.dto.update.SellerUpdateDTO
@@ -17,6 +18,17 @@ import org.springframework.web.bind.annotation.*
 @RequestMapping("/api/sellers")
 @CrossOrigin(origins = ["http://localhost:8080", "http://127.0.0.1:8080", "http://localhost:3000"])
 class SellerController(private val sellerService: SellerService) {
+
+    /**
+     * Self-service account deletion. Requires password re-entry for safety.
+     * Mapped before /{sellerId} to prevent Spring from treating "me" as a path variable.
+     */
+    @DeleteMapping("/me")
+    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
+    fun deleteOwnAccount(@Valid @RequestBody request: DeleteAccountRequestDTO): ResponseEntity<Void> {
+        sellerService.deleteOwnAccount(request.password)
+        return ResponseEntity.noContent().build()
+    }
 
     @PostMapping
     fun createSeller(@Valid @RequestBody sellerRequestDTO: SellerRequestDTO): ResponseEntity<SellerResponseDTO> {
