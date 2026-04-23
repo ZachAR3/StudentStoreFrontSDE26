@@ -30,6 +30,17 @@ class PostController(
         return ResponseEntity.status(HttpStatus.CREATED).body(createdPost)
     }
 
+    @PostMapping("/upload", consumes = ["multipart/form-data"])
+    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
+    fun createPostWithImages(
+        @RequestPart("post") @Valid postRequestDTO: PostRequestDTO,
+        @RequestPart("images") images: List<org.springframework.web.multipart.MultipartFile>,
+        @RequestParam(value = "coverIndex", defaultValue = "0") coverIndex: Int
+    ): ResponseEntity<PostResponseDTO> {
+        val createdPost = postService.createPostWithImages(postRequestDTO, images, coverIndex)
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdPost)
+    }
+
     @PostMapping("/bot")
     fun createPostAsBot(
         @RequestHeader("X-Bot-Api-Key") apiKey: String,

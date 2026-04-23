@@ -68,7 +68,8 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
 | `GET` | `/api/posts` | Fetch paginated list of all posts (default size=20) |
-| `POST` | `/api/posts` | Create a new listing |
+| `POST` | `/api/posts` | Create a new listing (legacy JSON only) |
+| `POST` | `/api/posts/upload` | Create a new listing with multiple image file uploads (multipart/form-data) |
 | `GET` | `/api/posts/{id}` | Get details of a specific post |
 | `PUT` | `/api/posts/{id}` | Update an existing post |
 | `PATCH` | `/api/posts/{id}/mark-sold` | Mark a post as sold (removes from active feed) |
@@ -145,6 +146,11 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 }
 ```
 
+**Post Upload Request (Multipart `POST /api/posts/upload`):**
+- `post`: JSON Blob matching the above `Post Request` format.
+- `images`: Array of `MultipartFile` binary objects (up to 10).
+- `coverIndex`: Integer indicating which image index is the cover.
+
 **Post Response:**
 ```json
 {
@@ -191,6 +197,8 @@ Returns `204 No Content` on success, `403 Forbidden` with `{"message": "Incorrec
 ### **PostMedia**
 - `id`: Primary Key (Long)
 - `mediaUrl`: URL to the hosted image (String)
+- `displayOrder`: User-defined order for image display (Integer)
+- `isCover`: Flag indicating the primary thumbnail (Boolean)
 - `post`: Reference to the parent `Post`
 
 ### **Seller**
@@ -228,11 +236,11 @@ The frontend is a **Progressive Web App (PWA)** built for speed and simplicity.
 - **`css/custom.css`**: Supplementary styling overrides.
 
 **Views (SPA):**
-- **Listings** — Homepage grid of item cards with category/sort filters and search. Seller names on cards are clickable links to profiles.
+- **Listings** — Homepage grid of item cards with category/sort filters and search. Includes an Alpine.js interactive image carousel for multi-photo listings. Each card features quick-contact links (Email & pre-filled WhatsApp `wa.me` links).
 - **Favourites** — Grid view of saved items (currently using `localStorage` with a `TODO` for future backend connection). Accessible via the header icon.
 - **Profile** — Displays seller info (avatar, name, email, phone, listing count) and their posted listings. Own-profile includes listing management (mark sold, delete) and a "Danger Zone" for account deletion with password-verified confirmation modal.
 - **Login / Register / WhatsApp Login** — Authentication flows.
-- **Create Listing** — Authenticated form for posting new items.
+- **Create Listing** — Authenticated form for posting new items. Features a drag-and-drop upload zone supporting up to 10 local images with live previews and drag-to-reorder functionality. Uploads are handled securely via the Spring Boot backend to Cloudinary.
 
 ---
 

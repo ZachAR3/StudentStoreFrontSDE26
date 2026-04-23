@@ -8,5 +8,9 @@ import jakarta.persistence.*
         @JoinColumn(name = "post_id")
         val post: Post,
         @Column(nullable = false)
-        val mediaUrl: String
+        val mediaUrl: String,
+        @Column(columnDefinition = "integer default 0", nullable = false)
+        val displayOrder: Int = 0,
+        @Column(columnDefinition = "boolean default false", nullable = false)
+        val isCover: Boolean = false
     )

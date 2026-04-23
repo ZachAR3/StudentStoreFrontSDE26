@@ -29,7 +29,8 @@ class PostService(
     private val postRepository: PostRepository,
     private val sellerRepository: SellerRepository,
     private val postMediaRepository: PostMediaRepository,
-    private val favouriteRepository: FavouriteRepository
+    private val favouriteRepository: FavouriteRepository,
+    private val cloudinaryService: CloudinaryService
 ) {
 
     fun createPost(postRequestDTO: PostRequestDTO): PostResponseDTO {
@@ -38,7 +39,41 @@ class PostService(
         val seller = findSellerById(sellerId)
         val post = createPostEntity(postRequestDTO, seller)
         val savedPost = postRepository.save(post)
-        postMediaRepository.saveAll(postRequestDTO.imageUrlList.map { PostMedia(post = savedPost, mediaUrl = it) })
+        postMediaRepository.saveAll((postRequestDTO.imageUrlList ?: emptyList()).map { PostMedia(post = savedPost, mediaUrl = it) })
+        return mapToResponseDTO(savedPost)
+    }
+
+    fun createPostWithImages(
+        postRequestDTO: PostRequestDTO,
+        images: List<org.springframework.web.multipart.MultipartFile>,
+        coverIndex: Int
+    ): PostResponseDTO {
+        val current = getCurrentSeller()
+        val sellerId = if (current.role == Role.ADMIN) postRequestDTO.sellerId!! else current.sellerId!!
+        val seller = findSellerById(sellerId)
+        val post = createPostEntity(postRequestDTO, seller)
+        val savedPost = postRepository.save(post)
+
+        val mediaUrls = mutableListOf<String>()
+
+        images.forEachIndexed { index, file ->
+            val url = cloudinaryService.uploadImage(file)
+            if (url != null) {
+                val postMedia = PostMedia(
+                    post = savedPost,
+                    mediaUrl = url,
+                    displayOrder = index,
+                    isCover = (index == coverIndex)
+                )
+                postMediaRepository.save(postMedia)
+                mediaUrls.add(url)
+            }
+        }
+
+        if (mediaUrls.isEmpty() && images.isNotEmpty()) {
+            throw RuntimeException("Failed to upload images")
+        }
+
         return mapToResponseDTO(savedPost)
     }
 
@@ -48,7 +83,7 @@ class PostService(
         val seller = findSellerById(sellerId)
         val post = createPostEntity(postRequestDTO, seller)
         val savedPost = postRepository.save(post)
-        postMediaRepository.saveAll(postRequestDTO.imageUrlList.map { PostMedia(post = savedPost, mediaUrl = it) })
+        postMediaRepository.saveAll((postRequestDTO.imageUrlList ?: emptyList()).map { PostMedia(post = savedPost, mediaUrl = it) })
         return mapToResponseDTO(savedPost)
     }
 
@@ -147,7 +182,9 @@ class PostService(
             postId = post.postId!!,
             title = post.title,
             price = post.price,
-            mediaUrls = postMediaRepository.findByPost_postId(post.postId!!).map { it.mediaUrl },
+            mediaUrls = postMediaRepository.findByPost_postId(post.postId!!)
+                .sortedWith(compareBy({ !it.isCover }, { it.displayOrder }))
+                .map { it.mediaUrl },
             description = post.description,
             category = post.category,
             isSold = post.isSold,

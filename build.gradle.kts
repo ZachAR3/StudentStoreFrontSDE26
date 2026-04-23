@@ -45,6 +45,9 @@ dependencies {
 
 	// HTTP Client for external APIs (Gemini, WhatsApp)
 	implementation("org.springframework.boot:spring-boot-starter-webflux")
+	
+	// Cloudinary (Image Uploads)
+	implementation("com.cloudinary:cloudinary-http45:1.39.0")
 
 	// Scheduling
 	implementation("org.springframework.boot:spring-boot-starter-quartz")

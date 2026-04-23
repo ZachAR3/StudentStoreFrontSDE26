@@ -704,10 +704,43 @@
                         </label>
                     </div>
                     
-                    <div class="grid">
-                        <label>Image URL
-                            <input type="url" placeholder="https://..." x-model="newPost.imageUrl" required>
-                        </label>
+                    <!-- Image Upload Section -->
+                    <div style="margin-bottom: 1.5rem;">
+                        <label>Photos (Up to 10)</label>
+                        
+                        <div style="border: 2px dashed var(--pico-muted-border-color); border-radius: var(--pico-border-radius); padding: 2rem; text-align: center; margin-bottom: 1rem; position: relative; transition: background 0.2s;"
+                             @dragover.prevent="$el.style.backgroundColor = 'rgba(0,0,0,0.05)'"
+                             @dragleave.prevent="$el.style.backgroundColor = 'transparent'"
+                             @drop.prevent="handleDrop($event); $el.style.backgroundColor = 'transparent'">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--pico-muted-color); margin-bottom: 0.5rem;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            <p style="margin-bottom: 0.5rem;">Drag and drop images here, or</p>
+                            <label role="button" class="outline secondary" style="display: inline-block; cursor: pointer; margin: 0;">
+                                Browse Files
+                                <input type="file" multiple accept="image/*" @change="handleFileSelect" style="display: none;">
+                            </label>
+                        </div>
+
+                        <!-- Image Preview Grid -->
+                        <div x-show="imagePreviews.length > 0" class="grid" style="grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                            <template x-for="(preview, index) in imagePreviews" :key="preview">
+                                <div draggable="true" 
+                                     @dragstart="dragStartIndex = index"
+                                     @dragover.prevent=""
+                                     @drop.prevent="handleImageDrop(index)"
+                                     style="position: relative; border-radius: var(--pico-border-radius); overflow: hidden; border: 2px solid transparent; cursor: grab;" 
+                                     :style="index === 0 ? 'border-color: var(--pico-primary);' : ''">
+                                    
+                                    <img :src="preview" style="width: 100%; height: 120px; object-fit: cover; display: block; pointer-events: none;">
+                                    
+                                    <!-- Delete button -->
+                                    <button @click.prevent="removeImage(index)" style="position: absolute; top: 0.3rem; right: 0.3rem; width: 24px; height: 24px; font-size: 1rem; line-height: 1; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;">&times;</button>
+                                    
+                                    <!-- Cover Badge -->
+                                    <div x-show="index === 0" style="position: absolute; bottom: 0.3rem; left: 0.3rem; background: var(--pico-primary); color: white; font-size: 0.6rem; padding: 0.2rem 0.4rem; border-radius: 0.5rem; font-weight: bold; pointer-events: none;">COVER</div>
+                                </div>
+                            </template>
+                        </div>
+                        
                         <label>Category
                             <select x-model="newPost.category" required>
                                 <option value="ELECTRONICS">Electronics</option>

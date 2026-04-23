@@ -18,7 +18,10 @@ document.addEventListener('alpine:init', () => {
         sortBy: 'newest', 
         
         // Forms State
-        newPost: { title: '', price: null, description: '', imageUrl: '', category: 'OTHER' },
+        newPost: { title: '', price: null, description: '', category: 'OTHER' },
+        selectedImages: [],
+        imagePreviews: [],
+        dragStartIndex: null,
         loginForm: { email: '', password: '' },
         registerForm: { name: '', email: '', phoneNumber: '', password: '', confirmPassword: '' },
         
@@ -74,10 +77,10 @@ document.addEventListener('alpine:init', () => {
 
         // API Helper
         async apiFetch(endpoint, options = {}) {
-            const headers = {
-                'Content-Type': 'application/json',
-                ...options.headers
-            };
+            const headers = { ...options.headers };
+            if (!(options.body instanceof FormData) && !headers['Content-Type']) {
+                headers['Content-Type'] = 'application/json';
+            }
             if (this.token) {
                 headers['Authorization'] = `Bearer ${this.token}`;
             }
@@ -339,8 +342,7 @@ document.addEventListener('alpine:init', () => {
             if (!this.newPost.price) return ['Price is required'];
             if (this.newPost.price < 0.01) return ['Price must be greater than 0'];
             if (!this.newPost.category) return ['Category is required'];
-            if (!this.newPost.imageUrl || this.newPost.imageUrl.trim() === '') return ['Image URL is required'];
-            try { new URL(this.newPost.imageUrl); } catch (e) { return ['Image URL must be valid']; }
+            if (this.selectedImages.length === 0) return ['At least one image is required'];
             if (!this.newPost.description || this.newPost.description.trim() === '') return ['Description is required'];
             return [];
         },
@@ -370,18 +372,36 @@ document.addEventListener('alpine:init', () => {
                 return;
             }
 
+            if (this.selectedImages.length === 0) {
+                this.errorMessage = "Please upload at least one image.";
+                return;
+            }
+
             this.isLoading = true;
             try {
+                const formData = new FormData();
+                
                 const postData = { 
-                    ...this.newPost, 
-                    imageUrlList: [this.newPost.imageUrl],
+                    title: this.newPost.title,
+                    price: this.newPost.price,
+                    description: this.newPost.description,
+                    category: this.newPost.category,
                     sellerId: this.user.sellerId 
                 };
-                delete postData.imageUrl;
 
-                const response = await this.apiFetch('/api/posts', {
+                formData.append("post", new Blob([JSON.stringify(postData)], {
+                    type: "application/json"
+                }));
+
+                this.selectedImages.forEach(file => {
+                    formData.append("images", file);
+                });
+                
+                formData.append("coverIndex", 0);
+
+                const response = await this.apiFetch('/api/posts/upload', {
                     method: 'POST',
-                    body: JSON.stringify(postData)
+                    body: formData
                 });
 
                 if (!response.ok) {
@@ -392,7 +412,12 @@ document.addEventListener('alpine:init', () => {
                 const createdPost = await response.json();
                 this.posts.unshift(createdPost);
                 
-                this.newPost = { title: '', price: null, description: '', imageUrl: '', category: 'OTHER' };
+                this.newPost = { title: '', price: null, description: '', category: 'OTHER' };
+                this.selectedImages = [];
+                this.imagePreviews.forEach(URL.revokeObjectURL);
+                this.imagePreviews = [];
+                this.dragStartIndex = null;
+                
                 this.navigateTo('listings');
                 alert("Successfully published!");
             } catch (error) {
@@ -400,6 +425,49 @@ document.addEventListener('alpine:init', () => {
             } finally {
                 this.isLoading = false;
             }
+        },
+
+        // Image Handling Methods
+        handleFileSelect(event) {
+            const files = Array.from(event.target.files);
+            this.addFiles(files);
+            event.target.value = ''; // Reset input
+        },
+
+        handleDrop(event) {
+            const files = Array.from(event.dataTransfer.files);
+            this.addFiles(files);
+        },
+
+        addFiles(files) {
+            const imageFiles = files.filter(f => f.type.startsWith('image/'));
+            
+            if (this.selectedImages.length + imageFiles.length > 10) {
+                alert("You can only upload up to 10 images.");
+                return;
+            }
+
+            imageFiles.forEach(file => {
+                this.selectedImages.push(file);
+                this.imagePreviews.push(URL.createObjectURL(file));
+            });
+        },
+
+        removeImage(index) {
+            URL.revokeObjectURL(this.imagePreviews[index]);
+            this.selectedImages.splice(index, 1);
+            this.imagePreviews.splice(index, 1);
+        },
+
+        handleImageDrop(dropIndex) {
+            if (this.dragStartIndex === null || this.dragStartIndex === dropIndex) return;
+
+            const file = this.selectedImages.splice(this.dragStartIndex, 1)[0];
+            const preview = this.imagePreviews.splice(this.dragStartIndex, 1)[0];
+
+            this.selectedImages.splice(dropIndex, 0, file);
+            this.imagePreviews.splice(dropIndex, 0, preview);
+            this.dragStartIndex = null;
         },
 
         clearFilters() {
