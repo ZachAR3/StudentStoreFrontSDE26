@@ -571,7 +571,13 @@
                             </div>
                             <div style="text-align: right;">
                                 <a href="#" @click.prevent="viewProfile(post.seller.sellerId)" class="seller-link" x-text="post.seller.name" style="display: block; margin-bottom: 0.3rem; color: var(--pico-muted-color); font-size: 0.875rem;"></a>
-                                <a :href="'mailto:' + post.seller.email" role="button" class="outline contrast" style="padding: 0.3rem 0.8rem; font-size: 0.8rem; border-radius: 1rem;">Contact</a>
+                                <div style="display: flex; gap: 0.4rem; justify-content: flex-end;">
+                                    <a :href="'mailto:' + post.seller.email" role="button" class="outline contrast" style="padding: 0.2rem 0.6rem; font-size: 0.75rem; border-radius: 1rem;" title="Email">Email</a>
+                                    <template x-if="post.seller.phoneNumber">
+                                        <a :href="'https://wa.me/' + post.seller.phoneNumber.replace(/[^0-9]/g, '') + '?text=' + encodeURIComponent('Hi, I am interested in your listing: ' + post.title)" 
+                                           target="_blank" role="button" class="outline" style="padding: 0.2rem 0.6rem; font-size: 0.75rem; border-radius: 1rem; color: #25D366; border-color: #25D366;" title="WhatsApp">WhatsApp</a>
+                                    </template>
+                                </div>
                             </div>
                         </footer>
                     </article>
@@ -871,7 +877,13 @@
                             </div>
                             <div style="text-align: right;">
                                 <a href="#" @click.prevent="viewProfile(post.seller.sellerId)" class="seller-link" x-text="post.seller.name" style="display: block; margin-bottom: 0.3rem; color: var(--pico-muted-color); font-size: 0.875rem;"></a>
-                                <a :href="'mailto:' + post.seller.email" role="button" class="outline contrast" style="padding: 0.3rem 0.8rem; font-size: 0.8rem; border-radius: 1rem;">Contact</a>
+                                <div style="display: flex; gap: 0.4rem; justify-content: flex-end;">
+                                    <a :href="'mailto:' + post.seller.email" role="button" class="outline contrast" style="padding: 0.2rem 0.6rem; font-size: 0.75rem; border-radius: 1rem;" title="Email">Email</a>
+                                    <template x-if="post.seller.phoneNumber">
+                                        <a :href="'https://wa.me/' + post.seller.phoneNumber.replace(/[^0-9]/g, '') + '?text=' + encodeURIComponent('Hi, I am interested in your listing: ' + post.title)" 
+                                           target="_blank" role="button" class="outline" style="padding: 0.2rem 0.6rem; font-size: 0.75rem; border-radius: 1rem; color: #25D366; border-color: #25D366;" title="WhatsApp">WhatsApp</a>
+                                    </template>
+                                </div>
                             </div>
                         </footer>
                     </article>
