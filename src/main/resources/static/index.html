@@ -361,6 +361,93 @@
                 justify-content: flex-end;
             }
         }
+
+        /* Favourites Module */
+        .fav-btn {
+            position: absolute;
+            top: 0.8rem;
+            left: 0.8rem;
+            background: rgba(0, 0, 0, 0.5);
+            border: none;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(4px);
+            padding: 0;
+            margin: 0;
+            z-index: 2;
+        }
+
+        .fav-btn:hover {
+            background: rgba(0, 0, 0, 0.7);
+            transform: scale(1.15);
+        }
+
+        .fav-btn svg {
+            width: 18px;
+            height: 18px;
+            transition: all 0.2s ease;
+        }
+
+        .fav-btn.is-fav svg {
+            animation: heartPop 0.3s ease;
+        }
+
+        @keyframes heartPop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+
+        .fav-nav-btn {
+            position: relative;
+            background: none;
+            border: 1px solid var(--pico-muted-border-color);
+            border-radius: 0.5rem;
+            padding: 0.35rem 0.7rem;
+            margin-bottom: 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+            color: var(--pico-color);
+        }
+
+        .fav-nav-btn:hover {
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+
+        .fav-nav-btn.has-items {
+            border-color: #ef4444;
+        }
+
+        .fav-badge {
+            background: #ef4444;
+            color: white;
+            font-size: 0.65rem;
+            font-weight: 700;
+            min-width: 18px;
+            height: 18px;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px;
+            line-height: 1;
+        }
+
+        .fav-empty-icon {
+            color: var(--pico-muted-color);
+            margin-bottom: 1rem;
+        }
     </style>
 </head>
 <body x-data="storefrontData()">
@@ -401,6 +488,10 @@
                         <template x-if="!user.phoneNumber">
                             <button class="outline contrast" @click="navigateTo('linkWhatsapp')" style="margin-bottom: 0; padding: 0.2rem 0.6rem; font-size: 0.8rem;">Link WhatsApp</button>
                         </template>
+                        <button class="fav-nav-btn" :class="{ 'has-items': favouriteCount > 0 }" @click="navigateTo('favourites')" title="Favourites">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                            <span class="fav-badge" x-show="favouriteCount > 0" x-text="favouriteCount"></span>
+                        </button>
                         <button @click="navigateTo('createListing')" style="margin-bottom: 0; padding: 0.4rem 1rem;">+ Create Listing</button>
                         <a href="#" @click.prevent="handleLogout()" class="secondary" style="font-size: 0.9rem;">Log Out</a>
                     </li>
@@ -457,6 +548,17 @@
                             <img :src="post.mediaUrls && post.mediaUrls.length > 0 ? post.mediaUrls[0] : 'https://placehold.co/600x400?text=No+Image'" 
                                  :alt="post.title" class="item-image" loading="lazy">
                             <span class="item-badge" x-text="post.category"></span>
+                            <!-- Favourite Heart Button -->
+                            <button class="fav-btn" :class="{ 'is-fav': isFavourite(post.postId) }" 
+                                    @click.stop="toggleFavourite(post.postId)" 
+                                    :title="isFavourite(post.postId) ? 'Remove from favourites' : 'Add to favourites'">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" 
+                                     :fill="isFavourite(post.postId) ? '#ef4444' : 'none'" 
+                                     :stroke="isFavourite(post.postId) ? '#ef4444' : 'white'" 
+                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+                                </svg>
+                            </button>
                         </header>
                         <div class="item-content">
                             <h3 class="item-title" x-text="post.title"></h3>
@@ -730,6 +832,59 @@
                     <small style="color: var(--pico-muted-color);">Already have an account? <a href="#" @click.prevent="navigateTo('login')">Log in</a></small>
                 </div>
             </article>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- VIEW: FAVOURITES                           -->
+        <!-- ========================================== -->
+        <div class="view-container" x-show="currentView === 'favourites'">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <div>
+                    <h2 style="margin-bottom: 0.2rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="#ef4444" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                        Saved Items
+                    </h2>
+                    <p style="color: var(--pico-muted-color); margin-bottom: 0;">Items you've marked as favourite.</p>
+                </div>
+            </div>
+
+            <!-- Favourites Grid -->
+            <div class="grid" x-show="favouriteCount > 0" style="grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 2rem;">
+                <template x-for="post in favouritePosts" :key="post.postId">
+                    <article class="item-card">
+                        <header>
+                            <img :src="post.mediaUrls && post.mediaUrls.length > 0 ? post.mediaUrls[0] : 'https://placehold.co/600x400?text=No+Image'" 
+                                 :alt="post.title" class="item-image" loading="lazy">
+                            <span class="item-badge" x-text="post.category"></span>
+                            <button class="fav-btn is-fav" @click.stop="removeFavourite(post.postId)" title="Remove from favourites">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="#ef4444" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                            </button>
+                        </header>
+                        <div class="item-content">
+                            <h3 class="item-title" x-text="post.title"></h3>
+                            <p class="item-description" x-text="post.description"></p>
+                        </div>
+                        <footer class="item-footer">
+                            <div>
+                                <div class="item-price" x-text="'$' + post.price"></div>
+                                <small style="color: var(--pico-muted-color);" x-text="new Date(post.createdAt).toLocaleDateString()"></small>
+                            </div>
+                            <div style="text-align: right;">
+                                <a href="#" @click.prevent="viewProfile(post.seller.sellerId)" class="seller-link" x-text="post.seller.name" style="display: block; margin-bottom: 0.3rem; color: var(--pico-muted-color); font-size: 0.875rem;"></a>
+                                <a :href="'mailto:' + post.seller.email" role="button" class="outline contrast" style="padding: 0.3rem 0.8rem; font-size: 0.8rem; border-radius: 1rem;">Contact</a>
+                            </div>
+                        </footer>
+                    </article>
+                </template>
+            </div>
+
+            <!-- Empty State -->
+            <div x-show="favouriteCount === 0" style="text-align: center; padding: 5rem 2rem; border: 1px dashed var(--pico-muted-border-color); border-radius: var(--pico-border-radius); background: var(--pico-card-background-color);">
+                <svg class="fav-empty-icon" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                <h3 style="margin-bottom: 0.5rem;">No saved items yet</h3>
+                <p style="color: var(--pico-muted-color); margin-bottom: 1.5rem; max-width: 400px; margin-left: auto; margin-right: auto;">Keep track of items you're interested in by clicking the heart icon on any listing.</p>
+                <button class="outline secondary" @click="navigateTo('listings')">Browse Items</button>
+            </div>
         </div>
 
         <!-- ========================================== -->

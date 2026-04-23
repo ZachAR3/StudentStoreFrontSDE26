@@ -1,7 +1,7 @@
 document.addEventListener('alpine:init', () => {
     Alpine.data('storefrontData', () => ({
         // App State (SPA Navigation)
-        currentView: 'listings', // 'listings', 'login', 'register', 'createListing', 'linkWhatsapp', 'whatsappLogin', 'profile'
+        currentView: 'listings', // 'listings', 'login', 'register', 'createListing', 'linkWhatsapp', 'whatsappLogin', 'profile', 'favourites'
         isLoggedIn: !!localStorage.getItem('token'), 
         user: JSON.parse(localStorage.getItem('user') || 'null'),
         token: localStorage.getItem('token') || '',
@@ -34,12 +34,17 @@ document.addEventListener('alpine:init', () => {
         showDeleteAccountModal: false,
         deleteAccountConfirmPassword: '',
 
+        // Favourites State (localStorage-backed, ready for backend sync)
+        favouriteIds: new Set(JSON.parse(localStorage.getItem('favourites') || '[]')),
+
         init() {
             this.fetchPosts();
             // If logged in but no user data, try to fetch it or clear token
             if (this.isLoggedIn && !this.user) {
                 this.handleLogout();
             }
+            // TODO: When backend favourites API exists, sync local favourites:
+            // if (this.isLoggedIn) { this.syncFavourites(); }
         },
 
         // Navigation Method
@@ -191,6 +196,10 @@ document.addEventListener('alpine:init', () => {
             this.token = '';
             localStorage.removeItem('token');
             localStorage.removeItem('user');
+            // Note: favourites are kept in localStorage across sessions.
+            // TODO: When backend sync exists, clear local cache on logout:
+            // this.favouriteIds = new Set();
+            // localStorage.removeItem('favourites');
             this.navigateTo('listings');
         },
 
@@ -488,6 +497,74 @@ document.addEventListener('alpine:init', () => {
                 '#3b82f6', '#6366f1'
             ];
             return colors[(sellerId || 0) % colors.length];
+        },
+
+        // ==========================================
+        // Favourites Methods
+        // ==========================================
+
+        /**
+         * Toggle a post's favourite status.
+         * Currently persists to localStorage; replace with API calls when backend is ready.
+         */
+        toggleFavourite(postId) {
+            if (this.favouriteIds.has(postId)) {
+                this.favouriteIds.delete(postId);
+                // TODO: Backend — DELETE /api/favourites/{postId}
+            } else {
+                this.favouriteIds.add(postId);
+                // TODO: Backend — POST /api/favourites/{postId}
+            }
+            this._persistFavourites();
+        },
+
+        /** Check if a post is favourited. */
+        isFavourite(postId) {
+            return this.favouriteIds.has(postId);
+        },
+
+        /** Favourites count for badge display. */
+        get favouriteCount() {
+            return this.favouriteIds.size;
+        },
+
+        /** Get favourited posts from the loaded posts array. */
+        get favouritePosts() {
+            return this.posts.filter(p => this.favouriteIds.has(p.postId));
+        },
+
+        /** Remove a favourite (used from the favourites view). */
+        removeFavourite(postId) {
+            this.favouriteIds.delete(postId);
+            // TODO: Backend — DELETE /api/favourites/{postId}
+            this._persistFavourites();
+        },
+
+        /** Persist favourites to localStorage. */
+        _persistFavourites() {
+            localStorage.setItem('favourites', JSON.stringify([...this.favouriteIds]));
+        },
+
+        /**
+         * Sync local favourites with the backend.
+         * TODO: Implement when backend favourites API exists.
+         * Expected flow:
+         *   1. GET /api/favourites → returns list of postIds
+         *   2. Merge with local set (union or server-wins)
+         *   3. Update localStorage
+         */
+        async syncFavourites() {
+            // TODO: Implement backend sync
+            // try {
+            //     const res = await this.apiFetch('/api/favourites');
+            //     if (res.ok) {
+            //         const data = await res.json();
+            //         this.favouriteIds = new Set(data.postIds || []);
+            //         this._persistFavourites();
+            //     }
+            // } catch (e) {
+            //     console.warn('Favourites sync failed, using local data', e);
+            // }
         }
     }));
 });

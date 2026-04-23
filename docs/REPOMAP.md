@@ -229,6 +229,7 @@ The frontend is a **Progressive Web App (PWA)** built for speed and simplicity.
 
 **Views (SPA):**
 - **Listings** — Homepage grid of item cards with category/sort filters and search. Seller names on cards are clickable links to profiles.
+- **Favourites** — Grid view of saved items (currently using `localStorage` with a `TODO` for future backend connection). Accessible via the header icon.
 - **Profile** — Displays seller info (avatar, name, email, phone, listing count) and their posted listings. Own-profile includes listing management (mark sold, delete) and a "Danger Zone" for account deletion with password-verified confirmation modal.
 - **Login / Register / WhatsApp Login** — Authentication flows.
 - **Create Listing** — Authenticated form for posting new items.
