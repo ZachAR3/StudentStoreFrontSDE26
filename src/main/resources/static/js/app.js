@@ -24,7 +24,9 @@ document.addEventListener('alpine:init', () => {
         dragStartIndex: null,
         loginForm: { email: '', password: '' },
         registerForm: { name: '', email: '', phoneNumber: '', password: '', confirmPassword: '' },
-        
+        forgotPasswordForm: { email: '' },
+        resetPasswordForm: { token: '', newPassword: '', confirmPassword: '' },
+
         // WhatsApp Integration State
         whatsappLogin: { token: '', status: 'PENDING', interval: null },
 
@@ -41,13 +43,18 @@ document.addEventListener('alpine:init', () => {
 
         init() {
             this.fetchPosts();
-            // If logged in but no user data, try to fetch it or clear token
             if (this.isLoggedIn && !this.user) {
                 this.handleLogout();
             }
-            // Sync favourites on init if logged in
-            if (this.isLoggedIn) { 
-                this.syncFavourites(); 
+            if (this.isLoggedIn) {
+                this.syncFavourites();
+            }
+            const urlParams = new URLSearchParams(window.location.search);
+            const resetToken = urlParams.get('token');
+            if (resetToken) {
+                this.resetPasswordForm.token = resetToken;
+                this.navigateTo('resetPassword');
+                window.history.replaceState({}, document.title, '/');
             }
         },
 
@@ -206,6 +213,64 @@ document.addEventListener('alpine:init', () => {
             this.favouriteIds = new Set();
             localStorage.removeItem('favourites');
             this.navigateTo('listings');
+        },
+
+        async handleForgotPassword() {
+            this.isLoading = true;
+            this.errorMessage = '';
+            this.successMessage = '';
+            try {
+                const response = await fetch('/api/auth/forgot-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.forgotPasswordForm)
+                });
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Something went wrong');
+                }
+                this.successMessage = 'If that email exists, a reset link has been sent. Check your inbox.';
+                this.forgotPasswordForm = { email: '' };
+            } catch (error) {
+                this.errorMessage = error.message;
+            } finally {
+                this.isLoading = false;
+            }
+        },
+
+        async handleResetPassword() {
+            if (this.resetPasswordForm.newPassword !== this.resetPasswordForm.confirmPassword) {
+                this.errorMessage = 'Passwords do not match';
+                return;
+            }
+            if (!this.isPasswordValid(this.resetPasswordForm.newPassword)) {
+                this.errorMessage = 'Password must have 8+ chars with uppercase, lowercase, digit, and special character';
+                return;
+            }
+            this.isLoading = true;
+            this.errorMessage = '';
+            this.successMessage = '';
+            try {
+                const response = await fetch('/api/auth/reset-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        token: this.resetPasswordForm.token,
+                        newPassword: this.resetPasswordForm.newPassword
+                    })
+                });
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to reset password');
+                }
+                this.successMessage = 'Password reset successfully! Redirecting to login...';
+                this.resetPasswordForm = { token: '', newPassword: '', confirmPassword: '' };
+                setTimeout(() => this.navigateTo('login'), 2500);
+            } catch (error) {
+                this.errorMessage = error.message;
+            } finally {
+                this.isLoading = false;
+            }
         },
 
         // WhatsApp Phase 3: Login

@@ -782,7 +782,10 @@
                     <label>Password
                         <input type="password" x-model="loginForm.password" placeholder="••••••••" required>
                     </label>
-                    <button type="submit" style="width: 100%; margin-top: 1rem;" :aria-busy="isLoading">Log In</button>
+                    <div style="text-align: right; margin-top: -0.5rem; margin-bottom: 1rem;">
+                        <small><a href="#" @click.prevent="navigateTo('forgotPassword')">Forgot your password?</a></small>
+                    </div>
+                    <button type="submit" style="width: 100%; margin-top: 0.5rem;" :aria-busy="isLoading">Log In</button>
                 </form>
 
                 <hr style="margin: 2rem 0;">
@@ -794,6 +797,103 @@
 
                 <div style="text-align: center; margin-top: 1.5rem;">
                     <small style="color: var(--pico-muted-color);">Don't have an account? <a href="#" @click.prevent="navigateTo('register')">Sign up</a></small>
+                </div>
+            </article>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- VIEW: FORGOT PASSWORD                      -->
+        <!-- ========================================== -->
+        <div class="view-container" x-show="currentView === 'forgotPassword'">
+            <article class="auth-card">
+                <h2 style="text-align: center; margin-bottom: 0.5rem;">Forgot Password</h2>
+                <p style="text-align: center; color: var(--pico-muted-color); margin-bottom: 2rem;">Enter your email and we'll send you a reset link.</p>
+
+                <article x-show="errorMessage" style="background-color: #fee2e2; border-color: #ef4444; color: #b91c1c; padding: 1rem; margin-bottom: 2rem; border-radius: var(--pico-border-radius);">
+                    <p x-text="errorMessage" style="margin: 0;"></p>
+                </article>
+
+                <article x-show="successMessage" style="background-color: #dcfce7; border-color: #22c55e; color: #15803d; padding: 1rem; margin-bottom: 2rem; border-radius: var(--pico-border-radius);">
+                    <p x-text="successMessage" style="margin: 0;"></p>
+                </article>
+
+                <form @submit.prevent="handleForgotPassword()" x-show="!successMessage">
+                    <label>Email Address
+                        <input type="email" x-model="forgotPasswordForm.email" placeholder="name@constructor.university" required>
+                    </label>
+                    <button type="submit" style="width: 100%; margin-top: 1rem;" :aria-busy="isLoading">Send Reset Link</button>
+                </form>
+
+                <div style="text-align: center; margin-top: 1.5rem;">
+                    <small><a href="#" @click.prevent="navigateTo('login')">Back to Log In</a></small>
+                </div>
+            </article>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- VIEW: RESET PASSWORD                       -->
+        <!-- ========================================== -->
+        <div class="view-container" x-show="currentView === 'resetPassword'">
+            <article class="auth-card">
+                <h2 style="text-align: center; margin-bottom: 0.5rem;">Choose a New Password</h2>
+                <p style="text-align: center; color: var(--pico-muted-color); margin-bottom: 2rem;">Pick a strong password for your account.</p>
+
+                <article x-show="errorMessage" style="background-color: #fee2e2; border-color: #ef4444; color: #b91c1c; padding: 1rem; margin-bottom: 2rem; border-radius: var(--pico-border-radius);">
+                    <p x-text="errorMessage" style="margin: 0;"></p>
+                </article>
+
+                <article x-show="successMessage" style="background-color: #dcfce7; border-color: #22c55e; color: #15803d; padding: 1rem; margin-bottom: 2rem; border-radius: var(--pico-border-radius);">
+                    <p x-text="successMessage" style="margin: 0;"></p>
+                </article>
+
+                <form @submit.prevent="handleResetPassword()" x-show="!successMessage">
+                    <label>New Password
+                        <input type="password" x-model="resetPasswordForm.newPassword"
+                               placeholder="Min 8 chars, upper + lower + digit + special" required
+                               :aria-invalid="resetPasswordForm.newPassword && !isPasswordValid(resetPasswordForm.newPassword) ? 'true' : (isPasswordValid(resetPasswordForm.newPassword) ? 'false' : null)">
+                    </label>
+
+                    <div x-show="resetPasswordForm.newPassword" style="margin-top: -0.5rem; margin-bottom: 1rem;">
+                        <div style="display: flex; gap: 0.3rem; margin-bottom: 0.5rem;">
+                            <div style="height: 4px; flex: 1; border-radius: 2px; transition: background 0.3s;"
+                                 :style="{ background: passwordStrength(resetPasswordForm.newPassword) >= 1 ? (passwordStrength(resetPasswordForm.newPassword) >= 4 ? '#22c55e' : passwordStrength(resetPasswordForm.newPassword) >= 3 ? '#eab308' : '#ef4444') : '#e5e7eb' }"></div>
+                            <div style="height: 4px; flex: 1; border-radius: 2px; transition: background 0.3s;"
+                                 :style="{ background: passwordStrength(resetPasswordForm.newPassword) >= 2 ? (passwordStrength(resetPasswordForm.newPassword) >= 4 ? '#22c55e' : passwordStrength(resetPasswordForm.newPassword) >= 3 ? '#eab308' : '#ef4444') : '#e5e7eb' }"></div>
+                            <div style="height: 4px; flex: 1; border-radius: 2px; transition: background 0.3s;"
+                                 :style="{ background: passwordStrength(resetPasswordForm.newPassword) >= 3 ? (passwordStrength(resetPasswordForm.newPassword) >= 4 ? '#22c55e' : '#eab308') : '#e5e7eb' }"></div>
+                            <div style="height: 4px; flex: 1; border-radius: 2px; transition: background 0.3s;"
+                                 :style="{ background: passwordStrength(resetPasswordForm.newPassword) >= 4 ? '#22c55e' : '#e5e7eb' }"></div>
+                        </div>
+                        <div style="font-size: 0.8rem; display: flex; flex-wrap: wrap; gap: 0.3rem 1rem;">
+                            <span :style="{ color: /[a-z]/.test(resetPasswordForm.newPassword) ? '#22c55e' : '#9ca3af' }">
+                                <span x-text="/[a-z]/.test(resetPasswordForm.newPassword) ? '✓' : '○'"></span> lowercase
+                            </span>
+                            <span :style="{ color: /[A-Z]/.test(resetPasswordForm.newPassword) ? '#22c55e' : '#9ca3af' }">
+                                <span x-text="/[A-Z]/.test(resetPasswordForm.newPassword) ? '✓' : '○'"></span> uppercase
+                            </span>
+                            <span :style="{ color: /\d/.test(resetPasswordForm.newPassword) ? '#22c55e' : '#9ca3af' }">
+                                <span x-text="/\d/.test(resetPasswordForm.newPassword) ? '✓' : '○'"></span> digit
+                            </span>
+                            <span :style="{ color: /[@$!%*?&]/.test(resetPasswordForm.newPassword) ? '#22c55e' : '#9ca3af' }">
+                                <span x-text="/[@$!%*?&]/.test(resetPasswordForm.newPassword) ? '✓' : '○'"></span> special (@$!%*?&)
+                            </span>
+                        </div>
+                    </div>
+
+                    <label>Confirm New Password
+                        <input type="password" x-model="resetPasswordForm.confirmPassword" placeholder="••••••••" required
+                               :aria-invalid="resetPasswordForm.confirmPassword && resetPasswordForm.confirmPassword !== resetPasswordForm.newPassword ? 'true' : (resetPasswordForm.confirmPassword && resetPasswordForm.confirmPassword === resetPasswordForm.newPassword ? 'false' : null)">
+                        <small x-show="resetPasswordForm.confirmPassword && resetPasswordForm.confirmPassword !== resetPasswordForm.newPassword" style="color: #ef4444;">Passwords do not match</small>
+                    </label>
+
+                    <button type="submit" style="width: 100%; margin-top: 1rem;" :aria-busy="isLoading"
+                            :disabled="!isPasswordValid(resetPasswordForm.newPassword) || resetPasswordForm.newPassword !== resetPasswordForm.confirmPassword">
+                        Reset Password
+                    </button>
+                </form>
+
+                <div style="text-align: center; margin-top: 1.5rem;">
+                    <small><a href="#" @click.prevent="navigateTo('login')">Back to Log In</a></small>
                 </div>
             </article>
         </div>
