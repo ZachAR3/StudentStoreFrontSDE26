@@ -1,9 +1,12 @@
 package com.studentstorefront.controller
 
+import com.studentstorefront.dto.request.ForgotPasswordRequestDTO
 import com.studentstorefront.dto.request.LoginRequestDTO
+import com.studentstorefront.dto.request.ResetPasswordRequestDTO
 import com.studentstorefront.dto.request.SellerRequestDTO
 import com.studentstorefront.dto.response.AuthResponseDTO
 import com.studentstorefront.service.JwtService
+import com.studentstorefront.service.PasswordResetService
 import com.studentstorefront.service.SellerService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
@@ -20,7 +23,8 @@ class AuthController(
     private val authenticationManager: AuthenticationManager,
     private val jwtService: JwtService,
     private val sellerService: SellerService,
-    private val userDetailsService: UserDetailsService
+    private val userDetailsService: UserDetailsService,
+    private val passwordResetService: PasswordResetService
 ) {
 
     /**
@@ -74,5 +78,17 @@ class AuthController(
         )
 
         return ResponseEntity.ok(authResponse)
+    }
+
+    @PostMapping("/forgot-password")
+    fun forgotPassword(@Valid @RequestBody request: ForgotPasswordRequestDTO): ResponseEntity<Map<String, String>> {
+        passwordResetService.requestReset(request.email)
+        return ResponseEntity.ok(mapOf("message" to "If that email exists, a reset link has been sent"))
+    }
+
+    @PostMapping("/reset-password")
+    fun resetPassword(@Valid @RequestBody request: ResetPasswordRequestDTO): ResponseEntity<Map<String, String>> {
+        passwordResetService.resetPassword(request.token, request.newPassword)
+        return ResponseEntity.ok(mapOf("message" to "Password reset successfully"))
     }
 }
