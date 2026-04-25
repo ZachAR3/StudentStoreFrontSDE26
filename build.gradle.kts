@@ -69,6 +69,10 @@ tasks.withType<Test> {
 	useJUnitPlatform()
 }
 
+tasks.bootRun {
+	environment("SPRING_PROFILES_ACTIVE", "local")
+}
+
 kotlin {
 	compilerOptions {
 		freeCompilerArgs.addAll("-Xjsr305=strict", "-Xannotation-default-target=param-property")
