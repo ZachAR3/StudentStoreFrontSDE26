@@ -310,6 +310,14 @@ document.addEventListener('alpine:init', () => {
                             clearInterval(this.whatsappLogin.interval);
                             this.errorMessage = 'Login session expired.';
                             this.navigateTo('login');
+                        } else if (data.status === 'PHONE_NOT_LINKED') {
+                            clearInterval(this.whatsappLogin.interval);
+                            this.errorMessage = 'This number is not registered. Please sign up first.';
+                            this.navigateTo('login');
+                        } else if (data.status === 'CLAIMED') {
+                            clearInterval(this.whatsappLogin.interval);
+                            this.errorMessage = 'This session was already used.';
+                            this.navigateTo('login');
                         }
                     }
                 } catch (e) {
