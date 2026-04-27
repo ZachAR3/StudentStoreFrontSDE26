@@ -67,23 +67,26 @@ class WhatsAppQrLoginService(
             return WhatsAppConfirmResponseDTO(result = "EXPIRED")
         }
 
-        val seller = sellerRepository.findByPhoneNumber(phoneNumber)
+        val normalizedPhone = normalizePhone(phoneNumber)
+        val seller = sellerRepository.findByPhoneNumber(normalizedPhone)
             ?: run {
                 session.status = WhatsAppSessionStatus.PHONE_NOT_LINKED
-                session.phoneNumber = phoneNumber
+                session.phoneNumber = normalizedPhone
                 sessionRepository.save(session)
                 return WhatsAppConfirmResponseDTO(result = "PHONE_NOT_LINKED")
             }
 
         session.status = WhatsAppSessionStatus.COMPLETED
         session.sellerId = seller.sellerId
-        session.phoneNumber = phoneNumber
+        session.phoneNumber = normalizedPhone
         session.completedAt = LocalDateTime.now()
         session.claimToken = UUID.randomUUID()
         sessionRepository.save(session)
 
         return WhatsAppConfirmResponseDTO(result = "OK")
     }
+
+    private fun normalizePhone(phone: String): String = "+" + phone.replace(Regex("\\D"), "")
 
     @Transactional
     fun claimJwt(claimToken: UUID): AuthResponseDTO? {
