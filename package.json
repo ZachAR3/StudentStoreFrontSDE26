@@ -1,4 +1,8 @@
 {
+  "scripts": {
+    "check:frontend": "bash scripts/check-frontend.sh",
+    "test:frontend:contracts": "node scripts/validate-frontend-contracts.js"
+  },
   "dependencies": {
     "@langfuse/openai": "^5.2.0",
     "@langfuse/otel": "^5.2.0",

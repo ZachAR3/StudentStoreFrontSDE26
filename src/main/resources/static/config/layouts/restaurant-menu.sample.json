@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "id": "restaurant.menu.sample",
+  "label": "Restaurant Sample",
+  "route": "restaurantPreview",
+  "context": "restaurant",
+  "theme": {
+    "density": "comfortable",
+    "accent": "campus",
+    "radius": "sm"
+  },
+  "regions": [
+    {
+      "id": "hero",
+      "role": "banner",
+      "layout": {
+        "kind": "stack",
+        "gap": "md"
+      },
+      "elements": [
+        {
+          "id": "restaurant-hero",
+          "type": "restaurant.menuHero",
+          "props": {
+            "title": "North Hall Kitchen",
+            "eyebrow": "Campus dining",
+            "message": "Fresh bowls, brunch plates, and quick bites prepared for pickup.",
+            "showStats": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "menu-grid",
+      "role": "main",
+      "layout": {
+        "kind": "responsive-grid",
+        "minItemWidth": "18rem",
+        "gap": "lg"
+      },
+      "elements": [
+        {
+          "id": "restaurant-grid",
+          "type": "restaurant.menuGrid",
+          "dataSource": "restaurant.sampleMenu",
+          "props": {
+            "itemElement": "restaurant.menuItemCard",
+            "emptyElement": "common.emptyState",
+            "minItemWidth": "18rem",
+            "emptyTitle": "No dishes available",
+            "emptyMessage": "Restaurant sample data has not been loaded yet.",
+            "enableCart": true,
+            "showCartSummary": true,
+            "cartButtonLabel": "Add"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -18,6 +18,7 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 .
 ├── docs/                      # Project documentation
 │   ├── architecture.md        # System design and layers
+│   ├── frontend-modularity-implementation-plan.md # Frontend refactor/build plan
 │   ├── PROPOSAL.md            # Original project hypothesis
 │   ├── REPOMAP.md             # [This File] Repo map and API spec
 │   └── FrameworksPresentation/ # Presentation assets
@@ -34,8 +35,19 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 │   │   │   ├── repository/    # Database Access Layers (Favourite, PasswordResetToken, Post, PostMedia, Seller, WhatsAppLoginSession)
 │   │   │   └── service/       # Business Logic (CloudinaryService, EmailService, FavouriteService, JwtService, PasswordResetService, PostService, SellerService, WhatsAppQrLoginService)
 │   │   └── resources/
-│   │       ├── static/        # Frontend (index.html, css/custom.css, js/app.js)
-│   │       └── application.properties # Database, JWT, Email & WhatsApp bot config
+│   │       ├── static/
+│   │       │   ├── config/layouts/ # Static layout JSON definitions used by the frontend runtime
+│   │       │   ├── css/       # Split frontend stylesheets (tokens, shell, layout system, elements, forms, profile, builder)
+│   │       │   ├── js/
+│   │       │   │   ├── core/  # Namespace, storage, router, API client, registries, validators, runtime, adapters
+│   │       │   │   ├── services/ # Thin REST contract modules around frontend/backend endpoints
+│   │       │   │   ├── stores/ # Domain state modules (auth, marketplace, favourites, profile, upload, builder)
+│   │       │   │   ├── elements/ # Element definitions for layout-driven rendering
+│   │       │   │   ├── builder/ # Builder helpers (palette, drag-drop, inspector, preview)
+│   │       │   │   └── data/  # Categories, default layouts, sample data
+│   │       │   ├── index.html # SPA shell and Alpine templates
+│   │       │   └── js/app.js  # Frontend composition entrypoint
+│   │       └── application.properties # Database, JWT & WhatsApp bot config
 │   └── test/
 │       └── kotlin/com/studentstorefront/
 │           ├── service/       # Unit tests (WhatsAppQrLoginServiceTest — MockK)
@@ -104,13 +116,13 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 | `DELETE` | `/api/sellers/me` | SELLER/ADMIN | Self-service account deletion (requires password re-entry) |
 | `DELETE` | `/api/sellers/{id}` | ADMIN | Delete a seller |
 
-### **Favourites** (`/api/favourites`)
+### **Favourite Management** (`/api/favourites`)
 
 | Method | Endpoint | Auth | Description |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/api/favourites` | SELLER/ADMIN | Get a list of `postId`s that the current user has favourited |
-| `POST` | `/api/favourites/{postId}` | SELLER/ADMIN | Add a post to user's favourites |
-| `DELETE` | `/api/favourites/{postId}`| SELLER/ADMIN | Remove a post from user's favourites |
+| `GET` | `/api/favourites` | Seller/Admin | Return the authenticated user's favourite post ids |
+| `POST` | `/api/favourites/{postId}` | Seller/Admin | Add a post to the authenticated user's favourites |
+| `DELETE` | `/api/favourites/{postId}` | Seller/Admin | Remove a post from the authenticated user's favourites |
 
 ---
 
@@ -147,9 +159,9 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 
 ### **Favourite**
 - `id`: Primary Key (Long)
-- `seller`: Reference to the `Seller` who favourited
+- `seller`: Reference to the owning `Seller`
 - `post`: Reference to the favourited `Post`
-- `createdAt`: Timestamp
+- Uniqueness is enforced per seller/post pair at the service layer and repository level
 
 ### **PasswordResetToken**
 - `id`: Primary Key (Long)
@@ -177,16 +189,65 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 
 The frontend is a **Progressive Web App (PWA)** built for speed and simplicity.
 
-- **`index.html`**: Uses **Pico.css** for a native-feeling mobile UI. **Alpine.js** handles the reactive state.
-- **`js/app.js`**: Client-side logic for API communication, SPA navigation, and interactive features.
-- **`css/custom.css`**: Supplementary styling overrides.
+- **`index.html`**: The SPA shell. It loads ordered browser scripts, hosts Alpine templates, and renders the live app plus the front-end-only layout builder.
+- **`js/app.js`**: The composition entrypoint. It wires domain stores together, exposes Alpine actions/getters, manages SPA navigation, and bridges the layout runtime to the rendered views.
+- **`js/core/*`**: The front-end framework layer.
+  - `namespace.js` creates `window.Storefront`.
+  - `storage.js` wraps localStorage reads/writes.
+  - `router.js` defines view routes.
+  - `api-client.js` centralizes fetch/auth header behavior.
+  - `content-adapters.js` maps backend DTOs into generic catalog/menu items.
+  - `validators.js`, `element-registry.js`, `layout-registry.js`, and `layout-runtime.js` power the typed layout system.
+- **`js/stores/*`**: Domain-focused state modules for auth, marketplace, favourites, profile, uploads, and the layout builder.
+- **`js/services/*`**: Thin REST contract modules for auth, WhatsApp login, posts, sellers, and favourites. Endpoint strings live here instead of the root app controller.
+- **`js/elements/*`**: Registered element definitions such as `marketplace.filterBar`, `catalog.grid`, `marketplace.itemCard`, `profile.summary`, `profile.listingList`, `restaurant.menuHero`, and `restaurant.menuItemCard`.
+- **`js/builder/*`**: Helper modules for the layout builder experience: palette grouping, drag/drop movement, inspector prop updates, and preview width presets.
+- **`js/data/*`**: Static categories, sample marketplace/menu data, and the default layout URL manifest/loader.
+- **`config/layouts/*.json`**: Versioned layout JSON files for marketplace home, favourites, profile, and the sample restaurant menu. These files are the runtime source of truth loaded by the layout registry.
+- **`css/custom.css`**: Aggregates the split stylesheet set.
+- **`css/tokens.css`**: Shared design tokens for spacing, radii, shadows, control sizing, and layout values.
+- **`css/shell.css`**: Header, shell, and top-level page spacing.
+- **`css/layout-system.css`**: Region/layout primitives, banners, empty/loading states.
+- **`css/elements.css`**: Card, carousel, contact-action, and restaurant-specific presentation styles.
+- **`css/forms.css`**: Auth and create-listing form styling, password meters, upload UI.
+- **`css/profile.css`**: Profile header, listing rows, danger zone, and modal presentation.
+- **`css/layout-builder.css`**: Builder canvas, palette, preview, direct-manipulation affordances, and inspector styling.
 
-**Key Features:**
-- **Listings Feed:** Interactive grid with category filters, search, and image carousels.
-- **Favourites System:** Real-time sync with backend to track saved items.
-- **Create Listing:** Multi-image upload with drag-and-drop, previews, and reordering.
-- **Profile Management:** Listing management (mark sold, delete) and account settings.
-- **Auth Flows:** Traditional Login/Register, WhatsApp QR Login, and Password Reset.
+### Layout Runtime
+
+The current frontend is no longer a single hard-coded listings page. Marketplace and sample restaurant pages are assembled from typed elements and versioned layout definitions:
+
+- **Element registry**: Each element declares a `type`, prop defaults, editor controls, and supported rendering metadata.
+- **Layout registry**: Stores default route layouts such as `marketplace.home` and `restaurant.menu.sample`.
+- **Layout runtime**: Resolves a route into regions/elements, validates layout safety, merges props with defaults, and binds allowed data sources.
+- **Content adapters**: Keep the generic layout system independent from Spring DTO details by converting posts into reusable catalog items.
+
+### Layout Builder
+
+There is now a front-end-only `layoutBuilder` SPA view for editing layouts without backend persistence:
+
+- Elements can be added from a palette, selected directly in the preview, reordered, duplicated, and deleted.
+- Drafts persist in `localStorage` under `storefront.layoutBuilderDraft.v1`.
+- Created sites persist in `localStorage` under `storefront.createdSites.v1`.
+- The builder can validate layouts, import/export JSON, preview at multiple widths, create saved sites, and apply updated layouts in-browser.
+- Desktop preview mode uses a wide focused canvas; mobile/tablet/free-width modes constrain the preview frame to device-like widths.
+- Large composed elements such as `catalog.grid`, `restaurant.menuGrid`, `profile.summary`, and `profile.listingList` span the full row inside responsive regions so nested grids do not collapse into narrow side columns.
+- The restaurant sample exists to demonstrate how future subapps can reuse the same runtime without immediate backend changes.
+
+### Created Sites
+
+Created sites are local browser artifacts, not backend records. A created site stores a cloned layout with an id, name, context, timestamps, and route `createdSitePreview`. Users can create a site from the builder, view it from the Created Sites page, reopen it in the builder, duplicate it, or delete it. Viewing a created site uses the same layout runtime and sample data adapters as the builder preview.
+
+**Views (SPA):**
+- **Listings** — Homepage grid of item cards with category/sort filters and search. Uses the layout runtime plus Alpine.js image carousel behavior for multi-photo listings. Each card features quick-contact links (Email & pre-filled WhatsApp `wa.me` links).
+- **Favourites** — Grid view of saved items, fully synced with the backend via `FavouriteController`. Accessible via the header icon.
+- **Profile** — Displays seller info (avatar, name, email, phone, listing count) and their posted listings. Own-profile includes listing management (mark sold, delete) and a "Danger Zone" for account deletion with password-verified confirmation modal.
+- **Login / Register / WhatsApp Login** — Authentication flows.
+- **Create Listing** — Authenticated form for posting new items. Features a drag-and-drop upload zone supporting up to 10 local images with live previews and drag-to-reorder functionality. Uploads are handled securely via the Spring Boot backend to Cloudinary.
+- **Layout Builder** — Front-end-only layout editing workspace with palette, responsive preview, validation, JSON import/export, and draft persistence.
+- **Created Sites** — Local site library for viewing, editing, duplicating, and deleting layouts created from the builder.
+- **Created Site Preview** — Runtime-rendered view of a selected locally created site.
+- **Restaurant Preview** — Sample restaurant/menu experience rendered through the same layout system using static sample data.
 
 ---
 

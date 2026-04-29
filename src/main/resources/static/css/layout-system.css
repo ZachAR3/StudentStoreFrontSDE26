@@ -1,0 +1,94 @@
+.layout-page {
+    display: grid;
+    gap: var(--sf-space-xl);
+}
+
+.layout-region {
+    display: grid;
+    gap: var(--sf-space-lg);
+    min-width: 0;
+}
+
+.layout-region[data-layout-kind="row"] {
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    align-items: start;
+}
+
+.layout-region[data-layout-kind="stack"] {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.layout-region[data-layout-kind="responsive-grid"] {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--region-min-item-width, 18rem)), 1fr));
+}
+
+.layout-element {
+    min-width: 0;
+}
+
+.layout-region[data-layout-kind="responsive-grid"] > .layout-element-full {
+    grid-column: 1 / -1;
+}
+
+.layout-card-grid {
+    display: grid;
+    gap: var(--sf-space-xl);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--grid-min-item-width, 18rem)), 1fr));
+    width: 100%;
+    min-width: 0;
+}
+
+.layout-surface {
+    border: 1px solid var(--sf-border-color);
+    border-radius: var(--sf-radius-md);
+    background: var(--sf-muted-bg);
+    padding: var(--sf-space-lg);
+}
+
+.status-card,
+.empty-state {
+    display: grid;
+    justify-items: center;
+    text-align: center;
+    gap: var(--sf-space-sm);
+    border: 1px dashed var(--sf-border-color);
+    border-radius: var(--sf-radius-md);
+    padding: var(--sf-space-2xl) var(--sf-space-lg);
+    background: color-mix(in srgb, var(--pico-card-background-color) 65%, transparent);
+}
+
+.status-card p,
+.empty-state p {
+    max-width: 34rem;
+    color: var(--pico-muted-color);
+    margin: 0;
+}
+
+.message-stack {
+    display: grid;
+    gap: var(--sf-space-md);
+    margin-bottom: var(--sf-space-lg);
+}
+
+.feedback-banner {
+    padding: var(--sf-space-md);
+    border-radius: var(--sf-radius-sm);
+    border: 1px solid var(--sf-border-color);
+}
+
+.feedback-banner.error {
+    color: #b91c1c;
+    border-color: var(--sf-danger);
+    background: #fee2e2;
+}
+
+.feedback-banner.success {
+    color: #15803d;
+    border-color: var(--sf-success);
+    background: #dcfce7;
+}
+
+.loading-state {
+    text-align: center;
+    padding: var(--sf-space-2xl) var(--sf-space-lg);
+}

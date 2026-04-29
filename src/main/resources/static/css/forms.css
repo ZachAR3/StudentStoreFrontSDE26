@@ -1,0 +1,114 @@
+.auth-card {
+    max-width: 34rem;
+    margin-inline: auto;
+    padding: var(--sf-space-xl);
+    border: 1px solid var(--sf-border-color);
+    border-radius: var(--sf-radius-md);
+    background: var(--pico-card-background-color);
+    box-shadow: var(--sf-shadow-sm);
+}
+
+.form-card-wide {
+    max-width: 52rem;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: var(--sf-space-md);
+    margin-top: var(--sf-space-xl);
+}
+
+.password-meter {
+    display: grid;
+    gap: var(--sf-space-xs);
+    margin-top: calc(var(--sf-space-sm) * -1);
+    margin-bottom: var(--sf-space-md);
+}
+
+.password-meter-bars {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.3rem;
+}
+
+.password-meter-bar {
+    height: 0.25rem;
+    border-radius: 999px;
+    background: #e5e7eb;
+}
+
+.password-meter-rules {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 1rem;
+    font-size: 0.8rem;
+}
+
+.upload-dropzone {
+    display: grid;
+    justify-items: center;
+    gap: var(--sf-space-xs);
+    text-align: center;
+    border: 2px dashed var(--sf-border-color);
+    border-radius: var(--sf-radius-md);
+    padding: var(--sf-space-xl);
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.upload-dropzone.is-active {
+    background: rgba(15, 23, 42, 0.04);
+    border-color: var(--pico-primary);
+}
+
+.image-preview-grid {
+    display: grid;
+    gap: var(--sf-space-md);
+    grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+    margin-bottom: var(--sf-space-md);
+}
+
+.image-preview-card {
+    position: relative;
+    overflow: hidden;
+    border: 2px solid transparent;
+    border-radius: var(--sf-radius-sm);
+    cursor: grab;
+    background: var(--pico-card-background-color);
+}
+
+.image-preview-card.is-cover {
+    border-color: var(--pico-primary);
+}
+
+.image-preview-card img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+}
+
+.image-preview-delete,
+.cover-badge {
+    position: absolute;
+    z-index: 2;
+}
+
+.image-preview-delete {
+    top: 0.35rem;
+    right: 0.35rem;
+    background: rgba(15, 23, 42, 0.65);
+    color: #fff;
+}
+
+.cover-badge {
+    bottom: 0.35rem;
+    left: 0.35rem;
+    padding: 0.2rem 0.45rem;
+    border-radius: 999px;
+    background: var(--pico-primary);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+}

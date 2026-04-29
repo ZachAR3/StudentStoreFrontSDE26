@@ -1,0 +1,41 @@
+:root {
+    --header-height: 4.75rem;
+    --sf-space-2xs: 0.25rem;
+    --sf-space-xs: 0.5rem;
+    --sf-space-sm: 0.75rem;
+    --sf-space-md: 1rem;
+    --sf-space-lg: 1.5rem;
+    --sf-space-xl: 2rem;
+    --sf-space-2xl: 3rem;
+    --sf-radius-xs: 0.375rem;
+    --sf-radius-sm: 0.625rem;
+    --sf-radius-md: 0.875rem;
+    --sf-radius-lg: 1rem;
+    --sf-shadow-sm: 0 6px 18px rgba(15, 23, 42, 0.08);
+    --sf-shadow-md: 0 18px 40px rgba(15, 23, 42, 0.14);
+    --sf-border-color: var(--pico-muted-border-color);
+    --sf-muted-bg: color-mix(in srgb, var(--pico-card-background-color) 82%, var(--pico-background-color));
+    --sf-danger: #ef4444;
+    --sf-danger-soft: rgba(239, 68, 68, 0.06);
+    --sf-success: #22c55e;
+    --sf-warning: #eab308;
+    --sf-whatsapp: #25d366;
+    --sf-grid-min-sm: 14rem;
+    --sf-grid-min-md: 18rem;
+    --sf-grid-min-lg: 22rem;
+    --sf-control-height: 2.5rem;
+    --sf-icon-button-size: 2.25rem;
+    --sf-content-max: 80rem;
+}
+
+body {
+    min-height: 100vh;
+}
+
+[x-cloak] {
+    display: none !important;
+}
+
+.sf-hidden {
+    display: none !important;
+}

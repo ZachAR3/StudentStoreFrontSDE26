@@ -1,695 +1,957 @@
-document.addEventListener('alpine:init', () => {
-    Alpine.data('storefrontData', () => ({
-        // App State (SPA Navigation)
-        currentView: 'listings', // 'listings', 'login', 'register', 'createListing', 'whatsappLogin', 'profile', 'favourites'
-        isLoggedIn: !!localStorage.getItem('token'), 
-        user: JSON.parse(localStorage.getItem('user') || 'null'),
-        token: localStorage.getItem('token') || '',
-        
-        // Data State
-        posts: [],
-        isLoading: true,
-        errorMessage: '',
-        successMessage: '',
-        
-        // Filter/Search/Sort state
-        searchQuery: '',
-        selectedCategory: '',
-        sortBy: 'newest', 
-        
-        // Forms State
-        newPost: { title: '', price: null, description: '', category: 'OTHER' },
-        selectedImages: [],
-        imagePreviews: [],
-        dragStartIndex: null,
-        loginForm: { email: '', password: '' },
-        registerForm: { name: '', email: '', phoneNumber: '', password: '', confirmPassword: '' },
-        forgotPasswordForm: { email: '' },
-        resetPasswordForm: { token: '', newPassword: '', confirmPassword: '' },
+document.addEventListener("alpine:init", () => {
+    const adapters = window.Storefront.core.adapters;
+    const router = window.Storefront.core.router;
+    const storage = window.Storefront.core.storage;
+    const services = window.Storefront.services;
 
-        // WhatsApp Integration State
-        whatsappLogin: { token: '', status: 'PENDING', interval: null },
+    const deepClone = (value) => JSON.parse(JSON.stringify(value));
 
-        // Profile State
-        profileSeller: null,
-        profilePosts: [],
-        profileLoading: false,
-        isOwnProfile: false,
-        showDeleteAccountModal: false,
-        deleteAccountConfirmPassword: '',
+    function replaceElementInLayout(layout, elementId, updater) {
+        const next = deepClone(layout);
+        next.regions = next.regions.map((region) => ({
+            ...region,
+            elements: region.elements.map((element) =>
+                element.id === elementId ? updater(element) : element
+            )
+        }));
+        return next;
+    }
 
-        // Favourites State (localStorage-backed, ready for backend sync)
-        favouriteIds: new Set(JSON.parse(localStorage.getItem('favourites') || '[]')),
+    Alpine.data("storefrontData", () => {
+        const auth = window.Storefront.stores.createAuthStore();
+        const marketplace = window.Storefront.stores.createMarketplaceStore();
+        const favourites = window.Storefront.stores.createFavouritesStore();
+        const profile = window.Storefront.stores.createProfileStore();
+        const upload = window.Storefront.stores.createUploadStore();
+        const builder = window.Storefront.stores.createLayoutBuilderStore();
+        const cart = window.Storefront.stores.createCartStore();
 
-        init() {
-            this.fetchPosts();
-            if (this.isLoggedIn && !this.user) {
-                this.handleLogout();
-            }
-            if (this.isLoggedIn) {
-                this.syncFavourites();
-            }
-            const urlParams = new URLSearchParams(window.location.search);
-            const resetToken = urlParams.get('token');
-            if (resetToken) {
-                this.resetPasswordForm.token = resetToken;
-                this.navigateTo('resetPassword');
-                window.history.replaceState({}, document.title, '/');
-            }
-        },
+        const app = {
+            currentView: "listings",
+            isLoading: true,
+            layoutsReady: false,
+            errorMessage: "",
+            successMessage: "",
+            confirmDeletePostId: null,
+            headerProps: window.Storefront.core.elementRegistry.getDefaults("shell.header"),
+            auth,
+            marketplace,
+            favourites,
+            profile,
+            upload,
+            builder,
+            cart,
+            builderDrag: { regionId: "", index: -1 },
+            builderRegionDragIndex: -1,
+            builderPaletteDragType: "",
 
-        // Navigation Method
-        navigateTo(view) {
-            this.currentView = view;
-            window.scrollTo(0, 0);
-            this.errorMessage = '';
-            this.successMessage = '';
-            
-            // Clean up intervals if leaving whatsappLogin
-            if (view !== 'whatsappLogin' && this.whatsappLogin.interval) {
-                clearInterval(this.whatsappLogin.interval);
-                this.whatsappLogin.interval = null;
-            }
-
-            // Reset profile state if leaving profile
-            if (view !== 'profile') {
-                this.profileSeller = null;
-                this.profilePosts = [];
-                this.isOwnProfile = false;
-                this.showDeleteAccountModal = false;
-                this.deleteAccountConfirmPassword = '';
-            }
-        },
-
-        // API Helper
-        async apiFetch(endpoint, options = {}) {
-            const headers = { ...options.headers };
-            if (!(options.body instanceof FormData) && !headers['Content-Type']) {
-                headers['Content-Type'] = 'application/json';
-            }
-            if (this.token) {
-                headers['Authorization'] = `Bearer ${this.token}`;
-            }
-            const response = await fetch(endpoint, { ...options, headers });
-            if (response.status === 401) {
-                this.handleLogout();
-                throw new Error('Session expired. Please log in again.');
-            }
-            return response;
-        },
-
-        // Auth Methods
-        async handleLogin() {
-            this.isLoading = true;
-            this.errorMessage = '';
-            try {
-                const response = await fetch('/api/auth/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(this.loginForm)
-                });
-                
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.message || 'Login failed');
-                }
-                
-                const data = await response.json();
-                this.saveAuth(data);
-                this.loginForm = { email: '', password: '' };
-                this.syncFavourites(); // Sync favourites after login
-                this.navigateTo('listings');
-            } catch (error) {
-                this.errorMessage = error.message;
-            } finally {
-                this.isLoading = false;
-            }
-        },
-        
-        // Password & Form Validation Helpers
-        isPasswordValid(password) {
-            return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(password);
-        },
-
-        passwordStrength(password) {
-            let score = 0;
-            if (/[a-z]/.test(password)) score++;
-            if (/[A-Z]/.test(password)) score++;
-            if (/\d/.test(password)) score++;
-            if (/[@$!%*?&]/.test(password)) score++;
-            if (password.length >= 8) score++;
-            return score;
-        },
-
-        isRegisterFormValid() {
-            const f = this.registerForm;
-            return f.name && f.name.length >= 2 && f.name.length <= 100
-                && f.email && f.email.endsWith('@constructor.university')
-                && f.phoneNumber && /^\+?[0-9]{10,15}$/.test(f.phoneNumber)
-                && f.password && this.isPasswordValid(f.password)
-                && f.confirmPassword && f.confirmPassword === f.password;
-        },
-
-        async handleRegister() {
-            this.isLoading = true;
-            this.errorMessage = '';
-            this.successMessage = '';
-
-            // Client-side validation
-            if (!this.isRegisterFormValid()) {
-                const errors = [];
-                const f = this.registerForm;
-                if (!f.name || f.name.length < 2) errors.push('Name must be at least 2 characters');
-                if (!f.email || !f.email.endsWith('@constructor.university')) errors.push('Must use a @constructor.university email');
-                if (!f.phoneNumber || !/^\+?[0-9]{10,15}$/.test(f.phoneNumber)) errors.push('Phone must be 10-15 digits, optionally starting with +');
-                if (!f.password || !this.isPasswordValid(f.password)) errors.push('Password must have 8+ chars with uppercase, lowercase, digit, and special character');
-                if (f.confirmPassword !== f.password) errors.push('Passwords do not match');
-                this.errorMessage = errors.join('. ');
-                this.isLoading = false;
-                return;
-            }
-
-            try {
-                // Send only the fields the backend expects (exclude confirmPassword)
-                const { confirmPassword, ...registrationData } = this.registerForm;
-                const response = await fetch('/api/auth/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(registrationData)
-                });
-                
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.message || 'Registration failed');
-                }
-                
-                const data = await response.json();
-                this.saveAuth(data);
-                this.registerForm = { name: '', email: '', phoneNumber: '', password: '', confirmPassword: '' };
-                this.navigateTo('listings');
-            } catch (error) {
-                this.errorMessage = error.message;
-            } finally {
-                this.isLoading = false;
-            }
-        },
-
-        saveAuth(data) {
-            this.token = data.token;
-            this.user = data.seller;
-            this.isLoggedIn = true;
-            localStorage.setItem('token', data.token);
-            localStorage.setItem('user', JSON.stringify(data.seller));
-        },
-
-        handleLogout() {
-            this.isLoggedIn = false;
-            this.user = null;
-            this.token = '';
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            
-            // Clear local cache on logout
-            this.favouriteIds = new Set();
-            localStorage.removeItem('favourites');
-            this.navigateTo('listings');
-        },
-
-        async handleForgotPassword() {
-            this.isLoading = true;
-            this.errorMessage = '';
-            this.successMessage = '';
-            try {
-                const response = await fetch('/api/auth/forgot-password', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(this.forgotPasswordForm)
-                });
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.message || 'Something went wrong');
-                }
-                this.successMessage = 'If that email exists, a reset link has been sent. Check your inbox.';
-                this.forgotPasswordForm = { email: '' };
-            } catch (error) {
-                this.errorMessage = error.message;
-            } finally {
-                this.isLoading = false;
-            }
-        },
-
-        async handleResetPassword() {
-            if (this.resetPasswordForm.newPassword !== this.resetPasswordForm.confirmPassword) {
-                this.errorMessage = 'Passwords do not match';
-                return;
-            }
-            if (!this.isPasswordValid(this.resetPasswordForm.newPassword)) {
-                this.errorMessage = 'Password must have 8+ chars with uppercase, lowercase, digit, and special character';
-                return;
-            }
-            this.isLoading = true;
-            this.errorMessage = '';
-            this.successMessage = '';
-            try {
-                const response = await fetch('/api/auth/reset-password', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        token: this.resetPasswordForm.token,
-                        newPassword: this.resetPasswordForm.newPassword
-                    })
-                });
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.message || 'Failed to reset password');
-                }
-                this.successMessage = 'Password reset successfully! Redirecting to login...';
-                this.resetPasswordForm = { token: '', newPassword: '', confirmPassword: '' };
-                setTimeout(() => this.navigateTo('login'), 2500);
-            } catch (error) {
-                this.errorMessage = error.message;
-            } finally {
-                this.isLoading = false;
-            }
-        },
-
-        // WhatsApp Phase 3: Login
-        async initWhatsappLogin() {
-            this.isLoading = true;
-            this.navigateTo('whatsappLogin');
-            try {
-                const response = await fetch('/api/auth/whatsapp/session', { method: 'POST' });
-                if (!response.ok) throw new Error('Could not initialize session');
-                const data = await response.json();
-                this.whatsappLogin.sessionId = data.sessionId;
-                this.whatsappLogin.qrContent = data.qrContent;
-                this.whatsappLogin.status = 'PENDING';
-                this.startWhatsappLoginPolling();
-            } catch (error) {
-                this.errorMessage = 'Could not initialize WhatsApp login.';
-                this.navigateTo('login');
-            } finally {
-                this.isLoading = false;
-            }
-        },
-
-        startWhatsappLoginPolling() {
-            if (this.whatsappLogin.interval) clearInterval(this.whatsappLogin.interval);
-            
-            this.whatsappLogin.interval = setInterval(async () => {
+            async init() {
+                this.auth.onUnauthorized = () => this.handleLogout();
                 try {
-                    const response = await fetch(`/api/auth/whatsapp/session/${this.whatsappLogin.sessionId}`);
-                    if (response.status === 200) {
-                        const data = await response.json();
-                        this.whatsappLogin.status = data.status;
-                        
-                        if (data.status === 'COMPLETED' && data.claimToken) {
-                            clearInterval(this.whatsappLogin.interval);
-                            await this.claimWhatsappLogin(data.claimToken);
-                        } else if (data.status === 'EXPIRED') {
-                            clearInterval(this.whatsappLogin.interval);
-                            this.errorMessage = 'Login session expired.';
-                            this.navigateTo('login');
-                        } else if (data.status === 'PHONE_NOT_LINKED') {
-                            clearInterval(this.whatsappLogin.interval);
-                            this.errorMessage = 'This number is not registered. Please sign up first.';
-                            this.navigateTo('login');
-                        } else if (data.status === 'CLAIMED') {
-                            clearInterval(this.whatsappLogin.interval);
-                            this.errorMessage = 'This session was already used.';
-                            this.navigateTo('login');
-                        }
+                    await window.Storefront.data.loadDefaultLayouts();
+                    this.layoutsReady = true;
+                    await this.fetchPosts();
+                    if (this.auth.isLoggedIn && !this.auth.user) {
+                        this.handleLogout();
                     }
-                } catch (e) {
-                    console.error("Polling error", e);
+                    if (this.auth.isLoggedIn) {
+                        this.syncFavourites();
+                    }
+                    const resetToken = new URLSearchParams(window.location.search).get("token");
+                    if (resetToken) {
+                        this.auth.resetPasswordForm.token = resetToken;
+                        this.navigateTo("resetPassword");
+                        window.history.replaceState({}, document.title, "/");
+                    }
+                    this.initializeBuilder();
+                } catch (error) {
+                    this.layoutsReady = false;
+                    this.setError(error.message || "Unable to initialize the storefront.");
+                } finally {
+                    this.isLoading = false;
                 }
-            }, 3000);
-        },
+            },
 
-        async claimWhatsappLogin(claimToken) {
-            try {
-                const response = await fetch('/api/auth/whatsapp/claim', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ claimToken })
-                });
-                if (!response.ok) throw new Error('Failed to claim login');
-                const data = await response.json();
-                this.saveAuth(data);
-                this.navigateTo('listings');
-            } catch (error) {
-                this.errorMessage = error.message;
-                this.navigateTo('login');
-            }
-        },
-
-        // Computed property for filtering and sorting
-        get filteredPosts() {
-            let result = [...this.posts];
-
-            // 1. Text Search Filtering
-            if (this.searchQuery.trim() !== '') {
-                const query = this.searchQuery.toLowerCase();
-                result = result.filter(post => 
-                    post.title.toLowerCase().includes(query) || 
-                    post.description.toLowerCase().includes(query)
+            get isLoggedIn() {
+                return this.auth.isLoggedIn;
+            },
+            get user() {
+                return this.auth.user;
+            },
+            get favouriteCount() {
+                return this.favourites.favouriteIds.size;
+            },
+            get filteredPosts() {
+                return this.marketplace.filteredPosts;
+            },
+            get filteredCatalogItems() {
+                return this.filteredPosts.map(adapters.catalogItemFromPost);
+            },
+            get favouritePosts() {
+                return this.marketplace.posts.filter((post) => this.favourites.favouriteIds.has(post.postId));
+            },
+            get favouriteCatalogItems() {
+                return this.favouritePosts.map(adapters.catalogItemFromPost);
+            },
+            get profileCatalogItems() {
+                return this.profile.profilePosts.map(adapters.catalogItemFromPost);
+            },
+            get currentLayout() {
+                if (this.currentView === "createdSitePreview") {
+                    const site = this.activeCreatedSite;
+                    return site ? window.Storefront.core.layoutRuntime.renderLayout(site.layout, this, { useSampleData: true }) : null;
+                }
+                if (!router.isLayoutRoute(this.currentView)) {
+                    return null;
+                }
+                if (!this.layoutsReady) {
+                    return null;
+                }
+                const layout = window.Storefront.core.layoutRegistry.getByRoute(this.currentView);
+                return layout ? window.Storefront.core.layoutRuntime.renderLayout(layout, this) : null;
+            },
+            get activeCreatedSite() {
+                return this.builder.createdSites.find((site) => site.id === this.builder.activeCreatedSiteId) || null;
+            },
+            get builderPreviewLayout() {
+                if (!this.builder.draftLayout) return null;
+                return window.Storefront.core.layoutRuntime.renderLayout(
+                    this.builder.draftLayout,
+                    this,
+                    { builderLayout: this.builder.draftLayout, useSampleData: this.builder.useSampleData }
                 );
-            }
+            },
+            get builderPaletteGroups() {
+                return window.Storefront.builder.groupPalette();
+            },
+            get selectedBuilderElement() {
+                if (!this.builder.draftLayout || !this.builder.selectedElementId) return null;
+                for (const region of this.builder.draftLayout.regions) {
+                    const match = region.elements.find((element) => element.id === this.builder.selectedElementId);
+                    if (match) return match;
+                }
+                return null;
+            },
+            get selectedBuilderDefinition() {
+                return this.selectedBuilderElement
+                    ? window.Storefront.core.elementRegistry.get(this.selectedBuilderElement.type)
+                    : null;
+            },
 
-            // 2. Sorting
-            switch (this.sortBy) {
-                case 'newest': result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); break;
-                case 'oldest': result.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)); break;
-                case 'price-asc': result.sort((a, b) => a.price - b.price); break;
-                case 'price-desc': result.sort((a, b) => b.price - a.price); break;
-            }
+            clearMessages() {
+                this.errorMessage = "";
+                this.successMessage = "";
+            },
+            setError(message) {
+                this.errorMessage = message;
+                this.successMessage = "";
+            },
+            setSuccess(message) {
+                this.successMessage = message;
+                this.errorMessage = "";
+            },
 
-            return result;
-        },
+            navigateTo(view) {
+                this.currentView = view;
+                this.clearMessages();
+                window.scrollTo(0, 0);
+                if (view !== "whatsappLogin" && this.auth.whatsappLogin.interval) {
+                    clearInterval(this.auth.whatsappLogin.interval);
+                    this.auth.whatsappLogin.interval = null;
+                }
+                if (view !== "profile") {
+                    this.profile.profileSeller = null;
+                    this.profile.profilePosts = [];
+                    this.profile.isOwnProfile = false;
+                    this.profile.showDeleteAccountModal = false;
+                    this.profile.deleteAccountConfirmPassword = "";
+                    this.confirmDeletePostId = null;
+                }
+                if (view === "layoutBuilder") {
+                    this.initializeBuilder();
+                }
+                if (view === "createdSites") {
+                    this.loadCreatedSites();
+                }
+            },
 
-        validatePostForm() {
-            if (!this.newPost.title || this.newPost.title.trim() === '') return ['Title is required'];
-            if (this.newPost.title.length > 100) return ['Title must be up to 100 characters'];
-            if (!this.newPost.price) return ['Price is required'];
-            if (this.newPost.price < 0.01) return ['Price must be greater than 0'];
-            if (!this.newPost.category) return ['Category is required'];
-            if (this.selectedImages.length === 0) return ['At least one image is required'];
-            if (!this.newPost.description || this.newPost.description.trim() === '') return ['Description is required'];
-            return [];
-        },
+            async apiFetch(endpoint, options = {}) {
+                const response = await this.auth.apiFetch(endpoint, options);
+                if (response.status === 401) {
+                    this.handleLogout();
+                    throw new Error("Session expired. Please log in again.");
+                }
+                return response;
+            },
+            rethrowUnauthorized(error) {
+                if (error.status === 401) {
+                    this.handleLogout();
+                    throw new Error("Session expired. Please log in again.");
+                }
+                throw error;
+            },
 
-        async fetchPosts() {
-            this.isLoading = true;
-            this.errorMessage = '';
-            try {
-                const url = this.selectedCategory ? `/api/posts/category/${this.selectedCategory}` : '/api/posts';
-                const response = await fetch(url);
-                if (!response.ok) throw new Error('Failed to fetch data from the server.');
-                const data = await response.json();
-                this.posts = data.content || [];
-            } catch (error) {
-                console.error("Fetch error:", error);
-                this.errorMessage = "Could not load items. " + error.message;
-            } finally {
-                this.isLoading = false;
-            }
-        },
+            isPasswordValid(password) {
+                return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(password);
+            },
+            passwordStrength(password) {
+                let score = 0;
+                if (/[a-z]/.test(password)) score++;
+                if (/[A-Z]/.test(password)) score++;
+                if (/\d/.test(password)) score++;
+                if (/[@$!%*?&]/.test(password)) score++;
+                if ((password || "").length >= 8) score++;
+                return score;
+            },
+            isRegisterFormValid() {
+                const f = this.auth.registerForm;
+                return f.name && f.name.length >= 2 && f.name.length <= 100 &&
+                    f.email && f.email.endsWith("@constructor.university") &&
+                    f.phoneNumber && /^\+?[0-9]{10,15}$/.test(f.phoneNumber) &&
+                    f.password && this.isPasswordValid(f.password) &&
+                    f.confirmPassword === f.password;
+            },
 
-        async createPost() {
-            this.errorMessage = '';
-            const validationErrors = this.validatePostForm();
-            if (validationErrors.length > 0) {
-                this.errorMessage = validationErrors.join(', ');
-                return;
-            }
+            async handleLogin() {
+                this.isLoading = true;
+                this.clearMessages();
+                try {
+                    const data = await services.auth.login(this.auth.loginForm);
+                    this.auth.saveAuth(data);
+                    this.auth.loginForm = { email: "", password: "" };
+                    await this.syncFavourites();
+                    this.navigateTo("listings");
+                } catch (error) {
+                    this.setError(error.message);
+                } finally {
+                    this.isLoading = false;
+                }
+            },
 
-            if (this.selectedImages.length === 0) {
-                this.errorMessage = "Please upload at least one image.";
-                return;
-            }
+            async handleRegister() {
+                this.isLoading = true;
+                this.clearMessages();
+                if (!this.isRegisterFormValid()) {
+                    this.setError("Please check your name, Constructor University email, phone number, and password requirements.");
+                    this.isLoading = false;
+                    return;
+                }
+                try {
+                    const { confirmPassword, ...registrationData } = this.auth.registerForm;
+                    const data = await services.auth.register(registrationData);
+                    this.auth.saveAuth(data);
+                    this.auth.registerForm = { name: "", email: "", phoneNumber: "", password: "", confirmPassword: "" };
+                    this.navigateTo("listings");
+                } catch (error) {
+                    this.setError(error.message);
+                } finally {
+                    this.isLoading = false;
+                }
+            },
 
-            this.isLoading = true;
-            try {
-                const formData = new FormData();
-                
-                const postData = { 
-                    title: this.newPost.title,
-                    price: this.newPost.price,
-                    description: this.newPost.description,
-                    category: this.newPost.category,
-                    sellerId: this.user.sellerId 
+            handleLogout() {
+                this.auth.clearAuth();
+                this.favourites.favouriteIds = new Set();
+                storage.remove("favourites");
+                this.navigateTo("listings");
+            },
+
+            async handleForgotPassword() {
+                this.isLoading = true;
+                this.clearMessages();
+                try {
+                    await services.auth.requestPasswordReset(this.auth.forgotPasswordForm);
+                    this.setSuccess("If that email exists, a reset link has been sent. Check your inbox.");
+                    this.auth.forgotPasswordForm = { email: "" };
+                } catch (error) {
+                    this.setError(error.message);
+                } finally {
+                    this.isLoading = false;
+                }
+            },
+
+            async handleResetPassword() {
+                if (this.auth.resetPasswordForm.newPassword !== this.auth.resetPasswordForm.confirmPassword) {
+                    this.setError("Passwords do not match");
+                    return;
+                }
+                if (!this.isPasswordValid(this.auth.resetPasswordForm.newPassword)) {
+                    this.setError("Password must have 8+ chars with uppercase, lowercase, digit, and special character");
+                    return;
+                }
+                this.isLoading = true;
+                this.clearMessages();
+                try {
+                    await services.auth.resetPassword({
+                        token: this.auth.resetPasswordForm.token,
+                        newPassword: this.auth.resetPasswordForm.newPassword
+                    });
+                    this.setSuccess("Password reset successfully. Redirecting to login...");
+                    this.auth.resetPasswordForm = { token: "", newPassword: "", confirmPassword: "" };
+                    setTimeout(() => this.navigateTo("login"), 2000);
+                } catch (error) {
+                    this.setError(error.message);
+                } finally {
+                    this.isLoading = false;
+                }
+            },
+
+            async initWhatsappLogin() {
+                this.isLoading = true;
+                this.navigateTo("whatsappLogin");
+                try {
+                    const data = await services.whatsappLogin.createSession();
+                    this.auth.whatsappLogin.sessionId = data.sessionId;
+                    this.auth.whatsappLogin.qrContent = data.qrContent;
+                    this.auth.whatsappLogin.status = "PENDING";
+                    this.startWhatsappLoginPolling();
+                } catch (_error) {
+                    this.setError("Could not initialize WhatsApp login.");
+                    this.navigateTo("login");
+                } finally {
+                    this.isLoading = false;
+                }
+            },
+
+            startWhatsappLoginPolling() {
+                if (this.auth.whatsappLogin.interval) clearInterval(this.auth.whatsappLogin.interval);
+                this.auth.whatsappLogin.interval = setInterval(async () => {
+                    try {
+                        const data = await services.whatsappLogin.getSession(this.auth.whatsappLogin.sessionId);
+                        this.auth.whatsappLogin.status = data.status;
+                        if (data.status === "COMPLETED" && data.claimToken) {
+                            clearInterval(this.auth.whatsappLogin.interval);
+                            await this.claimWhatsappLogin(data.claimToken);
+                        } else if (data.status === "EXPIRED") {
+                            clearInterval(this.auth.whatsappLogin.interval);
+                            this.setError("Login session expired.");
+                            this.navigateTo("login");
+                        }
+                    } catch (_error) {
+                        return null;
+                    }
+                    return null;
+                }, 3000);
+            },
+
+            async claimWhatsappLogin(claimToken) {
+                try {
+                    const data = await services.whatsappLogin.claim(claimToken);
+                    this.auth.saveAuth(data);
+                    this.navigateTo("listings");
+                } catch (error) {
+                    this.setError(error.message);
+                    this.navigateTo("login");
+                }
+            },
+
+            async fetchPosts() {
+                this.isLoading = true;
+                this.clearMessages();
+                try {
+                    const data = await services.posts.list(this.marketplace.selectedCategory);
+                    this.marketplace.posts = data.content;
+                } catch (error) {
+                    this.setError(`Could not load items. ${error.message}`);
+                } finally {
+                    this.isLoading = false;
+                }
+            },
+
+            clearFilters() {
+                this.marketplace.searchQuery = "";
+                this.marketplace.selectedCategory = "";
+                this.marketplace.sortBy = "newest";
+                this.fetchPosts();
+            },
+
+            validatePostForm() {
+                const post = this.upload.newPost;
+                const errors = [];
+                if (!post.title?.trim()) errors.push("Title is required");
+                if (post.title && post.title.length > 100) errors.push("Title must be up to 100 characters");
+                if (!post.price) errors.push("Price is required");
+                if (post.price && post.price < 0.01) errors.push("Price must be greater than 0");
+                if (!post.category) errors.push("Category is required");
+                if (!post.description?.trim()) errors.push("Description is required");
+                if (this.upload.selectedImages.length === 0) errors.push("At least one image is required");
+                return errors;
+            },
+
+            async createPost() {
+                const errors = this.validatePostForm();
+                if (errors.length) {
+                    this.setError(errors.join(". "));
+                    return;
+                }
+                this.isLoading = true;
+                this.clearMessages();
+                try {
+                    const formData = new FormData();
+                    const postData = {
+                        title: this.upload.newPost.title,
+                        price: this.upload.newPost.price,
+                        description: this.upload.newPost.description,
+                        category: this.upload.newPost.category,
+                        sellerId: this.user.sellerId
+                    };
+                    formData.append("post", new Blob([JSON.stringify(postData)], { type: "application/json" }));
+                    this.upload.selectedImages.forEach((file) => formData.append("images", file));
+                    formData.append("coverIndex", 0);
+                    const createdPost = await services.posts.create(formData, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
+                    this.marketplace.posts.unshift(createdPost);
+                    this.resetCreateListingForm();
+                    this.navigateTo("listings");
+                    this.setSuccess("Successfully published.");
+                } catch (error) {
+                    this.setError(error.message);
+                } finally {
+                    this.isLoading = false;
+                }
+            },
+
+            resetCreateListingForm() {
+                this.upload.newPost = { title: "", price: null, description: "", category: "OTHER" };
+                this.upload.selectedImages = [];
+                this.upload.imagePreviews.forEach((preview) => URL.revokeObjectURL(preview));
+                this.upload.imagePreviews = [];
+                this.upload.dragStartIndex = null;
+            },
+
+            handleFileSelect(event) {
+                const files = Array.from(event.target.files || []);
+                this.addFiles(files);
+                event.target.value = "";
+            },
+            handleDrop(event) {
+                this.upload.uploadDragActive = false;
+                this.addFiles(Array.from(event.dataTransfer.files || []));
+            },
+            addFiles(files) {
+                const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+                if (this.upload.selectedImages.length + imageFiles.length > 10) {
+                    this.setError("You can only upload up to 10 images.");
+                    return;
+                }
+                imageFiles.forEach((file) => {
+                    this.upload.selectedImages.push(file);
+                    this.upload.imagePreviews.push(URL.createObjectURL(file));
+                });
+            },
+            removeImage(index) {
+                URL.revokeObjectURL(this.upload.imagePreviews[index]);
+                this.upload.selectedImages.splice(index, 1);
+                this.upload.imagePreviews.splice(index, 1);
+            },
+            handleImageDrop(dropIndex) {
+                if (this.upload.dragStartIndex === null || this.upload.dragStartIndex === dropIndex) return;
+                const file = this.upload.selectedImages.splice(this.upload.dragStartIndex, 1)[0];
+                const preview = this.upload.imagePreviews.splice(this.upload.dragStartIndex, 1)[0];
+                this.upload.selectedImages.splice(dropIndex, 0, file);
+                this.upload.imagePreviews.splice(dropIndex, 0, preview);
+                this.upload.dragStartIndex = null;
+            },
+
+            async viewProfile(sellerId) {
+                this.navigateTo("profile");
+                this.profile.profileLoading = true;
+                this.profile.isOwnProfile = this.isLoggedIn && this.user?.sellerId === sellerId;
+                try {
+                    this.profile.profileSeller = await services.sellers.get(sellerId, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
+                    const postsData = await services.posts.bySeller(sellerId);
+                    this.profile.profilePosts = postsData.content;
+                } catch (error) {
+                    this.setError(error.message);
+                } finally {
+                    this.profile.profileLoading = false;
+                }
+            },
+
+            promptDeletePost(postId) {
+                this.confirmDeletePostId = postId;
+            },
+            cancelDeletePost() {
+                this.confirmDeletePostId = null;
+            },
+            async deleteProfilePost(postId) {
+                try {
+                    await services.posts.delete(postId, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
+                    this.profile.profilePosts = this.profile.profilePosts.filter((post) => post.postId !== postId);
+                    this.marketplace.posts = this.marketplace.posts.filter((post) => post.postId !== postId);
+                    this.confirmDeletePostId = null;
+                    this.setSuccess("Listing deleted successfully.");
+                } catch (error) {
+                    this.setError(error.message);
+                }
+            },
+            async markProfilePostSold(postId) {
+                try {
+                    const updated = await services.posts.markSold(postId, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
+                    this.profile.profilePosts = this.profile.profilePosts.map((post) => post.postId === postId ? updated : post);
+                    this.marketplace.posts = this.marketplace.posts.map((post) => post.postId === postId ? updated : post);
+                    this.setSuccess("Listing marked as sold.");
+                } catch (error) {
+                    this.setError(error.message);
+                }
+            },
+            async deleteAccount() {
+                if (!this.profile.deleteAccountConfirmPassword) {
+                    this.setError("Please enter your password to confirm.");
+                    return;
+                }
+                try {
+                    await services.sellers.deleteMe(this.profile.deleteAccountConfirmPassword, this.auth.token)
+                        .catch((error) => this.rethrowUnauthorized(error));
+                    this.profile.showDeleteAccountModal = false;
+                    this.profile.deleteAccountConfirmPassword = "";
+                    this.handleLogout();
+                    this.setSuccess("Your account has been deleted.");
+                } catch (error) {
+                    this.setError(error.message);
+                }
+            },
+            getInitials(name) {
+                if (!name) return "?";
+                return name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase();
+            },
+            getProfileAvatarColor(sellerId) {
+                const colors = ["#6366f1", "#8b5cf6", "#a855f7", "#d946ef", "#ef4444", "#f97316", "#22c55e", "#06b6d4"];
+                return colors[(sellerId || 0) % colors.length];
+            },
+
+            async toggleFavourite(postId) {
+                if (!this.isLoggedIn) {
+                    this.navigateTo("login");
+                    this.setError("Please log in to save favourites.");
+                    return;
+                }
+                const removing = this.favourites.favouriteIds.has(postId);
+                if (removing) this.favourites.favouriteIds.delete(postId);
+                else this.favourites.favouriteIds.add(postId);
+                this.favourites.persist();
+                try {
+                    if (removing) await services.favourites.remove(postId, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
+                    else await services.favourites.add(postId, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
+                } catch (_error) {
+                    if (removing) this.favourites.favouriteIds.add(postId);
+                    else this.favourites.favouriteIds.delete(postId);
+                    this.favourites.persist();
+                    this.setError("Could not sync favourites right now.");
+                }
+            },
+            async removeFavourite(postId) {
+                this.favourites.favouriteIds.delete(postId);
+                this.favourites.persist();
+                try {
+                    await services.favourites.remove(postId, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
+                } catch (_error) {
+                    this.favourites.favouriteIds.add(postId);
+                    this.favourites.persist();
+                    this.setError("Could not sync favourites right now.");
+                }
+            },
+            isFavourite(postId) {
+                return this.favourites.favouriteIds.has(postId);
+            },
+            toggleCartItem(item) {
+                if (this.cart.isSelected(item.id)) {
+                    this.cart.remove(item.id);
+                    return;
+                }
+
+                const result = this.cart.add(item);
+                if (!result.ok) {
+                    this.setError(result.message);
+                }
+            },
+            sendCartWhatsapp() {
+                const href = this.cart.whatsappHref();
+                if (!href) {
+                    this.setError("This seller does not have a WhatsApp number.");
+                    return;
+                }
+                window.open(href, "_blank", "noopener");
+            },
+            async syncFavourites() {
+                if (!this.isLoggedIn) return;
+                try {
+                    const postIds = await services.favourites.list(this.auth.token).catch((error) => this.rethrowUnauthorized(error));
+                    this.favourites.favouriteIds = new Set(postIds);
+                    this.favourites.persist();
+                } catch (_error) {
+                    return null;
+                }
+                return null;
+            },
+
+            initializeBuilder() {
+                this.loadCreatedSites();
+                const stored = this.builder.loadDraft();
+                if (stored) {
+                    this.builder.draftLayout = stored;
+                    this.builder.selectedLayoutId = stored.id;
+                } else {
+                    this.resetBuilderDraft();
+                }
+                this.builder.previewWidth = window.Storefront.builder.previewWidths.desktop;
+                this.builder.previewMode = "desktop";
+                this.builder.previewZoom = 1;
+                this.builder.newSiteName = this.builder.newSiteName || this.builder.draftLayout?.label || "";
+                this.builder.selectedRegionId = this.builder.draftLayout?.regions?.[0]?.id || "";
+                this.builder.selectedElementId = this.builder.draftLayout?.regions?.[0]?.elements?.[0]?.id || "";
+                this.builder.importExportText = JSON.stringify(this.builder.draftLayout, null, 2);
+                this.validateBuilderLayout(false);
+            },
+            loadCreatedSites() {
+                this.builder.createdSites = this.builder.loadCreatedSites();
+            },
+            resetBuilderDraft() {
+                const base = window.Storefront.core.layoutRegistry.cloneLayout(this.builder.selectedLayoutId || "marketplace.home");
+                this.builder.draftLayout = base;
+                this.builder.selectedRegionId = base?.regions?.[0]?.id || "";
+                this.builder.selectedElementId = base?.regions?.[0]?.elements?.[0]?.id || "";
+                this.builder.newSiteName = base?.label || "";
+                this.builder.importExportText = JSON.stringify(base, null, 2);
+                this.builder.history = [];
+                this.builder.future = [];
+                this.builder.saveDraft();
+            },
+            selectBuilderTemplate(layoutId) {
+                this.builder.selectedLayoutId = layoutId;
+                this.builder.activeCreatedSiteId = "";
+                this.resetBuilderDraft();
+                this.validateBuilderLayout(false);
+            },
+            pushBuilderHistory() {
+                if (!this.builder.draftLayout) return;
+                this.builder.history.push(deepClone(this.builder.draftLayout));
+                if (this.builder.history.length > 30) this.builder.history.shift();
+                this.builder.future = [];
+            },
+            commitBuilderLayout(nextLayout) {
+                this.builder.draftLayout = nextLayout;
+                this.builder.importExportText = JSON.stringify(nextLayout, null, 2);
+                this.builder.saveDraft();
+                this.validateBuilderLayout(false);
+            },
+            undoBuilder() {
+                const previous = this.builder.history.pop();
+                if (!previous) return;
+                this.builder.future.push(deepClone(this.builder.draftLayout));
+                this.commitBuilderLayout(previous);
+            },
+            redoBuilder() {
+                const next = this.builder.future.pop();
+                if (!next) return;
+                this.builder.history.push(deepClone(this.builder.draftLayout));
+                this.commitBuilderLayout(next);
+            },
+            addBuilderElement(type) {
+                if (!this.builder.draftLayout) return;
+                const regionId = this.preferredBuilderRegionForType(type);
+                this.addBuilderElementToRegion(type, regionId);
+            },
+            preferredBuilderRegionForType(type) {
+                const regions = this.builder.draftLayout?.regions || [];
+                if (type === "catalog.grid" || type === "restaurant.menuGrid" || type === "profile.listingList") {
+                    return regions.find((region) => region.role === "main")?.id ||
+                        regions.find((region) => /results|grid|list|main/i.test(region.id))?.id ||
+                        this.builder.selectedRegionId ||
+                        regions[0]?.id;
+                }
+                if (type === "profile.summary") {
+                    return regions.find((region) => /summary|profile|hero|header/i.test(region.id))?.id ||
+                        this.builder.selectedRegionId ||
+                        regions[0]?.id;
+                }
+                return this.builder.selectedRegionId || regions[0]?.id;
+            },
+            addBuilderElementToRegion(type, regionId, insertIndex = null) {
+                if (!this.builder.draftLayout) return;
+                if (!regionId) return;
+                const defaults = window.Storefront.core.elementRegistry.getDefaults(type);
+                const next = deepClone(this.builder.draftLayout);
+                const region = next.regions.find((item) => item.id === regionId);
+                if (!region) return;
+                this.pushBuilderHistory();
+                const id = `${type.replace(/\./g, "-")}-${Date.now()}`;
+                const element = { id, type, props: defaults, dataSource: this.defaultDataSourceForType(type) };
+                if (Number.isInteger(insertIndex)) {
+                    region.elements.splice(insertIndex, 0, element);
+                } else {
+                    region.elements.push(element);
+                }
+                this.commitBuilderLayout(next);
+                this.builder.selectedRegionId = regionId;
+                this.builder.selectedElementId = id;
+            },
+            defaultDataSourceForType(type) {
+                if (type === "marketplace.filterBar") return "marketplace.filters";
+                if (type === "catalog.grid") return "builder.sampleCatalog";
+                if (type === "restaurant.menuGrid") return "restaurant.sampleMenu";
+                if (type === "restaurant.menuHero") return "";
+                if (type.startsWith("profile.")) return type === "profile.summary" ? "profile.seller" : "profile.posts";
+                return "";
+            },
+            duplicateBuilderElement(elementId) {
+                this.pushBuilderHistory();
+                const next = deepClone(this.builder.draftLayout);
+                next.regions.forEach((region) => {
+                    const index = region.elements.findIndex((element) => element.id === elementId);
+                    if (index >= 0) {
+                        const duplicate = deepClone(region.elements[index]);
+                        duplicate.id = `${duplicate.type.replace(/\./g, "-")}-${Date.now()}`;
+                        region.elements.splice(index + 1, 0, duplicate);
+                        this.builder.selectedElementId = duplicate.id;
+                    }
+                });
+                this.commitBuilderLayout(next);
+            },
+            deleteBuilderElement(elementId) {
+                this.pushBuilderHistory();
+                const next = deepClone(this.builder.draftLayout);
+                next.regions.forEach((region) => {
+                    region.elements = region.elements.filter((element) => element.id !== elementId);
+                });
+                this.commitBuilderLayout(next);
+                this.builder.selectedElementId = next.regions[0]?.elements[0]?.id || "";
+            },
+            selectBuilderRegion(regionId) {
+                this.builder.selectedRegionId = regionId;
+            },
+            selectBuilderElement(elementId) {
+                this.builder.selectedElementId = elementId;
+            },
+            moveBuilderElement(regionId, fromIndex, toIndex) {
+                if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
+                this.pushBuilderHistory();
+                const next = deepClone(this.builder.draftLayout);
+                const region = next.regions.find((item) => item.id === regionId);
+                if (!region) return;
+                region.elements = window.Storefront.builder.moveItem(region.elements, fromIndex, toIndex);
+                this.commitBuilderLayout(next);
+            },
+            startBuilderDrag(regionId, index) {
+                this.builderDrag = { regionId, index };
+                this.builderPaletteDragType = "";
+            },
+            dropBuilderElement(regionId, index) {
+                if (this.builderPaletteDragType) {
+                    this.addBuilderElementToRegion(this.builderPaletteDragType, regionId, index);
+                    this.builderPaletteDragType = "";
+                    return;
+                }
+                if (this.builderDrag.regionId && this.builderDrag.regionId !== regionId) {
+                    this.moveBuilderElementAcrossRegions(this.builderDrag.regionId, this.builderDrag.index, regionId, index);
+                } else {
+                    this.moveBuilderElement(regionId, this.builderDrag.index, index);
+                }
+                this.builderDrag = { regionId: "", index: -1 };
+            },
+            moveBuilderElementAcrossRegions(fromRegionId, fromIndex, toRegionId, toIndex) {
+                if (!fromRegionId || fromIndex < 0) return;
+                this.pushBuilderHistory();
+                const next = deepClone(this.builder.draftLayout);
+                const fromRegion = next.regions.find((item) => item.id === fromRegionId);
+                const toRegion = next.regions.find((item) => item.id === toRegionId);
+                if (!fromRegion || !toRegion) return;
+                const [element] = fromRegion.elements.splice(fromIndex, 1);
+                if (!element) return;
+                toRegion.elements.splice(toIndex, 0, element);
+                this.builder.selectedRegionId = toRegionId;
+                this.builder.selectedElementId = element.id;
+                this.commitBuilderLayout(next);
+            },
+            startPaletteDrag(type) {
+                this.builderPaletteDragType = type;
+                this.builderDrag = { regionId: "", index: -1 };
+            },
+            dropBuilderElementAtEnd(regionId) {
+                const region = this.builder.draftLayout?.regions?.find((item) => item.id === regionId);
+                this.dropBuilderElement(regionId, region?.elements?.length || 0);
+            },
+            moveBuilderRegion(fromIndex, toIndex) {
+                if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
+                this.pushBuilderHistory();
+                const next = deepClone(this.builder.draftLayout);
+                next.regions = window.Storefront.builder.moveItem(next.regions, fromIndex, toIndex);
+                this.commitBuilderLayout(next);
+            },
+            startBuilderRegionDrag(index) {
+                this.builderRegionDragIndex = index;
+            },
+            dropBuilderRegion(index) {
+                this.moveBuilderRegion(this.builderRegionDragIndex, index);
+                this.builderRegionDragIndex = -1;
+            },
+            updateBuilderProp(key, value) {
+                if (!this.builder.selectedElementId) return;
+                this.pushBuilderHistory();
+                const next = replaceElementInLayout(this.builder.draftLayout, this.builder.selectedElementId, (element) =>
+                    window.Storefront.builder.updateProp(element, key, value)
+                );
+                this.commitBuilderLayout(next);
+            },
+            validateBuilderLayout(showSuccess = true) {
+                const result = window.Storefront.core.layoutRegistry.validate(this.builder.draftLayout);
+                this.builder.validationErrors = result.errors;
+                this.builder.warnings = [];
+                this.builder.draftLayout?.regions?.forEach((region) => {
+                    if (region.layout?.minItemWidth && parseFloat(region.layout.minItemWidth) < 14) {
+                        this.builder.warnings.push(`Region "${region.id}" may overflow at ${region.layout.minItemWidth}.`);
+                    }
+                    region.elements?.forEach((element) => {
+                        if (element.props?.minItemWidth && parseFloat(element.props.minItemWidth) < 14) {
+                            this.builder.warnings.push(`Element "${element.id}" may overflow at ${element.props.minItemWidth}.`);
+                        }
+                    });
+                });
+                if (showSuccess && result.isValid) this.setSuccess("Layout validation passed.");
+                if (showSuccess && !result.isValid) this.setError(result.errors.join(" "));
+                return result.isValid;
+            },
+            applyBuilderPreview() {
+                if (!this.validateBuilderLayout(false)) {
+                    this.setError("Fix validation errors before applying the preview.");
+                    return;
+                }
+                window.Storefront.core.layoutRegistry.register(this.builder.draftLayout);
+                this.builder.saveDraft();
+                this.setSuccess(`Applied preview for ${this.builder.draftLayout.route}.`);
+            },
+            createSiteFromDraft() {
+                if (!this.builder.draftLayout) return;
+                if (!this.validateBuilderLayout(false)) {
+                    this.setError("Fix validation errors before creating the site.");
+                    return;
+                }
+
+                const now = new Date().toISOString();
+                const name = (this.builder.newSiteName || this.builder.draftLayout.label || "Untitled Site").trim();
+                const existingSite = this.builder.activeCreatedSiteId
+                    ? this.builder.createdSites.find((site) => site.id === this.builder.activeCreatedSiteId)
+                    : null;
+                const id = existingSite?.id || `site-${Date.now()}`;
+                const layout = deepClone(this.builder.draftLayout);
+
+                layout.id = `created.${id}`;
+                layout.label = name;
+                layout.route = "createdSitePreview";
+
+                const site = {
+                    id,
+                    name,
+                    context: layout.context || "custom",
+                    layout,
+                    createdAt: existingSite?.createdAt || now,
+                    updatedAt: now
                 };
 
-                formData.append("post", new Blob([JSON.stringify(postData)], {
-                    type: "application/json"
-                }));
-
-                this.selectedImages.forEach(file => {
-                    formData.append("images", file);
-                });
-                
-                formData.append("coverIndex", 0);
-
-                const response = await this.apiFetch('/api/posts/upload', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    throw new Error(errorData.message || 'Failed to create item.');
+                this.builder.createdSites = [
+                    site,
+                    ...this.builder.createdSites.filter((item) => item.id !== id)
+                ];
+                this.builder.activeCreatedSiteId = id;
+                this.builder.newSiteName = name;
+                this.builder.saveCreatedSites();
+                this.setSuccess(`Created site "${name}".`);
+                this.navigateTo("createdSites");
+            },
+            openCreatedSite(siteId) {
+                this.builder.activeCreatedSiteId = siteId;
+                this.navigateTo("createdSitePreview");
+            },
+            editCreatedSite(siteId) {
+                const site = this.builder.createdSites.find((item) => item.id === siteId);
+                if (!site) return;
+                this.builder.activeCreatedSiteId = siteId;
+                this.builder.selectedLayoutId = site.layout.id;
+                this.builder.draftLayout = deepClone(site.layout);
+                this.builder.newSiteName = site.name;
+                this.builder.selectedRegionId = site.layout.regions?.[0]?.id || "";
+                this.builder.selectedElementId = site.layout.regions?.[0]?.elements?.[0]?.id || "";
+                this.builder.importExportText = JSON.stringify(this.builder.draftLayout, null, 2);
+                this.builder.saveDraft();
+                this.navigateTo("layoutBuilder");
+            },
+            duplicateCreatedSite(siteId) {
+                const site = this.builder.createdSites.find((item) => item.id === siteId);
+                if (!site) return;
+                const now = new Date().toISOString();
+                const id = `site-${Date.now()}`;
+                const layout = deepClone(site.layout);
+                layout.id = `created.${id}`;
+                layout.label = `${site.name} Copy`;
+                const copy = {
+                    id,
+                    name: layout.label,
+                    context: site.context,
+                    layout,
+                    createdAt: now,
+                    updatedAt: now
+                };
+                this.builder.createdSites = [copy, ...this.builder.createdSites];
+                this.builder.saveCreatedSites();
+                this.setSuccess(`Duplicated "${site.name}".`);
+            },
+            deleteCreatedSite(siteId) {
+                const site = this.builder.createdSites.find((item) => item.id === siteId);
+                this.builder.createdSites = this.builder.createdSites.filter((item) => item.id !== siteId);
+                if (this.builder.activeCreatedSiteId === siteId) {
+                    this.builder.activeCreatedSiteId = "";
                 }
-
-                const createdPost = await response.json();
-                this.posts.unshift(createdPost);
-                
-                this.newPost = { title: '', price: null, description: '', category: 'OTHER' };
-                this.selectedImages = [];
-                this.imagePreviews.forEach(URL.revokeObjectURL);
-                this.imagePreviews = [];
-                this.dragStartIndex = null;
-                
-                this.navigateTo('listings');
-                alert("Successfully published!");
-            } catch (error) {
-                this.errorMessage = error.message;
-            } finally {
-                this.isLoading = false;
-            }
-        },
-
-        // Image Handling Methods
-        handleFileSelect(event) {
-            const files = Array.from(event.target.files);
-            this.addFiles(files);
-            event.target.value = ''; // Reset input
-        },
-
-        handleDrop(event) {
-            const files = Array.from(event.dataTransfer.files);
-            this.addFiles(files);
-        },
-
-        addFiles(files) {
-            const imageFiles = files.filter(f => f.type.startsWith('image/'));
-            
-            if (this.selectedImages.length + imageFiles.length > 10) {
-                alert("You can only upload up to 10 images.");
-                return;
-            }
-
-            imageFiles.forEach(file => {
-                this.selectedImages.push(file);
-                this.imagePreviews.push(URL.createObjectURL(file));
-            });
-        },
-
-        removeImage(index) {
-            URL.revokeObjectURL(this.imagePreviews[index]);
-            this.selectedImages.splice(index, 1);
-            this.imagePreviews.splice(index, 1);
-        },
-
-        handleImageDrop(dropIndex) {
-            if (this.dragStartIndex === null || this.dragStartIndex === dropIndex) return;
-
-            const file = this.selectedImages.splice(this.dragStartIndex, 1)[0];
-            const preview = this.imagePreviews.splice(this.dragStartIndex, 1)[0];
-
-            this.selectedImages.splice(dropIndex, 0, file);
-            this.imagePreviews.splice(dropIndex, 0, preview);
-            this.dragStartIndex = null;
-        },
-
-        clearFilters() {
-            this.searchQuery = '';
-            this.selectedCategory = '';
-            this.sortBy = 'newest';
-            this.fetchPosts();
-        },
-
-        // ==========================================
-        // Profile Methods
-        // ==========================================
-
-        async viewProfile(sellerId) {
-            this.navigateTo('profile');
-            this.profileLoading = true;
-            this.isOwnProfile = this.isLoggedIn && this.user && this.user.sellerId === sellerId;
-
-            try {
-                // Fetch seller details
-                const sellerRes = await this.apiFetch(`/api/sellers/${sellerId}`);
-                if (!sellerRes.ok) throw new Error('Failed to load profile');
-                this.profileSeller = await sellerRes.json();
-
-                // Fetch seller's posts
-                const postsRes = await fetch(`/api/posts/seller/${sellerId}`);
-                if (!postsRes.ok) throw new Error('Failed to load listings');
-                const postsData = await postsRes.json();
-                this.profilePosts = postsData.content || [];
-            } catch (error) {
-                this.errorMessage = error.message;
-            } finally {
-                this.profileLoading = false;
-            }
-        },
-
-        async deleteProfilePost(postId) {
-            if (!confirm('Are you sure you want to delete this listing? This cannot be undone.')) return;
-            try {
-                const response = await this.apiFetch(`/api/posts/${postId}`, { method: 'DELETE' });
-                if (!response.ok) throw new Error('Failed to delete listing');
-                this.profilePosts = this.profilePosts.filter(p => p.postId !== postId);
-                // Also remove from the main posts array if present
-                this.posts = this.posts.filter(p => p.postId !== postId);
-                this.successMessage = 'Listing deleted successfully.';
-            } catch (error) {
-                this.errorMessage = error.message;
-            }
-        },
-
-        async markProfilePostSold(postId) {
-            try {
-                const response = await this.apiFetch(`/api/posts/${postId}/mark-sold`, { method: 'PATCH' });
-                if (!response.ok) throw new Error('Failed to mark as sold');
-                const updated = await response.json();
-                this.profilePosts = this.profilePosts.map(p => p.postId === postId ? updated : p);
-                // Also update in the main posts array
-                this.posts = this.posts.map(p => p.postId === postId ? updated : p);
-                this.successMessage = 'Listing marked as sold!';
-            } catch (error) {
-                this.errorMessage = error.message;
-            }
-        },
-
-        async deleteAccount() {
-            if (!this.profileSeller) return;
-            if (!this.deleteAccountConfirmPassword) {
-                this.errorMessage = 'Please enter your password to confirm.';
-                return;
-            }
-            try {
-                const response = await this.apiFetch('/api/sellers/me', {
-                    method: 'DELETE',
-                    body: JSON.stringify({ password: this.deleteAccountConfirmPassword })
-                });
-                if (!response.ok) {
-                    const errData = await response.json().catch(() => ({}));
-                    throw new Error(errData.message || 'Failed to delete account.');
+                this.builder.saveCreatedSites();
+                if (site) this.setSuccess(`Deleted "${site.name}".`);
+            },
+            exportBuilderLayout() {
+                this.builder.importExportText = JSON.stringify(this.builder.draftLayout, null, 2);
+                this.setSuccess("Layout JSON refreshed for export.");
+            },
+            importBuilderLayout() {
+                try {
+                    const parsed = JSON.parse(this.builder.importExportText);
+                    const result = window.Storefront.core.layoutRegistry.validate(parsed);
+                    if (!result.isValid) {
+                        this.builder.validationErrors = result.errors;
+                        this.setError("Imported layout was rejected.");
+                        return;
+                    }
+                    this.pushBuilderHistory();
+                    this.commitBuilderLayout(parsed);
+                    this.builder.selectedLayoutId = parsed.id;
+                    this.builder.selectedRegionId = parsed.regions?.[0]?.id || "";
+                    this.builder.selectedElementId = parsed.regions?.[0]?.elements?.[0]?.id || "";
+                    this.setSuccess("Imported layout draft.");
+                } catch (_error) {
+                    this.setError("Imported layout was rejected.");
                 }
-                alert('Your account has been deleted.');
-                this.handleLogout();
-            } catch (error) {
-                this.errorMessage = error.message;
-                this.showDeleteAccountModal = false;
+            },
+            clearBuilderDraftStorage() {
+                this.builder.resetDraftStorage();
+                this.resetBuilderDraft();
+                this.setSuccess("Builder draft reset.");
+            },
+            setBuilderPreviewMode(mode) {
+                this.builder.previewMode = mode;
+                this.builder.previewWidth = window.Storefront.builder.previewWidths[mode] || this.builder.previewWidth;
+            },
+            builderPreviewStyle() {
+                return {
+                    "--builder-preview-width": this.builder.previewWidth,
+                    "--builder-preview-zoom": this.builder.previewZoom
+                };
+            },
+
+            whatsappHref(item) {
+                const phone = item?.actions?.whatsappPhone || item?.seller?.phoneNumber || "";
+                if (!phone) return "";
+                const digits = phone.replace(/[^0-9]/g, "");
+                return `https://wa.me/${digits}?text=${encodeURIComponent(`Hi, I am interested in your listing: ${item.title}`)}`;
+            },
+            formatPrice(value) {
+                return `$${value}`;
             }
-        },
-
-        getInitials(name) {
-            if (!name) return '?';
-            return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
-        },
-
-        getProfileAvatarColor(sellerId) {
-            const colors = [
-                '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
-                '#ec4899', '#f43f5e', '#ef4444', '#f97316',
-                '#eab308', '#22c55e', '#14b8a6', '#06b6d4',
-                '#3b82f6', '#6366f1'
-            ];
-            return colors[(sellerId || 0) % colors.length];
-        },
-
-        // ==========================================
-        // Favourites Methods
-        // ==========================================
-
-        /**
-         * Toggle a post's favourite status.
-         * Updates UI immediately for snappiness, then syncs with API.
-         */
-        async toggleFavourite(postId) {
-            if (!this.isLoggedIn) {
-                this.navigateTo('login');
-                this.errorMessage = "Please log in to save favourites.";
-                return;
-            }
-            
-            const isRemoving = this.favouriteIds.has(postId);
-            
-            // Optimistic update
-            if (isRemoving) {
-                this.favouriteIds.delete(postId);
-            } else {
-                this.favouriteIds.add(postId);
-            }
-            this._persistFavourites();
-
-            // API Sync
-            try {
-                const method = isRemoving ? 'DELETE' : 'POST';
-                const res = await this.apiFetch(`/api/favourites/${postId}`, { method });
-                if (!res.ok) throw new Error('Sync failed');
-            } catch (e) {
-                console.error('Failed to sync favourite with server', e);
-                // Revert on failure
-                if (isRemoving) this.favouriteIds.add(postId);
-                else this.favouriteIds.delete(postId);
-                this._persistFavourites();
-            }
-        },
-
-        /** Check if a post is favourited. */
-        isFavourite(postId) {
-            return this.favouriteIds.has(postId);
-        },
-
-        /** Favourites count for badge display. */
-        get favouriteCount() {
-            return this.favouriteIds.size;
-        },
-
-        /** Get favourited posts from the loaded posts array. */
-        get favouritePosts() {
-            return this.posts.filter(p => this.favouriteIds.has(p.postId));
-        },
-
-        /** Remove a favourite (used from the favourites view). */
-        async removeFavourite(postId) {
-            this.favouriteIds.delete(postId);
-            this._persistFavourites();
-            
-            try {
-                await this.apiFetch(`/api/favourites/${postId}`, { method: 'DELETE' });
-            } catch (e) {
-                console.error('Failed to remove favourite on server', e);
-                // Revert on failure
-                this.favouriteIds.add(postId);
-                this._persistFavourites();
-            }
-        },
-
-        /** Persist favourites to localStorage. */
-        _persistFavourites() {
-            localStorage.setItem('favourites', JSON.stringify([...this.favouriteIds]));
-        },
-
-        /**
-         * Sync local favourites with the backend.
-         */
-        async syncFavourites() {
-            if (!this.isLoggedIn) return;
-            try {
-                const res = await this.apiFetch('/api/favourites');
-                if (res.ok) {
-                    const postIds = await res.json();
-                    this.favouriteIds = new Set(postIds);
-                    this._persistFavourites();
-                }
-            } catch (e) {
-                console.warn('Favourites sync failed, using local data', e);
-            }
-        }
-    }));
+        };
+        return app;
+    });
 });

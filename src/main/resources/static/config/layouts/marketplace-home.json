@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "id": "marketplace.home",
+  "label": "Marketplace Home",
+  "route": "listings",
+  "context": "marketplace",
+  "theme": {
+    "density": "comfortable",
+    "accent": "campus",
+    "radius": "sm"
+  },
+  "regions": [
+    {
+      "id": "toolbar",
+      "role": "controls",
+      "layout": {
+        "kind": "row",
+        "gap": "md",
+        "collapse": "stack"
+      },
+      "elements": [
+        {
+          "id": "category-filter",
+          "type": "marketplace.filterBar",
+          "dataSource": "marketplace.filters",
+          "props": {
+            "showCategory": true,
+            "showSort": true,
+            "showSearch": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "results",
+      "role": "main",
+      "layout": {
+        "kind": "responsive-grid",
+        "minItemWidth": "18rem",
+        "gap": "lg"
+      },
+      "elements": [
+        {
+          "id": "listing-grid",
+          "type": "catalog.grid",
+          "dataSource": "marketplace.filteredPosts",
+          "props": {
+            "itemElement": "marketplace.itemCard",
+            "emptyElement": "common.emptyState",
+            "minItemWidth": "18rem",
+            "emptyTitle": "No items found",
+            "emptyMessage": "Try adjusting your filters or searching for something else.",
+            "enableCart": false,
+            "showCartSummary": false
+          }
+        }
+      ]
+    }
+  ]
+}

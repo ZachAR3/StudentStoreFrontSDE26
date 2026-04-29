@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "id": "marketplace.favourites",
+  "label": "Marketplace Favourites",
+  "route": "favourites",
+  "context": "marketplace",
+  "theme": {
+    "density": "comfortable",
+    "accent": "danger",
+    "radius": "sm"
+  },
+  "regions": [
+    {
+      "id": "header",
+      "role": "summary",
+      "layout": {
+        "kind": "stack",
+        "gap": "md"
+      },
+      "elements": [
+        {
+          "id": "favourites-heading",
+          "type": "common.emptyState",
+          "props": {
+            "icon": "heart",
+            "title": "Saved Items",
+            "message": "Items you've marked as favourite."
+          }
+        }
+      ]
+    },
+    {
+      "id": "results",
+      "role": "main",
+      "layout": {
+        "kind": "responsive-grid",
+        "minItemWidth": "18rem",
+        "gap": "lg"
+      },
+      "elements": [
+        {
+          "id": "favourites-grid",
+          "type": "catalog.grid",
+          "dataSource": "marketplace.favouritePosts",
+          "props": {
+            "itemElement": "marketplace.itemCard",
+            "emptyElement": "common.emptyState",
+            "minItemWidth": "18rem",
+            "emptyTitle": "No saved items yet",
+            "emptyMessage": "Keep track of items you're interested in by clicking the heart icon on any listing.",
+            "favouriteMode": true,
+            "enableCart": false,
+            "showCartSummary": false
+          }
+        }
+      ]
+    }
+  ]
+}

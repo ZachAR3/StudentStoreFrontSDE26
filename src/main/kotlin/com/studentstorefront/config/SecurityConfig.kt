@@ -34,7 +34,7 @@ class SecurityConfig(
                     .requestMatchers(HttpMethod.POST, "/api/posts/bot").permitAll() // Bot post creation
                     
                     // Static resources (Frontend)
-                    .requestMatchers("/", "/index.html", "/static/**", "/css/**", "/js/**", "/favicon.ico").permitAll()
+                    .requestMatchers("/", "/index.html", "/static/**", "/css/**", "/js/**", "/config/**", "/favicon.ico").permitAll()
                     
                     // Documentation
                     .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()

@@ -1,0 +1,22 @@
+(function registerPostService() {
+    const api = window.Storefront.core.apiClient;
+
+    window.Storefront.services.posts = {
+        async list(category = "") {
+            const endpoint = category ? `/api/posts/category/${category}` : "/api/posts";
+            return api.page(endpoint);
+        },
+        bySeller(sellerId) {
+            return api.page(`/api/posts/seller/${sellerId}`);
+        },
+        create(formData, token) {
+            return api.json("/api/posts/upload", { method: "POST", body: formData }, token, "Failed to create item.");
+        },
+        delete(postId, token) {
+            return api.empty(`/api/posts/${postId}`, { method: "DELETE" }, token, "Failed to delete listing");
+        },
+        markSold(postId, token) {
+            return api.json(`/api/posts/${postId}/mark-sold`, { method: "PATCH" }, token, "Failed to mark as sold");
+        }
+    };
+})();

@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "marketplace.profile",
+  "label": "Marketplace Profile",
+  "route": "profile",
+  "context": "profile",
+  "theme": {
+    "density": "comfortable",
+    "accent": "campus",
+    "radius": "sm"
+  },
+  "regions": [
+    {
+      "id": "summary",
+      "role": "main",
+      "layout": {
+        "kind": "stack",
+        "gap": "lg"
+      },
+      "elements": [
+        {
+          "id": "profile-summary",
+          "type": "profile.summary",
+          "dataSource": "profile.seller",
+          "props": {}
+        },
+        {
+          "id": "profile-list",
+          "type": "profile.listingList",
+          "dataSource": "profile.posts",
+          "props": {}
+        }
+      ]
+    }
+  ]
+}

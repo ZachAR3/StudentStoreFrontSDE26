@@ -1,0 +1,108 @@
+.app-header {
+    position: sticky;
+    top: 0;
+    z-index: 200;
+    min-height: var(--header-height);
+    border-bottom: 1px solid var(--sf-border-color);
+    background: color-mix(in srgb, var(--pico-background-color) 88%, transparent);
+    backdrop-filter: blur(18px);
+}
+
+.app-header nav {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--sf-space-lg);
+    min-height: var(--header-height);
+}
+
+.shell-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sf-space-sm);
+    color: var(--pico-color);
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.shell-brand svg,
+.seller-link svg {
+    flex-shrink: 0;
+}
+
+.search-container {
+    width: 100%;
+}
+
+.search-container input[type="search"] {
+    margin-bottom: 0;
+    height: var(--sf-control-height);
+    border-radius: 999px;
+}
+
+.shell-actions,
+.shell-actions ul,
+.shell-actions li {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.shell-actions-list {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: var(--sf-space-sm);
+}
+
+.shell-pill-button,
+.fav-nav-btn {
+    min-height: var(--sf-control-height);
+    margin-bottom: 0;
+}
+
+.shell-link-button {
+    font-size: 0.95rem;
+    text-decoration: none;
+}
+
+.seller-link {
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.seller-link:hover {
+    color: var(--pico-primary);
+    text-decoration: underline;
+}
+
+.view-container {
+    padding-block: var(--sf-space-xl) var(--sf-space-2xl);
+    animation: fade-in 0.25s ease;
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 880px) {
+    .app-header nav {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+        gap: var(--sf-space-md);
+        padding-block: var(--sf-space-md);
+    }
+
+    .shell-actions-list {
+        justify-content: flex-start;
+    }
+}

@@ -4,1239 +4,888 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Student Storefront</title>
-    <!-- Pico CSS for modular, high-quality semantic styling -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
     <link rel="stylesheet" href="/css/custom.css">
-    <script src="/js/app.js"></script>
+    <script defer src="/js/core/namespace.js"></script>
+    <script defer src="/js/core/storage.js"></script>
+    <script defer src="/js/core/router.js"></script>
+    <script defer src="/js/core/api-client.js"></script>
+    <script defer src="/js/core/content-adapters.js"></script>
+    <script defer src="/js/core/validators.js"></script>
+    <script defer src="/js/core/element-registry.js"></script>
+    <script defer src="/js/core/layout-registry.js"></script>
+    <script defer src="/js/core/layout-runtime.js"></script>
+    <script defer src="/js/data/categories.js"></script>
+    <script defer src="/js/data/sample-data.js"></script>
+    <script defer src="/js/data/default-layouts.js"></script>
+    <script defer src="/js/elements/shell-header.js"></script>
+    <script defer src="/js/elements/filter-bar.js"></script>
+    <script defer src="/js/elements/catalog-grid.js"></script>
+    <script defer src="/js/elements/item-card.js"></script>
+    <script defer src="/js/elements/media-carousel.js"></script>
+    <script defer src="/js/elements/contact-actions.js"></script>
+    <script defer src="/js/elements/favourite-button.js"></script>
+    <script defer src="/js/elements/empty-state.js"></script>
+    <script defer src="/js/elements/auth-panel.js"></script>
+    <script defer src="/js/elements/create-listing-form.js"></script>
+    <script defer src="/js/elements/profile-summary.js"></script>
+    <script defer src="/js/elements/profile-listing-list.js"></script>
+    <script defer src="/js/services/auth-service.js"></script>
+    <script defer src="/js/services/whatsapp-login-service.js"></script>
+    <script defer src="/js/services/post-service.js"></script>
+    <script defer src="/js/services/seller-service.js"></script>
+    <script defer src="/js/services/favourite-service.js"></script>
+    <script defer src="/js/builder/palette.js"></script>
+    <script defer src="/js/builder/drag-drop.js"></script>
+    <script defer src="/js/builder/inspector.js"></script>
+    <script defer src="/js/builder/preview.js"></script>
+    <script defer src="/js/stores/auth-store.js"></script>
+    <script defer src="/js/stores/marketplace-store.js"></script>
+    <script defer src="/js/stores/favourites-store.js"></script>
+    <script defer src="/js/stores/profile-store.js"></script>
+    <script defer src="/js/stores/upload-store.js"></script>
+    <script defer src="/js/stores/layout-builder-store.js"></script>
+    <script defer src="/js/stores/cart-store.js"></script>
+    <script defer src="/js/app.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <style>
-        /* Base modular styles designed for reuse across different domains (e.g., e-commerce, restaurants) */
-        :root {
-            --header-height: 75px;
-        }
-        
-        .app-header {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            background: var(--pico-background-color);
-            border-bottom: 1px solid var(--pico-muted-border-color);
-            height: var(--header-height);
-            display: flex;
-            align-items: center;
-        }
-
-        .app-header nav {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .search-container {
-            flex-grow: 1;
-            max-width: 600px;
-            margin: 0 2rem;
-        }
-
-        .search-container input[type="search"] {
-            margin-bottom: 0;
-            border-radius: 2rem;
-            background-color: var(--pico-form-element-background-color);
-        }
-
-        /* Generic Item Card Module */
-        .item-card {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            transition: box-shadow 0.2s ease;
-        }
-
-        .item-card:hover {
-            box-shadow: var(--pico-box-shadow);
-        }
-
-        .item-card header {
-            padding: 0;
-            position: relative;
-            overflow: hidden;
-            border-radius: calc(var(--pico-border-radius) * 2) calc(var(--pico-border-radius) * 2) 0 0;
-        }
-
-        .item-image {
-            width: 100%;
-            height: 250px;
-            object-fit: cover;
-            transition: transform 0.3s ease;
-        }
-
-        .item-card:hover .item-image {
-            transform: scale(1.05);
-        }
-
-        .item-badge {
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
-            background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 0.2rem 0.8rem;
-            border-radius: 1rem;
-            font-size: 0.8rem;
-            font-weight: bold;
-            backdrop-filter: blur(4px);
-        }
-
-        /* Carousel Styles */
-        .carousel-nav {
-            position: absolute;
-            top: 50%;
-            left: 0;
-            right: 0;
-            display: flex;
-            justify-content: space-between;
-            padding: 0 0.5rem;
-            transform: translateY(-50%);
-            opacity: 0;
-            transition: opacity 0.2s ease;
-            pointer-events: none;
-            z-index: 2;
-        }
-
-        .item-card header:hover .carousel-nav {
-            opacity: 1;
-        }
-
-        .carousel-btn {
-            background: rgba(0, 0, 0, 0.5);
-            color: white;
-            border: none;
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            pointer-events: auto;
-            backdrop-filter: blur(4px);
-            padding: 0;
-            margin: 0;
-            font-size: 1rem;
-            line-height: 1;
-            transition: background 0.2s;
-        }
-
-        .carousel-btn:hover {
-            background: rgba(0, 0, 0, 0.8);
-        }
-
-        .carousel-indicators {
-            position: absolute;
-            bottom: 0.5rem;
-            left: 0;
-            right: 0;
-            display: flex;
-            justify-content: center;
-            gap: 4px;
-            z-index: 2;
-        }
-
-        .indicator-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.5);
-            transition: background 0.2s;
-        }
-
-        .indicator-dot.active {
-            background: white;
-            transform: scale(1.2);
-        }
-
-        .item-content {
-            padding: 1.5rem;
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .item-title {
-            margin-bottom: 0.5rem;
-            font-size: 1.25rem;
-        }
-
-        .item-description {
-            font-size: 0.95rem;
-            color: var(--pico-muted-color);
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            margin-bottom: 1.5rem;
-            flex-grow: 1;
-        }
-
-        .item-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            padding: 0 1.5rem 1.5rem 1.5rem;
-        }
-
-        .item-price {
-            font-size: 1.5rem;
-            color: var(--pico-primary);
-            font-weight: bold;
-        }
-
-        /* View Container */
-        .view-container {
-            padding-top: 2rem;
-            padding-bottom: 4rem;
-            animation: fadeIn 0.3s ease-in-out;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Forms */
-        .auth-card {
-            max-width: 500px;
-            margin: 2rem auto;
-            padding: 2.5rem;
-            border: 1px solid var(--pico-muted-border-color);
-            border-radius: var(--pico-border-radius);
-            box-shadow: var(--pico-box-shadow);
-        }
-
-        /* Profile Styles */
-        .profile-header {
-            display: flex;
-            align-items: center;
-            gap: 2rem;
-            padding: 2.5rem;
-            background: linear-gradient(135deg, var(--pico-card-background-color) 0%, var(--pico-background-color) 100%);
-            border: 1px solid var(--pico-muted-border-color);
-            border-radius: calc(var(--pico-border-radius) * 2);
-            margin-bottom: 2rem;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .profile-header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #6366f1, #8b5cf6, #a855f7, #d946ef);
-        }
-
-        .profile-avatar {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-            font-weight: 700;
-            color: white;
-            flex-shrink: 0;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            letter-spacing: 1px;
-        }
-
-        .profile-info h2 {
-            margin-bottom: 0.3rem;
-            font-size: 1.8rem;
-        }
-
-        .profile-meta {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1.2rem;
-            margin-top: 0.8rem;
-        }
-
-        .profile-meta-item {
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-            font-size: 0.9rem;
-            color: var(--pico-muted-color);
-        }
-
-        .profile-meta-item svg {
-            width: 16px;
-            height: 16px;
-            opacity: 0.7;
-        }
-
-        .profile-section-title {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 0.8rem;
-            border-bottom: 2px solid var(--pico-muted-border-color);
-        }
-
-        .profile-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.3rem;
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
-            color: white;
-            padding: 0.25rem 0.8rem;
-            border-radius: 1rem;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-
-        .profile-listing-card {
-            display: flex;
-            gap: 1.5rem;
-            padding: 1.2rem;
-            border: 1px solid var(--pico-muted-border-color);
-            border-radius: var(--pico-border-radius);
-            transition: all 0.2s ease;
-            margin-bottom: 1rem;
-            background: var(--pico-card-background-color);
-            align-items: center;
-        }
-
-        .profile-listing-card:hover {
-            box-shadow: var(--pico-box-shadow);
-            border-color: var(--pico-primary);
-        }
-
-        .profile-listing-image {
-            width: 120px;
-            height: 90px;
-            object-fit: cover;
-            border-radius: calc(var(--pico-border-radius));
-            flex-shrink: 0;
-        }
-
-        .profile-listing-info {
-            flex-grow: 1;
-            min-width: 0;
-        }
-
-        .profile-listing-info h4 {
-            margin-bottom: 0.2rem;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .profile-listing-actions {
-            display: flex;
-            gap: 0.5rem;
-            flex-shrink: 0;
-        }
-
-        .profile-listing-actions button {
-            margin-bottom: 0;
-            padding: 0.3rem 0.7rem;
-            font-size: 0.78rem;
-            border-radius: 0.5rem;
-        }
-
-        .sold-badge {
-            display: inline-block;
-            background: #22c55e;
-            color: white;
-            padding: 0.15rem 0.5rem;
-            border-radius: 0.5rem;
-            font-size: 0.7rem;
-            font-weight: 600;
-            margin-left: 0.5rem;
-            vertical-align: middle;
-        }
-
-        .danger-zone {
-            margin-top: 3rem;
-            padding: 2rem;
-            border: 2px solid #ef4444;
-            border-radius: var(--pico-border-radius);
-            background: rgba(239, 68, 68, 0.03);
-        }
-
-        .danger-zone h4 {
-            color: #ef4444;
-            margin-bottom: 0.5rem;
-        }
-
-        .modal-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(4px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            animation: fadeIn 0.2s ease;
-        }
-
-        .modal-card {
-            background: var(--pico-card-background-color);
-            border: 1px solid var(--pico-muted-border-color);
-            border-radius: calc(var(--pico-border-radius) * 2);
-            padding: 2.5rem;
-            max-width: 480px;
-            width: 90%;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            animation: fadeIn 0.3s ease;
-        }
-
-        .seller-link {
-            cursor: pointer;
-            text-decoration: none;
-            transition: color 0.2s ease;
-        }
-
-        .seller-link:hover {
-            color: var(--pico-primary) !important;
-            text-decoration: underline;
-        }
-
-        @media (max-width: 768px) {
-            .profile-header {
-                flex-direction: column;
-                text-align: center;
-            }
-            .profile-meta {
-                justify-content: center;
-            }
-            .profile-listing-card {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            .profile-listing-image {
-                width: 100%;
-                height: 160px;
-            }
-            .profile-listing-actions {
-                justify-content: flex-end;
-            }
-        }
-
-        /* Favourites Module */
-        .fav-btn {
-            position: absolute;
-            top: 0.8rem;
-            left: 0.8rem;
-            background: rgba(0, 0, 0, 0.5);
-            border: none;
-            border-radius: 50%;
-            width: 36px;
-            height: 36px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            backdrop-filter: blur(4px);
-            padding: 0;
-            margin: 0;
-            z-index: 2;
-        }
-
-        .fav-btn:hover {
-            background: rgba(0, 0, 0, 0.7);
-            transform: scale(1.15);
-        }
-
-        .fav-btn svg {
-            width: 18px;
-            height: 18px;
-            transition: all 0.2s ease;
-        }
-
-        .fav-btn.is-fav svg {
-            animation: heartPop 0.3s ease;
-        }
-
-        @keyframes heartPop {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.3); }
-            100% { transform: scale(1); }
-        }
-
-        .fav-nav-btn {
-            position: relative;
-            background: none;
-            border: 1px solid var(--pico-muted-border-color);
-            border-radius: 0.5rem;
-            padding: 0.35rem 0.7rem;
-            margin-bottom: 0;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-            font-size: 0.85rem;
-            transition: all 0.2s ease;
-            color: var(--pico-color);
-        }
-
-        .fav-nav-btn:hover {
-            border-color: #ef4444;
-            color: #ef4444;
-        }
-
-        .fav-nav-btn.has-items {
-            border-color: #ef4444;
-        }
-
-        .fav-badge {
-            background: #ef4444;
-            color: white;
-            font-size: 0.65rem;
-            font-weight: 700;
-            min-width: 18px;
-            height: 18px;
-            border-radius: 9px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0 4px;
-            line-height: 1;
-        }
-
-        .fav-empty-icon {
-            color: var(--pico-muted-color);
-            margin-bottom: 1rem;
-        }
-    </style>
 </head>
-<body x-data="storefrontData()">
-    <!-- ========================================== -->
-    <!-- MODULAR HEADER                             -->
-    <!-- ========================================== -->
+<body x-data="storefrontData()" x-cloak>
     <header class="app-header">
         <nav class="container">
-            <!-- Brand -->
-            <ul>
-                <li>
-                    <a href="#" @click.prevent="navigateTo('listings')" class="contrast" style="text-decoration: none; font-size: 1.2rem; display: flex; align-items: center; gap: 0.5rem;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-                        <strong>Campus Store</strong>
-                    </a>
-                </li>
-            </ul>
-            
-            <!-- Global Search -->
-            <div class="search-container">
-                <input type="search" x-model="searchQuery" placeholder="Search items, descriptions, or tags...">
+            <a href="#" class="shell-brand" @click.prevent="navigateTo('listings')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                <strong>Campus Store</strong>
+            </a>
+
+            <div class="search-container" x-show="headerProps.showSearch">
+                <input type="search" x-model="marketplace.searchQuery" placeholder="Search items, descriptions, or tags...">
             </div>
 
-            <!-- Actions -->
-            <ul>
-                <!-- Guest Actions -->
-                <template x-if="!isLoggedIn">
-                    <li style="display: flex; gap: 0.5rem;">
-                        <button class="outline" @click="navigateTo('login')" style="margin-bottom: 0; padding: 0.4rem 1rem;">Log In</button>
-                        <button @click="navigateTo('register')" style="margin-bottom: 0; padding: 0.4rem 1rem;">Sign Up</button>
+            <div class="shell-actions">
+                <ul class="shell-actions-list">
+                    <li x-show="headerProps.showRestaurantShortcut">
+                        <button class="outline shell-pill-button" @click="navigateTo('restaurantPreview')">Restaurant Sample</button>
                     </li>
-                </template>
-                
-                <!-- Authenticated User Actions -->
-                <template x-if="isLoggedIn">
-                    <li style="display: flex; gap: 1rem; align-items: center;">
-                        <a href="#" @click.prevent="viewProfile(user.sellerId)" class="seller-link" style="font-size: 0.9rem; font-weight: bold;" x-text="'Hi, ' + user.name"></a>
-                        <button class="fav-nav-btn" :class="{ 'has-items': favouriteCount > 0 }" @click="navigateTo('favourites')" title="Favourites">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-                            <span class="fav-badge" x-show="favouriteCount > 0" x-text="favouriteCount"></span>
+                    <li x-show="headerProps.showBuilderShortcut">
+                        <button class="outline shell-pill-button" @click="navigateTo('layoutBuilder')">Layout Builder</button>
+                    </li>
+                    <li>
+                        <button class="outline shell-pill-button" @click="navigateTo('createdSites')">Created Sites</button>
+                    </li>
+                    <li x-show="cart.count > 0">
+                        <button class="outline shell-pill-button cart-nav-button" @click="navigateTo('selected')">
+                            <span>Selected</span>
+                            <span class="fav-badge" x-text="cart.count"></span>
                         </button>
-                        <button @click="navigateTo('createListing')" style="margin-bottom: 0; padding: 0.4rem 1rem;">+ Create Listing</button>
-                        <a href="#" @click.prevent="handleLogout()" class="secondary" style="font-size: 0.9rem;">Log Out</a>
                     </li>
-                </template>
-            </ul>
+                    <template x-if="!isLoggedIn">
+                        <li class="shell-actions-list">
+                            <button class="outline shell-pill-button" @click="navigateTo('login')">Log In</button>
+                            <button class="shell-pill-button" @click="navigateTo('register')">Sign Up</button>
+                        </li>
+                    </template>
+                    <template x-if="isLoggedIn">
+                        <li class="shell-actions-list">
+                            <a href="#" @click.prevent="viewProfile(user.sellerId)" class="seller-link shell-link-button" x-text="'Hi, ' + user.name"></a>
+                            <button class="fav-nav-btn" @click="navigateTo('favourites')" aria-label="Open favourites">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                                <span>Saved</span>
+                                <span class="fav-badge" x-show="favouriteCount > 0" x-text="favouriteCount"></span>
+                            </button>
+                            <button class="shell-pill-button" @click="navigateTo('createListing')">Create Listing</button>
+                            <a href="#" @click.prevent="handleLogout()" class="seller-link shell-link-button">Log Out</a>
+                        </li>
+                    </template>
+                </ul>
+            </div>
         </nav>
     </header>
 
     <main class="container">
-        
-        <!-- ========================================== -->
-        <!-- VIEW: LISTINGS (HOMEPAGE)                  -->
-        <!-- ========================================== -->
-        <div class="view-container" x-show="currentView === 'listings'">
-            
-            <!-- Dynamic Filters Bar -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; background: var(--pico-card-background-color); padding: 1rem 1.5rem; border-radius: var(--pico-border-radius); border: 1px solid var(--pico-muted-border-color);">
-                <div style="display: flex; gap: 1rem; flex-grow: 1; align-items: center;">
-                    <strong style="white-space: nowrap;">Category:</strong>
-                    <select x-model="selectedCategory" @change="fetchPosts()" style="margin-bottom: 0; width: auto; min-width: 150px; padding: 0.4rem 1rem;">
-                        <option value="">All Categories</option>
-                        <option value="ELECTRONICS">Electronics</option>
-                        <option value="BOOKS">Books</option>
-                        <option value="CLOTHING">Clothing</option>
-                        <option value="FURNITURE">Furniture</option>
-                        <option value="SPORTS">Sports</option>
-                        <option value="FOOD">Food</option>
-                        <option value="SERVICES">Services</option>
-                        <option value="OTHER">Other</option>
-                    </select>
-                </div>
-                
-                <div style="display: flex; gap: 1rem; align-items: center;">
-                    <strong style="white-space: nowrap;">Sort By:</strong>
-                    <select x-model="sortBy" style="margin-bottom: 0; width: auto; padding: 0.4rem 1rem;">
-                        <option value="newest">Newest First</option>
-                        <option value="oldest">Oldest First</option>
-                        <option value="price-asc">Price: Low to High</option>
-                        <option value="price-desc">Price: High to Low</option>
-                    </select>
-                </div>
+        <div class="view-container" x-show="successMessage || errorMessage">
+            <div class="message-stack">
+                <article class="feedback-banner success" x-show="successMessage"><p x-text="successMessage"></p></article>
+                <article class="feedback-banner error" x-show="errorMessage"><p x-text="errorMessage"></p></article>
             </div>
+        </div>
 
-            <!-- Loading State -->
-            <div x-show="isLoading" style="text-align: center; padding: 4rem;">
-                <span aria-busy="true" style="font-size: 1.2rem; color: var(--pico-muted-color);">Loading inventory...</span>
-            </div>
+        <div class="view-container" x-show="currentView === 'listings' || currentView === 'favourites' || currentView === 'restaurantPreview' || currentView === 'createdSitePreview'">
+            <template x-if="currentView === 'listings' && isLoading">
+                <div class="loading-state"><span aria-busy="true">Loading inventory...</span></div>
+            </template>
 
-            <!-- Generic Item Grid Module -->
-            <div class="grid" x-show="!isLoading" style="grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 2rem;">
-                <template x-for="post in filteredPosts" :key="post.postId">
-                    <article class="item-card">
-                        <header x-data="{ activeImg: 0 }">
-                            <img :src="post.mediaUrls && post.mediaUrls.length > 0 ? post.mediaUrls[activeImg] : 'https://placehold.co/600x400?text=No+Image'" 
-                                 :alt="post.title" class="item-image" loading="lazy">
-                            
-                            <!-- Carousel Navigation -->
-                            <template x-if="post.mediaUrls && post.mediaUrls.length > 1">
-                                <div class="carousel-nav">
-                                    <button @click.prevent.stop="activeImg = activeImg > 0 ? activeImg - 1 : post.mediaUrls.length - 1" class="carousel-btn prev" title="Previous image">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-                                    </button>
-                                    <button @click.prevent.stop="activeImg = activeImg < post.mediaUrls.length - 1 ? activeImg + 1 : 0" class="carousel-btn next" title="Next image">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-                                    </button>
-                                </div>
-                            </template>
-                            
-                            <!-- Carousel Indicators -->
-                            <template x-if="post.mediaUrls && post.mediaUrls.length > 1">
-                                <div class="carousel-indicators">
-                                    <template x-for="(url, index) in post.mediaUrls" :key="index">
-                                        <span class="indicator-dot" :class="{ 'active': activeImg === index }"></span>
+            <template x-if="currentView === 'createdSitePreview' && activeCreatedSite">
+                <div class="created-site-preview-bar">
+                    <div>
+                        <p class="item-meta">Created site</p>
+                        <h2 x-text="activeCreatedSite.name"></h2>
+                    </div>
+                    <div class="builder-inline-actions">
+                        <button class="outline" @click="navigateTo('createdSites')">All Sites</button>
+                        <button @click="editCreatedSite(activeCreatedSite.id)">Edit Site</button>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="currentLayout">
+                <div class="layout-page">
+                    <template x-for="region in currentLayout.regions" :key="region.id">
+                        <section class="layout-region" :data-layout-kind="region.layout.kind" :style="region.runtimeStyle">
+                            <template x-for="element in region.elements" :key="element.id">
+                                <div class="layout-element" :class="{ 'layout-element-full': ['catalog.grid', 'restaurant.menuGrid', 'profile.summary', 'profile.listingList'].includes(element.type) }">
+                                    <template x-if="element.type === 'marketplace.filterBar'">
+                                        <div class="filter-bar">
+                                            <div class="filter-group" x-show="element.props.showCategory">
+                                                <strong>Category</strong>
+                                                <select x-model="marketplace.selectedCategory" @change="fetchPosts()">
+                                                    <template x-for="category in element.data.categories" :key="category.value">
+                                                        <option :value="category.value" x-text="category.label"></option>
+                                                    </template>
+                                                </select>
+                                            </div>
+                                            <div class="filter-group" x-show="element.props.showSort">
+                                                <strong>Sort</strong>
+                                                <select x-model="marketplace.sortBy">
+                                                    <option value="newest">Newest First</option>
+                                                    <option value="oldest">Oldest First</option>
+                                                    <option value="price-asc">Price: Low to High</option>
+                                                    <option value="price-desc">Price: High to Low</option>
+                                                </select>
+                                            </div>
+                                            <div class="filter-group" x-show="element.props.showSearch">
+                                                <input type="search" x-model="marketplace.searchQuery" placeholder="Search this layout">
+                                            </div>
+                                            <button class="outline" @click="clearFilters()">Clear Filters</button>
+                                        </div>
+                                    </template>
+
+                                    <template x-if="element.type === 'restaurant.menuHero'">
+                                        <section class="restaurant-menu-hero">
+                                            <div>
+                                                <p class="restaurant-eyebrow" x-text="element.props.eyebrow"></p>
+                                                <h1 x-text="element.props.title"></h1>
+                                                <p x-text="element.props.message"></p>
+                                            </div>
+                                            <div class="restaurant-hero-stats" x-show="element.props.showStats">
+                                                <span>Open today</span>
+                                                <strong>11:00-21:00</strong>
+                                                <span>Pickup in 12 min</span>
+                                            </div>
+                                        </section>
+                                    </template>
+
+                                    <template x-if="element.type === 'profile.summary'">
+                                        <div class="profile-header">
+                                            <div class="profile-avatar" :style="'background:' + getProfileAvatarColor(element.data?.sellerId)" x-text="getInitials(element.data?.name)"></div>
+                                            <div>
+                                                <h2 x-text="element.data?.name || 'Sample Seller'"></h2>
+                                                <div class="profile-meta">
+                                                    <span class="profile-meta-item" x-text="element.data?.email || 'seller@constructor.university'"></span>
+                                                    <span class="profile-meta-item" x-show="element.data?.phoneNumber" x-text="element.data?.phoneNumber"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    <template x-if="element.type === 'profile.listingList'">
+                                        <div class="layout-page">
+                                            <div class="section-heading">
+                                                <h3>Listings</h3>
+                                            </div>
+                                            <div class="layout-card-grid" :style="{ '--grid-min-item-width': '18rem' }">
+                                                <template x-for="item in element.data || []" :key="item.id">
+                                                    <article class="profile-listing-card">
+                                                        <img class="profile-listing-image" :src="item.media && item.media.length ? item.media[0].url : 'https://placehold.co/120x90?text=No+Image'" :alt="item.title" loading="lazy">
+                                                        <div class="profile-listing-info">
+                                                            <h4>
+                                                                <span x-text="item.title"></span>
+                                                                <span class="sold-badge" x-show="item.status.sold">SOLD</span>
+                                                            </h4>
+                                                            <div class="item-meta" x-text="item.badge"></div>
+                                                            <strong x-text="formatPrice(item.price)"></strong>
+                                                        </div>
+                                                    </article>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    <template x-if="element.type === 'catalog.grid' || element.type === 'restaurant.menuGrid'">
+                                        <div>
+                                            <div class="layout-card-grid" x-show="(element.data || []).length > 0" :style="{ '--grid-min-item-width': element.props.minItemWidth }">
+                                                <template x-for="item in element.data" :key="item.id">
+                                                    <article class="item-card" :class="{ 'restaurant-menu-card': element.type === 'restaurant.menuGrid' }" x-data="{ activeImage: 0 }">
+                                                        <div class="item-card-media" :style="{ '--item-media-ratio': Storefront.core.elementRegistry.get(element.props.itemElement)?.defaultProps?.mediaRatio || '4 / 3' }">
+                                                            <div class="media-carousel">
+                                                                <img class="item-image" :src="item.media && item.media.length ? item.media[activeImage].url : 'https://placehold.co/600x400?text=No+Image'" :alt="item.media && item.media.length ? item.media[activeImage].alt : item.title" loading="lazy">
+                                                                <template x-if="item.media && item.media.length > 1">
+                                                                    <div class="carousel-nav">
+                                                                        <button class="carousel-btn" @click.prevent.stop="activeImage = activeImage > 0 ? activeImage - 1 : item.media.length - 1" aria-label="Previous image">
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>
+                                                                        </button>
+                                                                        <button class="carousel-btn" @click.prevent.stop="activeImage = activeImage < item.media.length - 1 ? activeImage + 1 : 0" aria-label="Next image">
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+                                                                        </button>
+                                                                    </div>
+                                                                </template>
+                                                                <template x-if="item.media && item.media.length > 1">
+                                                                    <div class="carousel-indicators">
+                                                                        <template x-for="(media, mediaIndex) in item.media" :key="media.url">
+                                                                            <span class="indicator-dot" :class="{ active: activeImage === mediaIndex }"></span>
+                                                                        </template>
+                                                                    </div>
+                                                                </template>
+                                                                <button class="fav-btn" x-show="element.props.itemElement !== 'restaurant.menuItemCard'" :class="{ 'is-fav': isFavourite(item.id) }" @click.stop="element.props.favouriteMode ? removeFavourite(item.id) : toggleFavourite(item.id)" :aria-label="isFavourite(item.id) ? 'Remove favourite' : 'Add favourite'">
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" :fill="isFavourite(item.id) ? '#ef4444' : 'none'" :stroke="isFavourite(item.id) ? '#ef4444' : 'white'" stroke-width="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                                                                </button>
+                                                                <span class="item-badge" x-text="item.badge"></span>
+                                                            </div>
+                                                        </div>
+                                                        <div class="item-content">
+                                                            <h3 class="item-title" x-text="item.title"></h3>
+                                                            <p class="item-description" x-text="item.description"></p>
+                                                        </div>
+                                                        <footer class="item-footer">
+                                                            <div>
+                                                                <div class="item-price" x-text="formatPrice(item.price)"></div>
+                                                                <div class="item-meta" x-text="new Date(item.createdAt).toLocaleDateString()"></div>
+                                                                <div class="item-meta" x-show="item.status.sold">Sold</div>
+                                                            </div>
+                                                            <div>
+                                                                <a href="#" class="seller-link item-meta" x-show="item.seller && element.props.itemElement !== 'restaurant.menuItemCard'" @click.prevent="viewProfile(item.seller.sellerId)" x-text="item.seller?.name"></a>
+                                                                <div class="item-meta" x-show="element.props.itemElement === 'restaurant.menuItemCard'" x-text="item.seller?.name"></div>
+                                                                <button
+                                                                    class="restaurant-add-button"
+                                                                    x-show="element.props.enableCart"
+                                                                    :class="{ 'is-selected': cart.isSelected(item.id) }"
+                                                                    @click.prevent.stop="toggleCartItem(item)"
+                                                                    x-text="cart.isSelected(item.id) ? 'Selected' : (element.props.cartButtonLabel || 'Add')">
+                                                                </button>
+                                                                <div class="contact-actions" x-show="item.seller && element.props.itemElement !== 'restaurant.menuItemCard'">
+                                                                    <a role="button" class="outline contrast" :href="'mailto:' + item.actions.email">Email</a>
+                                                                    <a role="button" class="outline is-whatsapp" x-show="item.actions.whatsappPhone" :href="whatsappHref(item)" target="_blank">WhatsApp</a>
+                                                                </div>
+                                                            </div>
+                                                        </footer>
+                                                    </article>
+                                                </template>
+                                            </div>
+                                            <div class="empty-state" x-show="(element.data || []).length === 0">
+                                                <svg class="empty-icon" xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                                                <h3 x-text="element.props.emptyTitle"></h3>
+                                                <p x-text="element.props.emptyMessage"></p>
+                                                <button class="outline" x-show="currentView === 'listings'" @click="clearFilters()">Clear All Filters</button>
+                                                <button class="outline" x-show="currentView === 'favourites'" @click="navigateTo('listings')">Browse Items</button>
+                                            </div>
+                                            <div class="cart-summary" x-show="element.props.enableCart && element.props.showCartSummary && cart.count > 0">
+                                                <div>
+                                                    <strong x-text="cart.count + ' selected'"></strong>
+                                                    <span x-text="formatPrice(cart.total)"></span>
+                                                </div>
+                                                <div class="cart-summary-actions">
+                                                    <button class="outline" @click="cart.clear()">Clear</button>
+                                                    <button class="outline" @click="navigateTo('selected')">Review</button>
+                                                    <button class="is-whatsapp" @click="sendCartWhatsapp()">Send WhatsApp</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    <template x-if="element.type === 'common.emptyState'">
+                                        <div class="empty-state">
+                                            <svg class="empty-icon" xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                                            <h3 x-text="element.props.title"></h3>
+                                            <p x-text="element.props.message"></p>
+                                        </div>
                                     </template>
                                 </div>
                             </template>
-
-                            <span class="item-badge" x-text="post.category"></span>
-                            <!-- Favourite Heart Button -->
-                            <button class="fav-btn" :class="{ 'is-fav': isFavourite(post.postId) }" 
-                                    @click.stop="toggleFavourite(post.postId)" 
-                                    :title="isFavourite(post.postId) ? 'Remove from favourites' : 'Add to favourites'">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" 
-                                     :fill="isFavourite(post.postId) ? '#ef4444' : 'none'" 
-                                     :stroke="isFavourite(post.postId) ? '#ef4444' : 'white'" 
-                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
-                                </svg>
-                            </button>
-                        </header>
-                        <div class="item-content">
-                            <h3 class="item-title" x-text="post.title"></h3>
-                            <p class="item-description" x-text="post.description"></p>
-                        </div>
-                        <footer class="item-footer">
-                            <div>
-                                <div class="item-price" x-text="'$' + post.price"></div>
-                                <small style="color: var(--pico-muted-color);" x-text="new Date(post.createdAt).toLocaleDateString()"></small>
-                            </div>
-                            <div style="text-align: right;">
-                                <a href="#" @click.prevent="viewProfile(post.seller.sellerId)" class="seller-link" x-text="post.seller.name" style="display: block; margin-bottom: 0.3rem; color: var(--pico-muted-color); font-size: 0.875rem;"></a>
-                                <div style="display: flex; gap: 0.4rem; justify-content: flex-end;">
-                                    <a :href="'mailto:' + post.seller.email" role="button" class="outline contrast" style="padding: 0.2rem 0.6rem; font-size: 0.75rem; border-radius: 1rem;" title="Email">Email</a>
-                                    <template x-if="post.seller.phoneNumber">
-                                        <a :href="'https://wa.me/' + post.seller.phoneNumber.replace(/[^0-9]/g, '') + '?text=' + encodeURIComponent('Hi, I am interested in your listing: ' + post.title)" 
-                                           target="_blank" role="button" class="outline" style="padding: 0.2rem 0.6rem; font-size: 0.75rem; border-radius: 1rem; color: #25D366; border-color: #25D366;" title="WhatsApp">WhatsApp</a>
-                                    </template>
-                                </div>
-                            </div>
-                        </footer>
-                    </article>
-                </template>
-            </div>
-
-            <!-- Empty State -->
-            <div x-show="!isLoading && filteredPosts.length === 0" style="text-align: center; padding: 5rem 2rem; border: 1px dashed var(--pico-muted-border-color); border-radius: var(--pico-border-radius);">
-                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="color: var(--pico-muted-color); margin-bottom: 1rem;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-                <h3 style="margin-bottom: 0.5rem;">No items found</h3>
-                <p style="color: var(--pico-muted-color); margin-bottom: 1.5rem;">Try adjusting your filters or searching for something else.</p>
-                <button class="outline secondary" @click="clearFilters()">Clear All Filters</button>
-            </div>
-        </div>
-
-        <!-- ========================================== -->
-        <!-- VIEW: CREATE LISTING                       -->
-        <!-- ========================================== -->
-        <div class="view-container" x-show="currentView === 'createListing'">
-            <div class="auth-card" style="max-width: 800px;">
-                <h2 style="margin-bottom: 2rem;">Post a New Item</h2>
-                
-                <article x-show="errorMessage" style="background-color: #fee2e2; border-color: #ef4444; color: #b91c1c; padding: 1rem; margin-bottom: 2rem; border-radius: var(--pico-border-radius);">
-                    <p x-text="errorMessage" style="margin: 0;"></p>
-                </article>
-
-                <form @submit.prevent="createPost()">
-                    <div class="grid">
-                        <label>Title
-                            <input type="text" placeholder="What are you offering?" x-model="newPost.title" required>
-                        </label>
-                        <label>Price ($)
-                            <input type="number" step="0.01" placeholder="0.00" x-model.number="newPost.price" required>
-                        </label>
-                    </div>
-                    
-                    <!-- Image Upload Section -->
-                    <div style="margin-bottom: 1.5rem;">
-                        <label>Photos (Up to 10)</label>
-                        
-                        <div style="border: 2px dashed var(--pico-muted-border-color); border-radius: var(--pico-border-radius); padding: 2rem; text-align: center; margin-bottom: 1rem; position: relative; transition: background 0.2s;"
-                             @dragover.prevent="$el.style.backgroundColor = 'rgba(0,0,0,0.05)'"
-                             @dragleave.prevent="$el.style.backgroundColor = 'transparent'"
-                             @drop.prevent="handleDrop($event); $el.style.backgroundColor = 'transparent'">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--pico-muted-color); margin-bottom: 0.5rem;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                            <p style="margin-bottom: 0.5rem;">Drag and drop images here, or</p>
-                            <label role="button" class="outline secondary" style="display: inline-block; cursor: pointer; margin: 0;">
-                                Browse Files
-                                <input type="file" multiple accept="image/*" @change="handleFileSelect" style="display: none;">
-                            </label>
-                        </div>
-
-                        <!-- Image Preview Grid -->
-                        <div x-show="imagePreviews.length > 0" class="grid" style="grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
-                            <template x-for="(preview, index) in imagePreviews" :key="preview">
-                                <div draggable="true" 
-                                     @dragstart="dragStartIndex = index"
-                                     @dragover.prevent=""
-                                     @drop.prevent="handleImageDrop(index)"
-                                     style="position: relative; border-radius: var(--pico-border-radius); overflow: hidden; border: 2px solid transparent; cursor: grab;" 
-                                     :style="index === 0 ? 'border-color: var(--pico-primary);' : ''">
-                                    
-                                    <img :src="preview" style="width: 100%; height: 120px; object-fit: cover; display: block; pointer-events: none;">
-                                    
-                                    <!-- Delete button -->
-                                    <button @click.prevent="removeImage(index)" style="position: absolute; top: 0.3rem; right: 0.3rem; width: 24px; height: 24px; font-size: 1rem; line-height: 1; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;">&times;</button>
-                                    
-                                    <!-- Cover Badge -->
-                                    <div x-show="index === 0" style="position: absolute; bottom: 0.3rem; left: 0.3rem; background: var(--pico-primary); color: white; font-size: 0.6rem; padding: 0.2rem 0.4rem; border-radius: 0.5rem; font-weight: bold; pointer-events: none;">COVER</div>
-                                </div>
-                            </template>
-                        </div>
-                        
-                        <label>Category
-                            <select x-model="newPost.category" required>
-                                <option value="ELECTRONICS">Electronics</option>
-                                <option value="BOOKS">Books</option>
-                                <option value="CLOTHING">Clothing</option>
-                                <option value="FURNITURE">Furniture</option>
-                                <option value="SPORTS">Sports</option>
-                                <option value="FOOD">Food</option>
-                                <option value="SERVICES">Services</option>
-                                <option value="OTHER">Other</option>
-                            </select>
-                        </label>
-                    </div>
-
-                    <label>Description
-                        <textarea placeholder="Provide details about the condition, pickup location, or ingredients..." x-model="newPost.description" rows="5" required></textarea>
-                    </label>
-
-                    <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
-                        <button type="button" class="outline secondary" @click="navigateTo('listings')">Cancel</button>
-                        <button type="submit" :aria-busy="isLoading">Publish Listing</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- ========================================== -->
-        <!-- VIEW: LOGIN                                -->
-        <!-- ========================================== -->
-        <div class="view-container" x-show="currentView === 'login'">
-            <article class="auth-card">
-                <h2 style="text-align: center; margin-bottom: 2rem;">Welcome Back</h2>
-                
-                <article x-show="errorMessage" style="background-color: #fee2e2; border-color: #ef4444; color: #b91c1c; padding: 1rem; margin-bottom: 2rem; border-radius: var(--pico-border-radius);">
-                    <p x-text="errorMessage" style="margin: 0;"></p>
-                </article>
-
-                <form @submit.prevent="handleLogin()">
-                    <label>Email Address
-                        <input type="email" x-model="loginForm.email" placeholder="name@domain.com" required>
-                    </label>
-                    <label>Password
-                        <input type="password" x-model="loginForm.password" placeholder="••••••••" required>
-                    </label>
-                    <div style="text-align: right; margin-top: -0.5rem; margin-bottom: 1rem;">
-                        <small><a href="#" @click.prevent="navigateTo('forgotPassword')">Forgot your password?</a></small>
-                    </div>
-                    <button type="submit" style="width: 100%; margin-top: 0.5rem;" :aria-busy="isLoading">Log In</button>
-                </form>
-
-                <hr style="margin: 2rem 0;">
-
-                <button class="outline contrast" @click="initWhatsappLogin()" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                    Login with WhatsApp
-                </button>
-
-                <div style="text-align: center; margin-top: 1.5rem;">
-                    <small style="color: var(--pico-muted-color);">Don't have an account? <a href="#" @click.prevent="navigateTo('register')">Sign up</a></small>
-                </div>
-            </article>
-        </div>
-
-        <!-- ========================================== -->
-        <!-- VIEW: FORGOT PASSWORD                      -->
-        <!-- ========================================== -->
-        <div class="view-container" x-show="currentView === 'forgotPassword'">
-            <article class="auth-card">
-                <h2 style="text-align: center; margin-bottom: 0.5rem;">Forgot Password</h2>
-                <p style="text-align: center; color: var(--pico-muted-color); margin-bottom: 2rem;">Enter your email and we'll send you a reset link.</p>
-
-                <article x-show="errorMessage" style="background-color: #fee2e2; border-color: #ef4444; color: #b91c1c; padding: 1rem; margin-bottom: 2rem; border-radius: var(--pico-border-radius);">
-                    <p x-text="errorMessage" style="margin: 0;"></p>
-                </article>
-
-                <article x-show="successMessage" style="background-color: #dcfce7; border-color: #22c55e; color: #15803d; padding: 1rem; margin-bottom: 2rem; border-radius: var(--pico-border-radius);">
-                    <p x-text="successMessage" style="margin: 0;"></p>
-                </article>
-
-                <form @submit.prevent="handleForgotPassword()" x-show="!successMessage">
-                    <label>Email Address
-                        <input type="email" x-model="forgotPasswordForm.email" placeholder="name@constructor.university" required>
-                    </label>
-                    <button type="submit" style="width: 100%; margin-top: 1rem;" :aria-busy="isLoading">Send Reset Link</button>
-                </form>
-
-                <div style="text-align: center; margin-top: 1.5rem;">
-                    <small><a href="#" @click.prevent="navigateTo('login')">Back to Log In</a></small>
-                </div>
-            </article>
-        </div>
-
-        <!-- ========================================== -->
-        <!-- VIEW: RESET PASSWORD                       -->
-        <!-- ========================================== -->
-        <div class="view-container" x-show="currentView === 'resetPassword'">
-            <article class="auth-card">
-                <h2 style="text-align: center; margin-bottom: 0.5rem;">Choose a New Password</h2>
-                <p style="text-align: center; color: var(--pico-muted-color); margin-bottom: 2rem;">Pick a strong password for your account.</p>
-
-                <article x-show="errorMessage" style="background-color: #fee2e2; border-color: #ef4444; color: #b91c1c; padding: 1rem; margin-bottom: 2rem; border-radius: var(--pico-border-radius);">
-                    <p x-text="errorMessage" style="margin: 0;"></p>
-                </article>
-
-                <article x-show="successMessage" style="background-color: #dcfce7; border-color: #22c55e; color: #15803d; padding: 1rem; margin-bottom: 2rem; border-radius: var(--pico-border-radius);">
-                    <p x-text="successMessage" style="margin: 0;"></p>
-                </article>
-
-                <form @submit.prevent="handleResetPassword()" x-show="!successMessage">
-                    <label>New Password
-                        <input type="password" x-model="resetPasswordForm.newPassword"
-                               placeholder="Min 8 chars, upper + lower + digit + special" required
-                               :aria-invalid="resetPasswordForm.newPassword && !isPasswordValid(resetPasswordForm.newPassword) ? 'true' : (isPasswordValid(resetPasswordForm.newPassword) ? 'false' : null)">
-                    </label>
-
-                    <div x-show="resetPasswordForm.newPassword" style="margin-top: -0.5rem; margin-bottom: 1rem;">
-                        <div style="display: flex; gap: 0.3rem; margin-bottom: 0.5rem;">
-                            <div style="height: 4px; flex: 1; border-radius: 2px; transition: background 0.3s;"
-                                 :style="{ background: passwordStrength(resetPasswordForm.newPassword) >= 1 ? (passwordStrength(resetPasswordForm.newPassword) >= 4 ? '#22c55e' : passwordStrength(resetPasswordForm.newPassword) >= 3 ? '#eab308' : '#ef4444') : '#e5e7eb' }"></div>
-                            <div style="height: 4px; flex: 1; border-radius: 2px; transition: background 0.3s;"
-                                 :style="{ background: passwordStrength(resetPasswordForm.newPassword) >= 2 ? (passwordStrength(resetPasswordForm.newPassword) >= 4 ? '#22c55e' : passwordStrength(resetPasswordForm.newPassword) >= 3 ? '#eab308' : '#ef4444') : '#e5e7eb' }"></div>
-                            <div style="height: 4px; flex: 1; border-radius: 2px; transition: background 0.3s;"
-                                 :style="{ background: passwordStrength(resetPasswordForm.newPassword) >= 3 ? (passwordStrength(resetPasswordForm.newPassword) >= 4 ? '#22c55e' : '#eab308') : '#e5e7eb' }"></div>
-                            <div style="height: 4px; flex: 1; border-radius: 2px; transition: background 0.3s;"
-                                 :style="{ background: passwordStrength(resetPasswordForm.newPassword) >= 4 ? '#22c55e' : '#e5e7eb' }"></div>
-                        </div>
-                        <div style="font-size: 0.8rem; display: flex; flex-wrap: wrap; gap: 0.3rem 1rem;">
-                            <span :style="{ color: /[a-z]/.test(resetPasswordForm.newPassword) ? '#22c55e' : '#9ca3af' }">
-                                <span x-text="/[a-z]/.test(resetPasswordForm.newPassword) ? '✓' : '○'"></span> lowercase
-                            </span>
-                            <span :style="{ color: /[A-Z]/.test(resetPasswordForm.newPassword) ? '#22c55e' : '#9ca3af' }">
-                                <span x-text="/[A-Z]/.test(resetPasswordForm.newPassword) ? '✓' : '○'"></span> uppercase
-                            </span>
-                            <span :style="{ color: /\d/.test(resetPasswordForm.newPassword) ? '#22c55e' : '#9ca3af' }">
-                                <span x-text="/\d/.test(resetPasswordForm.newPassword) ? '✓' : '○'"></span> digit
-                            </span>
-                            <span :style="{ color: /[@$!%*?&]/.test(resetPasswordForm.newPassword) ? '#22c55e' : '#9ca3af' }">
-                                <span x-text="/[@$!%*?&]/.test(resetPasswordForm.newPassword) ? '✓' : '○'"></span> special (@$!%*?&)
-                            </span>
-                        </div>
-                    </div>
-
-                    <label>Confirm New Password
-                        <input type="password" x-model="resetPasswordForm.confirmPassword" placeholder="••••••••" required
-                               :aria-invalid="resetPasswordForm.confirmPassword && resetPasswordForm.confirmPassword !== resetPasswordForm.newPassword ? 'true' : (resetPasswordForm.confirmPassword && resetPasswordForm.confirmPassword === resetPasswordForm.newPassword ? 'false' : null)">
-                        <small x-show="resetPasswordForm.confirmPassword && resetPasswordForm.confirmPassword !== resetPasswordForm.newPassword" style="color: #ef4444;">Passwords do not match</small>
-                    </label>
-
-                    <button type="submit" style="width: 100%; margin-top: 1rem;" :aria-busy="isLoading"
-                            :disabled="!isPasswordValid(resetPasswordForm.newPassword) || resetPasswordForm.newPassword !== resetPasswordForm.confirmPassword">
-                        Reset Password
-                    </button>
-                </form>
-
-                <div style="text-align: center; margin-top: 1.5rem;">
-                    <small><a href="#" @click.prevent="navigateTo('login')">Back to Log In</a></small>
-                </div>
-            </article>
-        </div>
-
-        <!-- ========================================== -->
-        <!-- VIEW: WHATSAPP LOGIN (POLLING)             -->
-        <!-- ========================================== -->
-        <div class="view-container" x-show="currentView === 'whatsappLogin'">
-            <article class="auth-card" style="text-align: center;">
-                <h2 style="margin-bottom: 2rem;">Login with WhatsApp</h2>
-                
-                <div x-show="!whatsappLogin.sessionId" aria-busy="true">Initializing session...</div>
-
-                <div x-show="whatsappLogin.sessionId">
-                    <p style="margin-bottom: 1.5rem;">Scan the QR code below with your phone's camera to log in via WhatsApp:</p>
-                    
-                    <div style="display: flex; justify-content: center; margin-bottom: 1.5rem;">
-                        <img :src="'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' + encodeURIComponent(whatsappLogin.qrContent)" alt="WhatsApp Login QR Code" style="border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); padding: 1rem; background: white;">
-                    </div>
-                    
-                    <p style="margin-bottom: 1rem; font-size: 0.9rem; color: var(--pico-muted-color);">Or click the link below if you are on your mobile device:</p>
-                    <a :href="whatsappLogin.qrContent" target="_blank" class="secondary" style="word-break: break-all; font-size: 0.8rem;" x-text="whatsappLogin.qrContent"></a>
-
-                    <div style="display: flex; flex-direction: column; align-items: center; gap: 1rem; margin-top: 2rem;">
-                        <span aria-busy="true" x-show="whatsappLogin.status === 'PENDING'">Waiting for you to scan...</span>
-                        <span x-show="whatsappLogin.status === 'COMPLETED'" style="color: var(--pico-success);">Login confirmed! Completing...</span>
-                    </div>
-
-                    <button class="outline secondary" style="margin-top: 2rem;" @click="navigateTo('login')">Cancel</button>
-                </div>
-            </article>
-        </div>
-
-        <!-- ========================================== -->
-        <!-- VIEW: REGISTER                             -->
-        <!-- ========================================== -->
-        <div class="view-container" x-show="currentView === 'register'">
-            <article class="auth-card">
-                <h2 style="text-align: center; margin-bottom: 0.5rem;">Create an Account</h2>
-                <p style="text-align: center; color: var(--pico-muted-color); margin-bottom: 2rem;">Join the Constructor University marketplace</p>
-                
-                <!-- Success message -->
-                <article x-show="successMessage" style="background-color: #dcfce7; border: 1px solid #22c55e; color: #15803d; padding: 1rem; margin-bottom: 2rem; border-radius: var(--pico-border-radius);">
-                    <p x-text="successMessage" style="margin: 0;"></p>
-                </article>
-
-                <!-- Error message -->
-                <article x-show="errorMessage" style="background-color: #fee2e2; border: 1px solid #ef4444; color: #b91c1c; padding: 1rem; margin-bottom: 2rem; border-radius: var(--pico-border-radius);">
-                    <p x-text="errorMessage" style="margin: 0;"></p>
-                </article>
-
-                <form @submit.prevent="handleRegister()" id="register-form">
-                    <!-- Full Name -->
-                    <label for="register-name">Full Name
-                        <input type="text" id="register-name" x-model="registerForm.name" placeholder="John Doe" required
-                               minlength="2" maxlength="100"
-                               :aria-invalid="registerForm.name && (registerForm.name.length < 2 || registerForm.name.length > 100) ? 'true' : (registerForm.name.length >= 2 ? 'false' : null)">
-                        <small x-show="registerForm.name && registerForm.name.length < 2" style="color: #ef4444;">Name must be at least 2 characters.</small>
-                    </label>
-
-                    <!-- Email -->
-                    <label for="register-email">University Email
-                        <input type="email" id="register-email" x-model="registerForm.email" placeholder="yourname@constructor.university" required
-                               :aria-invalid="registerForm.email && !registerForm.email.endsWith('@constructor.university') ? 'true' : (registerForm.email.endsWith('@constructor.university') ? 'false' : null)">
-                        <small x-show="registerForm.email && !registerForm.email.endsWith('@constructor.university')" style="color: #ef4444;">Must be a @constructor.university email address.</small>
-                        <small x-show="!registerForm.email || registerForm.email.endsWith('@constructor.university')" style="color: var(--pico-muted-color);">Use your Constructor University email.</small>
-                    </label>
-
-                    <!-- Phone Number -->
-                    <label for="register-phone">Phone Number (WhatsApp)
-                        <input type="tel" id="register-phone" x-model="registerForm.phoneNumber" placeholder="+491234567890" required
-                               :aria-invalid="registerForm.phoneNumber && !/^\+?[0-9]{10,15}$/.test(registerForm.phoneNumber) ? 'true' : (/^\+?[0-9]{10,15}$/.test(registerForm.phoneNumber) ? 'false' : null)">
-                        <small x-show="registerForm.phoneNumber && !/^\+?[0-9]{10,15}$/.test(registerForm.phoneNumber)" style="color: #ef4444;">10–15 digits, may start with +</small>
-                        <small x-show="!registerForm.phoneNumber || /^\+?[0-9]{10,15}$/.test(registerForm.phoneNumber)" style="color: var(--pico-muted-color);">Used for WhatsApp QR login and buyer contact.</small>
-                    </label>
-
-                    <!-- Password -->
-                    <label for="register-password">Password
-                        <input type="password" id="register-password" x-model="registerForm.password" placeholder="Min 8 chars, upper + lower + digit + special" required
-                               :aria-invalid="registerForm.password && !isPasswordValid(registerForm.password) ? 'true' : (isPasswordValid(registerForm.password) ? 'false' : null)">
-                    </label>
-
-                    <!-- Password strength indicators -->
-                    <div x-show="registerForm.password" style="margin-top: -0.5rem; margin-bottom: 1rem;">
-                        <div style="display: flex; gap: 0.3rem; margin-bottom: 0.5rem;">
-                            <div style="height: 4px; flex: 1; border-radius: 2px; transition: background 0.3s;"
-                                 :style="{ background: passwordStrength(registerForm.password) >= 1 ? (passwordStrength(registerForm.password) >= 4 ? '#22c55e' : passwordStrength(registerForm.password) >= 3 ? '#eab308' : '#ef4444') : '#e5e7eb' }"></div>
-                            <div style="height: 4px; flex: 1; border-radius: 2px; transition: background 0.3s;"
-                                 :style="{ background: passwordStrength(registerForm.password) >= 2 ? (passwordStrength(registerForm.password) >= 4 ? '#22c55e' : passwordStrength(registerForm.password) >= 3 ? '#eab308' : '#ef4444') : '#e5e7eb' }"></div>
-                            <div style="height: 4px; flex: 1; border-radius: 2px; transition: background 0.3s;"
-                                 :style="{ background: passwordStrength(registerForm.password) >= 3 ? (passwordStrength(registerForm.password) >= 4 ? '#22c55e' : '#eab308') : '#e5e7eb' }"></div>
-                            <div style="height: 4px; flex: 1; border-radius: 2px; transition: background 0.3s;"
-                                 :style="{ background: passwordStrength(registerForm.password) >= 4 ? '#22c55e' : '#e5e7eb' }"></div>
-                        </div>
-                        <div style="font-size: 0.8rem; display: flex; flex-wrap: wrap; gap: 0.3rem 1rem;">
-                            <span :style="{ color: /[a-z]/.test(registerForm.password) ? '#22c55e' : '#9ca3af' }">
-                                <span x-text="/[a-z]/.test(registerForm.password) ? '✓' : '○'"></span> lowercase
-                            </span>
-                            <span :style="{ color: /[A-Z]/.test(registerForm.password) ? '#22c55e' : '#9ca3af' }">
-                                <span x-text="/[A-Z]/.test(registerForm.password) ? '✓' : '○'"></span> uppercase
-                            </span>
-                            <span :style="{ color: /\d/.test(registerForm.password) ? '#22c55e' : '#9ca3af' }">
-                                <span x-text="/\d/.test(registerForm.password) ? '✓' : '○'"></span> digit
-                            </span>
-                            <span :style="{ color: /[@$!%*?&]/.test(registerForm.password) ? '#22c55e' : '#9ca3af' }">
-                                <span x-text="/[@$!%*?&]/.test(registerForm.password) ? '✓' : '○'"></span> special (@$!%*?&)
-                            </span>
-                            <span :style="{ color: registerForm.password.length >= 8 ? '#22c55e' : '#9ca3af' }">
-                                <span x-text="registerForm.password.length >= 8 ? '✓' : '○'"></span> 8+ characters
-                            </span>
-                        </div>
-                    </div>
-
-                    <!-- Confirm Password -->
-                    <label for="register-confirm-password">Confirm Password
-                        <input type="password" id="register-confirm-password" x-model="registerForm.confirmPassword" placeholder="Re-enter your password" required
-                               :aria-invalid="registerForm.confirmPassword && registerForm.confirmPassword !== registerForm.password ? 'true' : (registerForm.confirmPassword && registerForm.confirmPassword === registerForm.password ? 'false' : null)">
-                        <small x-show="registerForm.confirmPassword && registerForm.confirmPassword !== registerForm.password" style="color: #ef4444;">Passwords do not match.</small>
-                    </label>
-
-                    <button type="submit" id="register-submit" style="width: 100%; margin-top: 1rem;" :aria-busy="isLoading"
-                            :disabled="!isRegisterFormValid()">Create Account</button>
-                </form>
-
-                <hr style="margin: 2rem 0;">
-
-                <div style="text-align: center;">
-                    <small style="color: var(--pico-muted-color);">Already have an account? <a href="#" @click.prevent="navigateTo('login')">Log in</a></small>
-                </div>
-            </article>
-        </div>
-
-        <!-- ========================================== -->
-        <!-- VIEW: FAVOURITES                           -->
-        <!-- ========================================== -->
-        <div class="view-container" x-show="currentView === 'favourites'">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-                <div>
-                    <h2 style="margin-bottom: 0.2rem; display: flex; align-items: center; gap: 0.5rem;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="#ef4444" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-                        Saved Items
-                    </h2>
-                    <p style="color: var(--pico-muted-color); margin-bottom: 0;">Items you've marked as favourite.</p>
-                </div>
-            </div>
-
-            <!-- Favourites Grid -->
-            <div class="grid" x-show="favouriteCount > 0" style="grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 2rem;">
-                <template x-for="post in favouritePosts" :key="post.postId">
-                    <article class="item-card">
-                        <header x-data="{ activeImg: 0 }">
-                            <img :src="post.mediaUrls && post.mediaUrls.length > 0 ? post.mediaUrls[activeImg] : 'https://placehold.co/600x400?text=No+Image'" 
-                                 :alt="post.title" class="item-image" loading="lazy">
-                            
-                            <!-- Carousel Navigation -->
-                            <template x-if="post.mediaUrls && post.mediaUrls.length > 1">
-                                <div class="carousel-nav">
-                                    <button @click.prevent.stop="activeImg = activeImg > 0 ? activeImg - 1 : post.mediaUrls.length - 1" class="carousel-btn prev" title="Previous image">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-                                    </button>
-                                    <button @click.prevent.stop="activeImg = activeImg < post.mediaUrls.length - 1 ? activeImg + 1 : 0" class="carousel-btn next" title="Next image">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-                                    </button>
-                                </div>
-                            </template>
-                            
-                            <!-- Carousel Indicators -->
-                            <template x-if="post.mediaUrls && post.mediaUrls.length > 1">
-                                <div class="carousel-indicators">
-                                    <template x-for="(url, index) in post.mediaUrls" :key="index">
-                                        <span class="indicator-dot" :class="{ 'active': activeImg === index }"></span>
-                                    </template>
-                                </div>
-                            </template>
-
-                            <span class="item-badge" x-text="post.category"></span>
-                            <button class="fav-btn is-fav" @click.stop="removeFavourite(post.postId)" title="Remove from favourites">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="#ef4444" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-                            </button>
-                        </header>
-                        <div class="item-content">
-                            <h3 class="item-title" x-text="post.title"></h3>
-                            <p class="item-description" x-text="post.description"></p>
-                        </div>
-                        <footer class="item-footer">
-                            <div>
-                                <div class="item-price" x-text="'$' + post.price"></div>
-                                <small style="color: var(--pico-muted-color);" x-text="new Date(post.createdAt).toLocaleDateString()"></small>
-                            </div>
-                            <div style="text-align: right;">
-                                <a href="#" @click.prevent="viewProfile(post.seller.sellerId)" class="seller-link" x-text="post.seller.name" style="display: block; margin-bottom: 0.3rem; color: var(--pico-muted-color); font-size: 0.875rem;"></a>
-                                <div style="display: flex; gap: 0.4rem; justify-content: flex-end;">
-                                    <a :href="'mailto:' + post.seller.email" role="button" class="outline contrast" style="padding: 0.2rem 0.6rem; font-size: 0.75rem; border-radius: 1rem;" title="Email">Email</a>
-                                    <template x-if="post.seller.phoneNumber">
-                                        <a :href="'https://wa.me/' + post.seller.phoneNumber.replace(/[^0-9]/g, '') + '?text=' + encodeURIComponent('Hi, I am interested in your listing: ' + post.title)" 
-                                           target="_blank" role="button" class="outline" style="padding: 0.2rem 0.6rem; font-size: 0.75rem; border-radius: 1rem; color: #25D366; border-color: #25D366;" title="WhatsApp">WhatsApp</a>
-                                    </template>
-                                </div>
-                            </div>
-                        </footer>
-                    </article>
-                </template>
-            </div>
-
-            <!-- Empty State -->
-            <div x-show="favouriteCount === 0" style="text-align: center; padding: 5rem 2rem; border: 1px dashed var(--pico-muted-border-color); border-radius: var(--pico-border-radius); background: var(--pico-card-background-color);">
-                <svg class="fav-empty-icon" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-                <h3 style="margin-bottom: 0.5rem;">No saved items yet</h3>
-                <p style="color: var(--pico-muted-color); margin-bottom: 1.5rem; max-width: 400px; margin-left: auto; margin-right: auto;">Keep track of items you're interested in by clicking the heart icon on any listing.</p>
-                <button class="outline secondary" @click="navigateTo('listings')">Browse Items</button>
-            </div>
-        </div>
-
-        <!-- ========================================== -->
-        <!-- VIEW: PROFILE                              -->
-        <!-- ========================================== -->
-        <div class="view-container" x-show="currentView === 'profile'">
-
-            <!-- Loading -->
-            <div x-show="profileLoading" style="text-align: center; padding: 4rem;">
-                <span aria-busy="true" style="font-size: 1.2rem; color: var(--pico-muted-color);">Loading profile...</span>
-            </div>
-
-            <!-- Error if no profile loaded -->
-            <div x-show="!profileLoading && !profileSeller && errorMessage" style="text-align: center; padding: 4rem;">
-                <h3 style="margin-bottom: 0.5rem;">Profile not found</h3>
-                <p style="color: var(--pico-muted-color);" x-text="errorMessage"></p>
-                <button class="outline" @click="navigateTo('listings')" style="margin-top: 1rem;">Back to Listings</button>
-            </div>
-
-            <template x-if="profileSeller && !profileLoading">
-                <div>
-                    <!-- Success/Error Messages -->
-                    <article x-show="successMessage" style="background-color: #dcfce7; border: 1px solid #22c55e; color: #15803d; padding: 1rem; margin-bottom: 1.5rem; border-radius: var(--pico-border-radius);">
-                        <p x-text="successMessage" style="margin: 0;"></p>
-                    </article>
-                    <article x-show="errorMessage" style="background-color: #fee2e2; border: 1px solid #ef4444; color: #b91c1c; padding: 1rem; margin-bottom: 1.5rem; border-radius: var(--pico-border-radius);">
-                        <p x-text="errorMessage" style="margin: 0;"></p>
-                    </article>
-
-                    <!-- Profile Header -->
-                    <div class="profile-header">
-                        <div class="profile-avatar" :style="'background:' + getProfileAvatarColor(profileSeller.sellerId)" x-text="getInitials(profileSeller.name)"></div>
-                        <div class="profile-info">
-                            <h2>
-                                <span x-text="profileSeller.name"></span>
-                                <span x-show="isOwnProfile" class="profile-badge">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                                    You
-                                </span>
-                            </h2>
-                            <div class="profile-meta">
-                                <span class="profile-meta-item">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-                                    <span x-text="profileSeller.email"></span>
-                                </span>
-                                <span class="profile-meta-item" x-show="profileSeller.phoneNumber">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                                    <span x-text="profileSeller.phoneNumber"></span>
-                                </span>
-                                <span class="profile-meta-item">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-                                    <span x-text="profilePosts.length + ' listing' + (profilePosts.length !== 1 ? 's' : '')"></span>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Listings Section -->
-                    <div class="profile-section-title">
-                        <h3 style="margin: 0;" x-text="isOwnProfile ? 'Your Listings' : profileSeller.name + \"'s Listings\""></h3>
-                    </div>
-
-                    <!-- No listings -->
-                    <div x-show="profilePosts.length === 0" style="text-align: center; padding: 3rem 2rem; border: 1px dashed var(--pico-muted-border-color); border-radius: var(--pico-border-radius);">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="color: var(--pico-muted-color); margin-bottom: 0.8rem;"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-                        <p style="color: var(--pico-muted-color); margin: 0;" x-text="isOwnProfile ? 'You haven\'t posted any listings yet.' : 'No listings yet.'"></p>
-                        <button x-show="isOwnProfile" @click="navigateTo('createListing')" style="margin-top: 1rem;">Create Your First Listing</button>
-                    </div>
-
-                    <!-- Listings list -->
-                    <template x-for="post in profilePosts" :key="post.postId">
-                        <div class="profile-listing-card">
-                            <img :src="post.mediaUrls && post.mediaUrls.length > 0 ? post.mediaUrls[0] : 'https://placehold.co/120x90?text=No+Image'" 
-                                 :alt="post.title" class="profile-listing-image" loading="lazy">
-                            <div class="profile-listing-info">
-                                <h4>
-                                    <span x-text="post.title"></span>
-                                    <span x-show="post.isSold" class="sold-badge">SOLD</span>
-                                </h4>
-                                <div style="font-size: 0.85rem; color: var(--pico-muted-color); margin-bottom: 0.3rem;">
-                                    <span x-text="post.category" style="text-transform: capitalize;"></span>
-                                    &middot;
-                                    <span x-text="new Date(post.createdAt).toLocaleDateString()"></span>
-                                </div>
-                                <strong style="color: var(--pico-primary); font-size: 1.1rem;" x-text="'$' + post.price"></strong>
-                            </div>
-                            <div class="profile-listing-actions" x-show="isOwnProfile">
-                                <button class="outline" @click="markProfilePostSold(post.postId)" x-show="!post.isSold" title="Mark as sold">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                                    Sold
-                                </button>
-                                <button class="outline secondary" @click="deleteProfilePost(post.postId)" title="Delete listing">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                                    Delete
-                                </button>
-                            </div>
-                        </div>
+                        </section>
                     </template>
-
-                    <!-- Danger Zone: Delete Account (own profile only) -->
-                    <div class="danger-zone" x-show="isOwnProfile">
-                        <h4>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
-                            Danger Zone
-                        </h4>
-                        <p style="color: var(--pico-muted-color); margin-bottom: 1rem; font-size: 0.9rem;">Once you delete your account, all of your listings will be removed and this action cannot be undone.</p>
-                        <button class="outline" style="border-color: #ef4444; color: #ef4444; padding: 0.4rem 1.2rem;" @click="showDeleteAccountModal = true">Delete My Account</button>
-                    </div>
-
-                    <!-- Delete Account Confirmation Modal -->
-                    <div class="modal-overlay" x-show="showDeleteAccountModal" x-transition @click.self="showDeleteAccountModal = false">
-                        <div class="modal-card">
-                            <h3 style="color: #ef4444; margin-bottom: 0.5rem;">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
-                                Delete Account
-                            </h3>
-                            <p style="color: var(--pico-muted-color); margin-bottom: 1.5rem;">This action is <strong>permanent</strong> and cannot be undone. All your listings will be deleted.</p>
-                            <label style="font-size: 0.9rem;">Enter your password to confirm:
-                                <input type="password" x-model="deleteAccountConfirmPassword" placeholder="Your account password" style="margin-top: 0.5rem;">
-                            </label>
-                            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
-                                <button class="outline secondary" @click="showDeleteAccountModal = false; deleteAccountConfirmPassword = ''" style="padding: 0.4rem 1.2rem;">Cancel</button>
-                                <button style="background: #ef4444; border-color: #ef4444; padding: 0.4rem 1.2rem;" 
-                                        :disabled="!deleteAccountConfirmPassword"
-                                        @click="deleteAccount()">Delete Forever</button>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </template>
         </div>
 
+        <div class="view-container" x-show="currentView === 'selected'">
+            <div class="selected-cart-view">
+                <div class="section-heading">
+                    <div>
+                        <p class="item-meta" x-text="cart.seller?.name || 'No seller selected'"></p>
+                        <h2>Selected Items</h2>
+                    </div>
+                    <div class="cart-summary-actions" x-show="cart.count > 0">
+                        <button class="outline" @click="cart.clear()">Clear</button>
+                        <button class="is-whatsapp" @click="sendCartWhatsapp()">Send WhatsApp</button>
+                    </div>
+                </div>
+                <div class="empty-state" x-show="cart.count === 0">
+                    <h3>No selected items</h3>
+                    <p>Add dishes from the restaurant menu to build a WhatsApp order.</p>
+                    <button @click="navigateTo('restaurantPreview')">Open Restaurant Sample</button>
+                </div>
+                <div class="selected-cart-list" x-show="cart.count > 0">
+                    <template x-for="item in cart.items" :key="item.id">
+                        <article class="selected-cart-row">
+                            <div>
+                                <h3 x-text="item.title"></h3>
+                                <p x-text="item.description"></p>
+                            </div>
+                            <div class="selected-cart-price">
+                                <strong x-text="formatPrice(item.price)"></strong>
+                                <button class="outline secondary" @click="cart.remove(item.id)">Remove</button>
+                            </div>
+                        </article>
+                    </template>
+                    <div class="selected-cart-total">
+                        <span>Total</span>
+                        <strong x-text="formatPrice(cart.total)"></strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="view-container" x-show="currentView === 'profile'">
+            <div class="loading-state" x-show="profile.profileLoading"><span aria-busy="true">Loading profile...</span></div>
+            <div class="empty-state" x-show="!profile.profileLoading && !profile.profileSeller && errorMessage">
+                <h3>Profile not found</h3>
+                <p x-text="errorMessage"></p>
+                <button class="outline" @click="navigateTo('listings')">Back to Listings</button>
+            </div>
+            <template x-if="currentLayout && profile.profileSeller && !profile.profileLoading">
+                <div class="layout-page">
+                    <template x-for="region in currentLayout.regions" :key="region.id">
+                        <section class="layout-region" :data-layout-kind="region.layout.kind">
+                            <template x-for="element in region.elements" :key="element.id">
+                                <div>
+                                    <template x-if="element.type === 'profile.summary'">
+                                        <div class="profile-header">
+                                            <div class="profile-avatar" :style="'background:' + getProfileAvatarColor(profile.profileSeller.sellerId)" x-text="getInitials(profile.profileSeller.name)"></div>
+                                            <div>
+                                                <h2>
+                                                    <span x-text="profile.profileSeller.name"></span>
+                                                    <span class="profile-badge" x-show="profile.isOwnProfile">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+                                                        You
+                                                    </span>
+                                                </h2>
+                                                <div class="profile-meta">
+                                                    <span class="profile-meta-item">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                                                        <span x-text="profile.profileSeller.email"></span>
+                                                    </span>
+                                                    <span class="profile-meta-item" x-show="profile.profileSeller.phoneNumber">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                                                        <span x-text="profile.profileSeller.phoneNumber"></span>
+                                                    </span>
+                                                    <span class="profile-meta-item" x-text="profile.profilePosts.length + ' listing' + (profile.profilePosts.length !== 1 ? 's' : '')"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    <template x-if="element.type === 'profile.listingList'">
+                                        <div class="layout-page">
+                                            <div class="section-heading">
+                                                <h3 x-text="profile.isOwnProfile ? 'Your Listings' : `${profile.profileSeller.name}'s Listings`"></h3>
+                                            </div>
+                                            <div class="empty-state" x-show="profile.profilePosts.length === 0">
+                                                <h3>No listings yet</h3>
+                                                <p x-text="profile.isOwnProfile ? `You haven't posted any listings yet.` : 'No listings yet.'"></p>
+                                                <button x-show="profile.isOwnProfile" @click="navigateTo('createListing')">Create Your First Listing</button>
+                                            </div>
+                                            <template x-for="post in profile.profilePosts" :key="post.postId">
+                                                <article class="profile-listing-card">
+                                                    <img class="profile-listing-image" :src="post.mediaUrls && post.mediaUrls.length ? post.mediaUrls[0] : 'https://placehold.co/120x90?text=No+Image'" :alt="post.title" loading="lazy">
+                                                    <div class="profile-listing-info">
+                                                        <h4>
+                                                            <span x-text="post.title"></span>
+                                                            <span class="sold-badge" x-show="post.isSold">SOLD</span>
+                                                        </h4>
+                                                        <div class="item-meta">
+                                                            <span x-text="post.category"></span>
+                                                            <span> · </span>
+                                                            <span x-text="new Date(post.createdAt).toLocaleDateString()"></span>
+                                                        </div>
+                                                        <strong x-text="formatPrice(post.price)"></strong>
+                                                    </div>
+                                                    <div class="profile-listing-actions" x-show="profile.isOwnProfile">
+                                                        <button class="outline" @click="markProfilePostSold(post.postId)" x-show="!post.isSold">Sold</button>
+                                                        <button class="outline secondary" @click="promptDeletePost(post.postId)">Delete</button>
+                                                    </div>
+                                                </article>
+                                            </template>
+                                            <div class="danger-zone" x-show="profile.isOwnProfile">
+                                                <h4>Danger Zone</h4>
+                                                <p>Once you delete your account, all of your listings will be removed and this action cannot be undone.</p>
+                                                <button class="outline" @click="profile.showDeleteAccountModal = true">Delete My Account</button>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </section>
+                    </template>
+                </div>
+            </template>
+        </div>
+
+        <div class="view-container" x-show="currentView === 'createListing'">
+            <article class="auth-card form-card-wide">
+                <h2>Post a New Item</h2>
+                <form @submit.prevent="createPost()">
+                    <div class="grid">
+                        <label>Title
+                            <input type="text" placeholder="What are you offering?" x-model="upload.newPost.title" required>
+                        </label>
+                        <label>Price ($)
+                            <input type="number" step="0.01" placeholder="0.00" x-model.number="upload.newPost.price" required>
+                        </label>
+                    </div>
+                    <div>
+                        <label>Photos (Up to 10)</label>
+                        <div class="upload-dropzone" :class="{ 'is-active': upload.uploadDragActive }" @dragover.prevent="upload.uploadDragActive = true" @dragleave.prevent="upload.uploadDragActive = false" @drop.prevent="handleDrop($event)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            <p>Drag and drop images here, or</p>
+                            <label role="button" class="outline secondary">
+                                Browse Files
+                                <input type="file" multiple accept="image/*" @change="handleFileSelect" class="sf-hidden">
+                            </label>
+                        </div>
+                        <div class="image-preview-grid" x-show="upload.imagePreviews.length">
+                            <template x-for="(preview, index) in upload.imagePreviews" :key="preview">
+                                <div class="image-preview-card" :class="{ 'is-cover': index === 0 }" draggable="true" @dragstart="upload.dragStartIndex = index" @dragover.prevent @drop.prevent="handleImageDrop(index)">
+                                    <img :src="preview" alt="">
+                                    <button class="icon-button image-preview-delete" @click.prevent="removeImage(index)" aria-label="Remove image">&times;</button>
+                                    <span class="cover-badge" x-show="index === 0">Cover</span>
+                                </div>
+                            </template>
+                        </div>
+                        <label>Category
+                            <select x-model="upload.newPost.category" required>
+                                <template x-for="category in Storefront.data.categories.filter((item) => item.value)" :key="category.value">
+                                    <option :value="category.value" x-text="category.label"></option>
+                                </template>
+                            </select>
+                        </label>
+                    </div>
+                    <label>Description
+                        <textarea rows="5" x-model="upload.newPost.description" placeholder="Provide details about the condition, pickup location, or ingredients..." required></textarea>
+                    </label>
+                    <div class="form-actions">
+                        <button type="button" class="outline secondary" @click="navigateTo('listings')">Cancel</button>
+                        <button type="submit" :aria-busy="isLoading">Publish Listing</button>
+                    </div>
+                </form>
+            </article>
+        </div>
+
+        <div class="view-container" x-show="currentView === 'login'">
+            <article class="auth-card">
+                <h2>Welcome Back</h2>
+                <form @submit.prevent="handleLogin()">
+                    <label>Email Address
+                        <input type="email" x-model="auth.loginForm.email" placeholder="name@domain.com" required>
+                    </label>
+                    <label>Password
+                        <input type="password" x-model="auth.loginForm.password" placeholder="••••••••" required>
+                    </label>
+                    <div style="text-align:right;margin-top:-0.5rem;margin-bottom:1rem;">
+                        <small><a href="#" @click.prevent="navigateTo('forgotPassword')">Forgot your password?</a></small>
+                    </div>
+                    <button type="submit" style="width:100%;" :aria-busy="isLoading">Log In</button>
+                </form>
+                <hr>
+                <button class="outline contrast" style="width:100%;" @click="initWhatsappLogin()">Login with WhatsApp</button>
+                <div style="text-align:center;margin-top:1rem;">
+                    <small>Don't have an account? <a href="#" @click.prevent="navigateTo('register')">Sign up</a></small>
+                </div>
+            </article>
+        </div>
+
+        <div class="view-container" x-show="currentView === 'forgotPassword'">
+            <article class="auth-card">
+                <h2>Forgot Password</h2>
+                <p>Enter your email and we'll send you a reset link.</p>
+                <form @submit.prevent="handleForgotPassword()" x-show="!successMessage">
+                    <label>Email Address
+                        <input type="email" x-model="auth.forgotPasswordForm.email" placeholder="name@constructor.university" required>
+                    </label>
+                    <button type="submit" style="width:100%;" :aria-busy="isLoading">Send Reset Link</button>
+                </form>
+                <div style="text-align:center;margin-top:1rem;">
+                    <small><a href="#" @click.prevent="navigateTo('login')">Back to Log In</a></small>
+                </div>
+            </article>
+        </div>
+
+        <div class="view-container" x-show="currentView === 'resetPassword'">
+            <article class="auth-card">
+                <h2>Choose a New Password</h2>
+                <p>Pick a strong password for your account.</p>
+                <form @submit.prevent="handleResetPassword()" x-show="!successMessage">
+                    <label>New Password
+                        <input type="password" x-model="auth.resetPasswordForm.newPassword" required>
+                    </label>
+                    <div class="password-meter" x-show="auth.resetPasswordForm.newPassword">
+                        <div class="password-meter-bars">
+                            <template x-for="bar in 4" :key="bar">
+                                <span class="password-meter-bar" :style="{ background: passwordStrength(auth.resetPasswordForm.newPassword) >= bar ? (passwordStrength(auth.resetPasswordForm.newPassword) >= 4 ? '#22c55e' : passwordStrength(auth.resetPasswordForm.newPassword) >= 3 ? '#eab308' : '#ef4444') : '#e5e7eb' }"></span>
+                            </template>
+                        </div>
+                        <div class="password-meter-rules">
+                            <span :style="{ color: /[a-z]/.test(auth.resetPasswordForm.newPassword) ? '#22c55e' : '#9ca3af' }">lowercase</span>
+                            <span :style="{ color: /[A-Z]/.test(auth.resetPasswordForm.newPassword) ? '#22c55e' : '#9ca3af' }">uppercase</span>
+                            <span :style="{ color: /\\d/.test(auth.resetPasswordForm.newPassword) ? '#22c55e' : '#9ca3af' }">digit</span>
+                            <span :style="{ color: /[@$!%*?&]/.test(auth.resetPasswordForm.newPassword) ? '#22c55e' : '#9ca3af' }">special</span>
+                        </div>
+                    </div>
+                    <label>Confirm New Password
+                        <input type="password" x-model="auth.resetPasswordForm.confirmPassword" required>
+                    </label>
+                    <button type="submit" style="width:100%;" :disabled="!isPasswordValid(auth.resetPasswordForm.newPassword) || auth.resetPasswordForm.newPassword !== auth.resetPasswordForm.confirmPassword">Reset Password</button>
+                </form>
+            </article>
+        </div>
+
+        <div class="view-container" x-show="currentView === 'whatsappLogin'">
+            <article class="auth-card" style="text-align:center;">
+                <h2>Login with WhatsApp</h2>
+                <div x-show="!auth.whatsappLogin.sessionId" aria-busy="true">Initializing session...</div>
+                <div x-show="auth.whatsappLogin.sessionId">
+                    <p>Scan the QR code below with your phone's camera to log in via WhatsApp.</p>
+                    <img :src="'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' + encodeURIComponent(auth.whatsappLogin.qrContent)" alt="WhatsApp Login QR Code" style="border:1px solid var(--pico-muted-border-color);border-radius:var(--pico-border-radius);padding:1rem;background:white;">
+                    <p><a :href="auth.whatsappLogin.qrContent" target="_blank" x-text="auth.whatsappLogin.qrContent"></a></p>
+                    <span aria-busy="true" x-show="auth.whatsappLogin.status === 'PENDING'">Waiting for you to scan...</span>
+                    <span x-show="auth.whatsappLogin.status === 'COMPLETED'">Login confirmed. Completing...</span>
+                    <div><button class="outline secondary" @click="navigateTo('login')">Cancel</button></div>
+                </div>
+            </article>
+        </div>
+
+        <div class="view-container" x-show="currentView === 'register'">
+            <article class="auth-card">
+                <h2>Create an Account</h2>
+                <p>Join the Constructor University marketplace.</p>
+                <form @submit.prevent="handleRegister()">
+                    <label>Full Name
+                        <input type="text" x-model="auth.registerForm.name" minlength="2" maxlength="100" required>
+                    </label>
+                    <label>University Email
+                        <input type="email" x-model="auth.registerForm.email" placeholder="yourname@constructor.university" required>
+                    </label>
+                    <label>Phone Number (WhatsApp)
+                        <input type="tel" x-model="auth.registerForm.phoneNumber" placeholder="+491234567890" required>
+                    </label>
+                    <label>Password
+                        <input type="password" x-model="auth.registerForm.password" required>
+                    </label>
+                    <div class="password-meter" x-show="auth.registerForm.password">
+                        <div class="password-meter-bars">
+                            <template x-for="bar in 4" :key="bar">
+                                <span class="password-meter-bar" :style="{ background: passwordStrength(auth.registerForm.password) >= bar ? (passwordStrength(auth.registerForm.password) >= 4 ? '#22c55e' : passwordStrength(auth.registerForm.password) >= 3 ? '#eab308' : '#ef4444') : '#e5e7eb' }"></span>
+                            </template>
+                        </div>
+                        <div class="password-meter-rules">
+                            <span :style="{ color: /[a-z]/.test(auth.registerForm.password) ? '#22c55e' : '#9ca3af' }">lowercase</span>
+                            <span :style="{ color: /[A-Z]/.test(auth.registerForm.password) ? '#22c55e' : '#9ca3af' }">uppercase</span>
+                            <span :style="{ color: /\\d/.test(auth.registerForm.password) ? '#22c55e' : '#9ca3af' }">digit</span>
+                            <span :style="{ color: /[@$!%*?&]/.test(auth.registerForm.password) ? '#22c55e' : '#9ca3af' }">special</span>
+                        </div>
+                    </div>
+                    <label>Confirm Password
+                        <input type="password" x-model="auth.registerForm.confirmPassword" required>
+                    </label>
+                    <button type="submit" style="width:100%;" :disabled="!isRegisterFormValid()">Create Account</button>
+                </form>
+                <div style="text-align:center;margin-top:1rem;">
+                    <small>Already have an account? <a href="#" @click.prevent="navigateTo('login')">Log in</a></small>
+                </div>
+            </article>
+        </div>
+
+        <div class="view-container" x-show="currentView === 'createdSites'">
+            <div class="created-sites-header">
+                <div>
+                    <p class="item-meta">Saved locally in this browser</p>
+                    <h2>Created Sites</h2>
+                </div>
+                <button @click="navigateTo('layoutBuilder')">Create Site</button>
+            </div>
+
+            <div class="empty-state" x-show="builder.createdSites.length === 0">
+                <h3>No created sites yet</h3>
+                <p>Build a layout in the creator, then create a site from the current preview.</p>
+                <button @click="navigateTo('layoutBuilder')">Open Creator</button>
+            </div>
+
+            <div class="created-sites-grid" x-show="builder.createdSites.length > 0">
+                <template x-for="site in builder.createdSites" :key="site.id">
+                    <article class="created-site-card">
+                        <div class="created-site-thumb">
+                            <template x-if="site.context === 'restaurant'">
+                                <span>Menu</span>
+                            </template>
+                            <template x-if="site.context !== 'restaurant'">
+                                <span>Site</span>
+                            </template>
+                        </div>
+                        <div class="created-site-card-body">
+                            <p class="item-meta" x-text="site.context"></p>
+                            <h3 x-text="site.name"></h3>
+                            <p class="item-meta" x-text="'Updated ' + new Date(site.updatedAt).toLocaleString()"></p>
+                            <div class="builder-inline-actions">
+                                <button @click="openCreatedSite(site.id)">View</button>
+                                <button class="outline" @click="editCreatedSite(site.id)">Edit</button>
+                                <button class="outline" @click="duplicateCreatedSite(site.id)">Duplicate</button>
+                                <button class="outline secondary" @click="deleteCreatedSite(site.id)">Delete</button>
+                            </div>
+                        </div>
+                    </article>
+                </template>
+            </div>
+        </div>
+
+        <div class="view-container" x-show="currentView === 'layoutBuilder'">
+            <div class="layout-builder" :class="{ 'is-desktop-preview': builder.previewMode === 'desktop' }">
+                <aside class="builder-panel">
+                    <div class="section-heading"><h3>Palette</h3></div>
+                    <template x-for="(elements, category) in builderPaletteGroups" :key="category">
+                        <section class="builder-palette-group">
+                            <strong x-text="category"></strong>
+                            <template x-for="entry in elements" :key="entry.type">
+                                <button class="outline builder-palette-item" draggable="true" @dragstart="startPaletteDrag(entry.type)" @click="addBuilderElement(entry.type)" x-text="entry.label"></button>
+                            </template>
+                        </section>
+                    </template>
+                </aside>
+
+                <section class="builder-panel builder-canvas">
+                    <div class="builder-toolbar">
+                        <select x-model="builder.selectedLayoutId" @change="selectBuilderTemplate(builder.selectedLayoutId)">
+                            <template x-for="layout in Storefront.core.layoutRegistry.list()" :key="layout.id">
+                                <option :value="layout.id" x-text="layout.label"></option>
+                            </template>
+                        </select>
+                        <button class="outline" @click="undoBuilder()" :disabled="builder.history.length === 0">Undo</button>
+                        <button class="outline" @click="redoBuilder()" :disabled="builder.future.length === 0">Redo</button>
+                        <button class="outline" @click="validateBuilderLayout()">Validate</button>
+                        <button class="outline" @click="clearBuilderDraftStorage()">Reset Draft</button>
+                        <button class="outline" @click="exportBuilderLayout()">Export JSON</button>
+                        <button class="outline" @click="importBuilderLayout()">Import JSON</button>
+                        <button @click="applyBuilderPreview()">Apply Preview</button>
+                    </div>
+
+                    <div class="builder-create-site-bar">
+                        <label>
+                            Site name
+                            <input type="text" x-model="builder.newSiteName" placeholder="North Hall Kitchen">
+                        </label>
+                        <button @click="createSiteFromDraft()">Create Site</button>
+                        <button class="outline" @click="navigateTo('createdSites')">View Created Sites</button>
+                    </div>
+
+                    <div class="builder-toolbar">
+                        <button class="outline" @click="setBuilderPreviewMode('mobile')">Mobile</button>
+                        <button class="outline" @click="setBuilderPreviewMode('tablet')">Tablet</button>
+                        <button class="outline" @click="setBuilderPreviewMode('desktop')">Desktop</button>
+                        <button class="outline" @click="setBuilderPreviewMode('free')">Free Width</button>
+                        <input type="text" x-model="builder.previewWidth" x-show="builder.previewMode === 'free'" placeholder="960px">
+                        <label style="margin:0;">
+                            <input type="checkbox" x-model="builder.useSampleData">
+                            Use sample data
+                        </label>
+                        <label style="margin:0;">Zoom
+                            <input type="range" min="0.7" max="1.2" step="0.05" x-model.number="builder.previewZoom">
+                        </label>
+                    </div>
+
+                    <div class="builder-toolbar">
+                        <template x-for="region in builder.draftLayout.regions" :key="region.id">
+                            <button class="outline" :class="{ secondary: builder.selectedRegionId === region.id }" @click="selectBuilderRegion(region.id)" x-text="region.id"></button>
+                        </template>
+                    </div>
+
+                    <div class="builder-preview-shell">
+                        <div class="builder-preview-frame" :style="builderPreviewStyle()">
+                            <template x-if="builderPreviewLayout">
+                                <div class="layout-page builder-editable-preview">
+                                    <template x-for="(region, regionIndex) in builderPreviewLayout.regions" :key="region.id">
+                                        <section class="layout-region builder-preview-region" :data-layout-kind="region.layout.kind" :style="region.runtimeStyle" @dragover.prevent @drop.prevent="dropBuilderElementAtEnd(region.id)">
+                                            <div class="builder-region-label">
+                                                <strong x-text="region.id"></strong>
+                                                <span x-text="region.role"></span>
+                                                <button class="icon-button" @click="moveBuilderRegion(regionIndex, Math.max(regionIndex - 1, 0))" aria-label="Move region up">↑</button>
+                                                <button class="icon-button" @click="moveBuilderRegion(regionIndex, Math.min(regionIndex + 1, builderPreviewLayout.regions.length - 1))" aria-label="Move region down">↓</button>
+                                            </div>
+                                            <template x-for="(element, index) in region.elements" :key="element.id">
+                                                <div class="builder-preview-element" :class="{ 'is-selected': builder.selectedElementId === element.id, 'is-full-width': ['catalog.grid', 'restaurant.menuGrid', 'profile.summary', 'profile.listingList'].includes(element.type) }" draggable="true" @click.stop="selectBuilderRegion(region.id); selectBuilderElement(element.id)" @dragstart="startBuilderDrag(region.id, index)" @dragover.prevent.stop @drop.prevent.stop="dropBuilderElement(region.id, index)">
+                                                    <div class="builder-element-toolbar">
+                                                        <span x-text="Storefront.core.elementRegistry.get(element.type)?.label || element.type"></span>
+                                                        <button class="icon-button" @click.stop="moveBuilderElement(region.id, index, Math.max(index - 1, 0))" aria-label="Move element up">↑</button>
+                                                        <button class="icon-button" @click.stop="moveBuilderElement(region.id, index, Math.min(index + 1, region.elements.length - 1))" aria-label="Move element down">↓</button>
+                                                        <button class="icon-button" @click.stop="duplicateBuilderElement(element.id)" aria-label="Duplicate element">⧉</button>
+                                                        <button class="icon-button" @click.stop="deleteBuilderElement(element.id)" aria-label="Delete element">×</button>
+                                                    </div>
+                                                    <template x-if="element.type === 'marketplace.filterBar'">
+                                                        <div class="filter-bar">
+                                                            <div class="filter-group"><strong>Category</strong><span x-text="marketplace.selectedCategory || 'All Categories'"></span></div>
+                                                            <div class="filter-group"><strong>Sort</strong><span x-text="marketplace.sortBy"></span></div>
+                                                        </div>
+                                                    </template>
+                                                    <template x-if="element.type === 'restaurant.menuHero'">
+                                                        <section class="restaurant-menu-hero">
+                                                            <div>
+                                                                <p class="restaurant-eyebrow" x-text="element.props.eyebrow"></p>
+                                                                <h1 x-text="element.props.title"></h1>
+                                                                <p x-text="element.props.message"></p>
+                                                            </div>
+                                                            <div class="restaurant-hero-stats" x-show="element.props.showStats">
+                                                                <span>Open today</span>
+                                                                <strong>11:00-21:00</strong>
+                                                                <span>Pickup in 12 min</span>
+                                                            </div>
+                                                        </section>
+                                                    </template>
+                                                    <template x-if="element.type === 'catalog.grid' || element.type === 'restaurant.menuGrid'">
+                                                        <div class="layout-card-grid" :style="{ '--grid-min-item-width': element.props.minItemWidth }">
+                                                            <template x-for="item in element.data || []" :key="item.id">
+                                                                <article class="item-card" :class="{ 'restaurant-menu-card': element.type === 'restaurant.menuGrid' }">
+                                                                    <div class="item-card-media" :style="{ '--item-media-ratio': element.props.itemElement === 'restaurant.menuItemCard' ? '1 / 1' : '4 / 3' }">
+                                                                        <img class="item-image" :src="item.media && item.media.length ? item.media[0].url : 'https://placehold.co/600x400?text=No+Image'" :alt="item.title">
+                                                                        <span class="item-badge" x-text="item.badge"></span>
+                                                                    </div>
+                                                                    <div class="item-content">
+                                                                        <h3 class="item-title" x-text="item.title"></h3>
+                                                                        <p class="item-description" x-text="item.description"></p>
+                                                                    </div>
+                                                                    <footer class="item-footer">
+                                                                        <div>
+                                                                            <div class="item-price" x-text="formatPrice(item.price)"></div>
+                                                                            <div class="item-meta" x-text="item.seller?.name"></div>
+                                                                        </div>
+                                                                        <button class="restaurant-add-button" x-show="element.props.enableCart" x-text="element.props.cartButtonLabel || 'Add'"></button>
+                                                                    </footer>
+                                                                </article>
+                                                            </template>
+                                                        </div>
+                                                    </template>
+                                                    <template x-if="element.type === 'common.emptyState'">
+                                                        <div class="empty-state">
+                                                            <h3 x-text="element.props.title"></h3>
+                                                            <p x-text="element.props.message"></p>
+                                                        </div>
+                                                    </template>
+                                                    <template x-if="element.type === 'profile.summary'">
+                                                        <div class="profile-header">
+                                                            <div class="profile-avatar" :style="'background:' + getProfileAvatarColor(element.data?.sellerId)" x-text="getInitials(element.data?.name)"></div>
+                                                            <div>
+                                                                <h2 x-text="element.data?.name || 'Sample Seller'"></h2>
+                                                                <div class="profile-meta">
+                                                                    <span class="profile-meta-item" x-text="element.data?.email || 'seller@constructor.university'"></span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+                                                    <template x-if="element.type === 'profile.listingList'">
+                                                        <div class="layout-card-grid" :style="{ '--grid-min-item-width': '18rem' }">
+                                                            <template x-for="item in element.data || []" :key="item.id">
+                                                                <article class="profile-listing-card">
+                                                                    <img class="profile-listing-image" :src="item.media && item.media.length ? item.media[0].url : 'https://placehold.co/120x90?text=No+Image'" :alt="item.title">
+                                                                    <div class="profile-listing-info">
+                                                                        <h4 x-text="item.title"></h4>
+                                                                        <div class="item-meta" x-text="item.badge"></div>
+                                                                        <strong x-text="formatPrice(item.price)"></strong>
+                                                                    </div>
+                                                                </article>
+                                                            </template>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                            <button class="builder-drop-target" @dragover.prevent @drop.prevent="dropBuilderElementAtEnd(region.id)" @click="selectBuilderRegion(region.id)">Drop or click to add to <span x-text="region.id"></span></button>
+                                        </section>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <details class="builder-json-panel">
+                        <summary>Layout JSON</summary>
+                        <textarea class="builder-code" x-model="builder.importExportText"></textarea>
+                    </details>
+                </section>
+
+                <aside class="builder-panel">
+                    <div class="section-heading"><h3>Inspector</h3></div>
+                    <template x-if="selectedBuilderElement && selectedBuilderDefinition">
+                        <div class="builder-fieldset">
+                            <div><strong x-text="selectedBuilderDefinition.label"></strong></div>
+                            <div class="item-meta" x-text="selectedBuilderElement.type"></div>
+                            <template x-for="control in selectedBuilderDefinition.editor.controls" :key="control.key">
+                                <label>
+                                    <span x-text="control.key"></span>
+                                    <template x-if="control.kind === 'toggle'">
+                                        <input type="checkbox" :checked="Boolean(selectedBuilderElement.props[control.key])" @change="updateBuilderProp(control.key, $event.target.checked)">
+                                    </template>
+                                    <template x-if="control.kind === 'select'">
+                                        <select :value="selectedBuilderElement.props[control.key]" @change="updateBuilderProp(control.key, $event.target.value)">
+                                            <template x-for="option in control.options" :key="option">
+                                                <option :value="option" x-text="option"></option>
+                                            </template>
+                                        </select>
+                                    </template>
+                                    <template x-if="control.kind === 'text'">
+                                        <input type="text" :value="selectedBuilderElement.props[control.key] || ''" @input="updateBuilderProp(control.key, $event.target.value)">
+                                    </template>
+                                    <template x-if="control.kind === 'textarea'">
+                                        <textarea @input="updateBuilderProp(control.key, $event.target.value)" x-text="selectedBuilderElement.props[control.key] || ''"></textarea>
+                                    </template>
+                                </label>
+                            </template>
+                        </div>
+                    </template>
+                    <template x-if="!selectedBuilderElement">
+                        <p>Select an element to edit its props.</p>
+                    </template>
+
+                    <div class="builder-fieldset">
+                        <strong>Validation</strong>
+                        <template x-for="error in builder.validationErrors" :key="error">
+                            <div class="feedback-banner error"><p x-text="error"></p></div>
+                        </template>
+                        <template x-for="warning in builder.warnings" :key="warning">
+                            <div class="feedback-banner"><p x-text="warning"></p></div>
+                        </template>
+                    </div>
+                </aside>
+            </div>
+        </div>
     </main>
+
+    <div class="modal-overlay" x-show="confirmDeletePostId" x-transition>
+        <div class="modal-card">
+            <h3>Delete Listing</h3>
+            <p>This cannot be undone. Delete this listing?</p>
+            <div class="form-actions">
+                <button class="outline secondary" @click="cancelDeletePost()">Cancel</button>
+                <button @click="deleteProfilePost(confirmDeletePostId)">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" x-show="profile.showDeleteAccountModal" x-transition @click.self="profile.showDeleteAccountModal = false">
+        <div class="modal-card">
+            <h3>Delete Account</h3>
+            <p>This action is permanent. All your listings will be deleted.</p>
+            <label>Enter your password to confirm
+                <input type="password" x-model="profile.deleteAccountConfirmPassword">
+            </label>
+            <div class="form-actions">
+                <button class="outline secondary" @click="profile.showDeleteAccountModal = false; profile.deleteAccountConfirmPassword = ''">Cancel</button>
+                <button :disabled="!profile.deleteAccountConfirmPassword" @click="deleteAccount()">Delete Forever</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
