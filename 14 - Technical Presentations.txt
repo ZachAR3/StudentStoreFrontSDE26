@@ -1,331 +1,0 @@
-Technical Presentations
-Pavel Egorov
-
-
-
-Software Engineering and Design Course
-Constructor University, 2026
-
-Why?
-
-Presentations in BSc program
-Project demo in this or other courses
-Presentation of your thesis project
-
-Not just for University
-In Software Development and Research:
-Report for your team about finished project
-Promote new technology or approach in the team
-Demo of new feature
-Demo at Hackathon
-Talk at Team Gathering
-Conference Talk
-Startup or Project Pitch
-...
-
-Even IC Grades Require Impact
-JetBrains Individual Contributor Grades
-
-Let’s learn how to do it!
-
-It is not a Ritual
-No set of rules!
-If you replicate average presentation that you have seed — it probably will be bad!
-
-Define Goals
-
-Recognize good goals
-The goal is to tell about my project
-Team Lead said me that it is important
-I want other teams to integrate our library
-To increase our visibility in the company
-It is required in the course to give a presentation
-
-Recognize good goals
-The goal is to tell about my project
-Team Lead said me that it is important
-I want other teams to integrate our library
-To increase our visibility in the company
-It is required in the course to give a presentation
-
-Why are you presenting?
-Typical wrong answers:
-Because I have to...
-Because I was asked to...
-Because It was supposed to do...
-Because it will be graded...
-Goal is not BECAUSE, it is WHAT ARE YOU GOING TO ACHIEVE?
-
-You and your audience
-Every presentation: presenter goal + audience goal
-Your Goal = what you want to change in the audience's mind
-Audience Goal = what they hope to get out of your presentation
-
-
-Misaligned goals — waste of time
-
-Practice!
-Reconstruct goals in these cases:
-Presentation of the planned architecture
-Prototype demo to product manager
-Research results pitch
-Project demo in this course
-
-What is the difference: Speaker vs Audience goals?
-
-Get Approval vs Validate the risks
-Get prioritized vs Find impactful idea
-Get collabortators vs Get inspiration, learn new tricks, ...
-
-This Course Project Demo
-You: get a highest possible score
-Jury: evaluate fairly + find something new, interesting, non-trivial
-Evaluation Criteria:
-Product Value: 40%
-Technical Challenges / Learning Value: 40%
-Presentation Clarity: 30%
-Clarity also has implicit effect: if unclear → can't score → defaults to low
-
-Structure the Talk
-
-Goals define structure
-Demonstrate Product Value
-Demonstrate Technical Challenges, and what you learned
-
-Universal structure(suitable for every talk ever)
-Warm-up, alignment with audience
-Context of the problem, observations
-Problem description and why it is important
-Alternative solutions: why they fail
-Your solution: methodology, approach, algorithm, ...
-Evidence it is working: tests, evaluations, usage statistics, feedback, ...
-Analysis: answer to the typical objections, ablation studies, implications.
-Summary and call to action
-What can we skip for the short talk?
-
-Structure: minimal version
-Problem description and why it is important
-Your solution: methodology, approach, algorithm, ...
-Evidence it is working: tests, evaluations, usage statistics, feedback, ...
-Summary and call to action
-How to combine Product Value and Tech Challenges in this structure?
-You can repeat the same structure several times:for user problem, for 1 technical problem, for 2 technical problem.
-
-10 minutes time bounds
-
-Time Bound
-Can't cover everything in 10 minutes — choose 
-2 min overview → what is this, why it matters, what you achieved
-2–4 deep dives → most significant moments
-Course defense: ~2 product + ~2 technical moments
-
-
-
-Cutting = choosing, not losing
-
-Product Value
-
-Product Value
-problem and its cost → failed alternatives → solution → evidence
-No hypotheticals — show real people and real case
-Toy validation counts: a small real use case beats abstract words
-Address the trivial objection: why won't users do obvious thing instead?
-
-→ Use power of Demo ←
-
-Practice
-“Developers sometimes struggle to write good PR descriptions.This can slow down code review.Existing tools don't fully solve this.We built a tool that generates descriptions with AI.We believe it will save time for developers”
-Evaluate product value!
-
-Stronger version
-“Nowadays developers tend to delegate writing PR descriptions to AI.But AI summarizes what changed — not why it matters or what to review. We fight exactly this problem.On 20 PRs in our evals dataset sour solution demonstrate +40% description quality compared to Github Copilot”
-What is changed?
-What is still missing?
-
-Real Evidence vs Hypotheticals
-"Imagine a student with 3 exams..."
-"We ran 3 students through exam week."
-"They might feel overwhelmed especially if..."
-"Two abandoned their spreadsheet by day 3."
-"This is a feedback from my team lead: ...”
-“All students struggle with ...”
-
-Real Evidence vs Hypotheticals
-"Imagine a student with 3 exams..."
-"We ran 3 students through exam week."
-"They might feel overwhelmed especially if..."
-"Two abandoned their spreadsheet by day 3."
-"This is a feedback from my team lead: ...”
-“All students struggle with ...”
-
-Demo
-Before any details — demo speaks for its own
-Live > recorded
-Recorded is still fine.
-Always have a recording as a plan B
-Let jury use it!
-If it crashes: 1 sentence → move on
-
-
-Technical Challenges
-
-What is Technical Challenge?
-Challenge = Solving uncertainty!
-Exploration with no obvious answer
-Iterating through failed approaches
-Evaluating real trade-offs based on evidence
-← not required to tell about all iterations!
-
-Practice: Evaluate challenges
-“We used React, FastAPI, Redis, K8s”
-“We implemented 15 endpoints, 8 screens it was a lot of work”
-“We'd never used K8s before, it was very hard to learn it”
-
-Not bad, but not a challenge!
-Listing technologies"We used React, FastAPI, Redis, K8s" 	→ that's a stack, not a challenge
-Volume of work"We implemented 15 endpoints, 8 screens it was a lot of work"	→ volume is not a challenge!
-Learning was hard"We'd never used K8s before, it was very hard to learn it"	→ signals inexperience, not a challenge
-
-Design Slides
-
-Avoid long essay on the slides!
-Putting large blocks of text on presentation slides is a poor design pattern that undermines effective communication because slides are meant to support the speaker, not replace them; when overloaded with dense paragraphs, they distract the audience, split attention, and often go unread; moreover, this approach encourages passive reading instead of active listening, making the presentation dull and harder to follow. 
-Take into consideration that overwriting slides are signals of a lack of preparation or failure to prioritize what really matters, therefore, please, consider key ideas to be distilled into short and concise bullet points or visuals, allowing the speaker to elaborate verbally. 
-this slide demonstrates an antipattern
-
-No essay on slides
-No long texts on slides
-Short bullets:
-support speaker
-don’t replace
-Use headlinese-like language!
-Language of newspaper headers
-No articles, no auxiliary verbs, simple tense, etc.
-
-Slides
-One idea
-Explicitly
-Title
-Help with distraction
-Statement — Proofs / Elaborations
-Question — Answers
-
-
-this slide demonstrates an antipattern
-
-One Slide, One Idea
-Every slide: one idea, written explicitly on the slide
-"If someone looks for 5 sec and looks away — what do they know?"
-Design variants:
-Title = Statement, Content = Proofs / Elaboration
-Title = Question, Content = Answer
-
-
-← like this
-
-Slide complexity = time
-Count objects on the slide: text, boxes, arrows, visuals.
-Sum the time required to understand each of them
-It is the time you HAVE to spend on this slide
-Ineffective waste of time → simplify slide!
-
-Typical slide: 30s — 2m.
-
-Control attention with size
-Fonts: 
-important = big
-small font always work as a distractor and signal unimportance
-
-Control attention with animation
-Complex slides — easy way to lose attention!
-2-3 columns (where to look?!? Left or right?)
-Big table (which column is important?)
-Two big tables! 
-... and a chart on the same slide!
-Huge diagram (where to start?!)
-... with a bullet list aside!
-or just a long bullet list like this one
-All of these become not so scary when revealed piece by piece
-Splitting the complex slide is also solution!
-
-Turn on slide numbering
-On sessions with intensive Q&A: Turn on slide numbering!Jury wants to be able: "Go back to slide 5"
-
-Final slide = Summary
-Not "Thank you / Questions?"Jury stares at your last slide through all of Q&A session→ Make it a reference, not a placeholder
-Good content for the last slide:
-Parts of your project
-Who did what
-Planned vs Finished
-
-AI Slide Generators
-Nice starting point — bad final result. Risks:
-nice looking, but structurally broken
-deliver the wrong idea
-Avoid generators, that gives you non-editable presentations	like Gemini in Google Slides 
-
-
-Delivery
-
-Team narration: Split by Arc, Not by Responsibility
-BAD — "who did what":
-“Hi, I'm Alex, I did the backend."
-"Hi, I'm Bella, I did the ML." / ...→ context switches, no narrative thread
-GOOD — story arc:
-Alex: problem + value + demo
-Bella: architecture + hard challenge
-John: evaluation, summary
-Together: Q&A
-
-Rehearse
-At least 2-3 repetitions!
-Remove waste: filler words, simplify sentences, cut trivia
-Fix transitions
-Check clarity:
-don’t use terms before introduction
-necessary context is provided
-Test on someone outside of your team:	→ An outsider tells you exactly where they got lost
-
-
-Move slides to backup
-What if you found that timing is too strict?
-Move 2-3 less valuable slides to the backup area after the summary.Use them during Q&A
-
-Care of audience!
-
-Q&A
-
-Why Jury asks?
-Typical Reasons:
-Can't score a criterion yet — need more information
-Genuinely curious about something interesting.
-Want to share their experience to help your project.
-Neither is an attack!Confronting or rejecting is always a bad strategy.
-Q&A = opportunity to show depth you didn't have time to cover
-
-Q&A Strategy
-Figure out which criterion is being probed → answer to help them score it
-You may change a question a bit:"We didn't try X, but we solved the same problem this way"
-Be brief: long 3-min answer eats time for other questions
-Leave hooks during the talk:"No time now — ask me and I'll show a backup slide"
-Acknowledge and clarify discovered weakness:→ rejecting is a sign of non-professionalism
-
-
-Cool tech talks
-How to give a great research talk  https://www.youtube.com/watch?v=sT_-owjKIbA 
-Plain Text https://www.youtube.com/watch?v=_mZBa3sqTrI 
-AI and devs productivity https://www.youtube.com/watch?v=tbDDYKRFjhk 
-How to avoid death By PowerPoint https://www.youtube.com/watch?v=Iwpi1Lm6dFo 
-
-
-Summary
-Goals → Structure → Slides → Rehearsal
-Problem → Solution → Evaluation → Summary
-Care of your audience
-One slide = one explicit claim
-Q&A: opportunity, not interrogation
-Learn by watching cool speakers!
-
-Instant Feedback (1 min)
-Name the most valuable or boringidea in this lecture →
-
