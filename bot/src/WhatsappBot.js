@@ -8,17 +8,43 @@ const { startWebhookServer }                          = require('./services/webh
 const langfuse                                        = require('./services/langfuseService')
 
 // ─── Persistent state ────────────────────────────────────────────────────────
-const NOT_CONSENTED_TO_MESSAGE_UPLOAD     = new Set()
-const consentedUsers                      = new Set()
+const NOT_CONSENTED_TO_MESSAGE_UPLOAD = new Set()
+const consentedUsers                  = new Set()
 const userState                       = new Map()
 
-// Persistence mechanism that loads consented users from disk (consentedUsersPersistence.JSON file)
+const path = require('path')
+const CONSENTED_USERS_FILE = path.join(__dirname, '../consentedUsersPersistence.json')
+const USER_STATE_FILE      = path.join(__dirname, '../userStatePersistence.json')
+
+// Load consented users from disk
 try {
-    JSON.parse(fs.readFileSync(require('path').join(__dirname, '../consentedUsersPersistence.json'), 'utf8'))
-    .forEach(number => consentedUsers.add(number))
-}
-catch (error) {
-    console.error('Error loading consented users:', error)
+    JSON.parse(fs.readFileSync(CONSENTED_USERS_FILE, 'utf8'))
+        .forEach(number => consentedUsers.add(number))
+} catch (_) {}
+
+// Load userState from disk — timers are always null on reload
+try {
+    const saved = JSON.parse(fs.readFileSync(USER_STATE_FILE, 'utf8'))
+    Object.entries(saved).forEach(([phone, state]) => {
+        userState.set(phone, { ...state, timer: null })
+    })
+    if (userState.size > 0) console.log(`Restored ${userState.size} user state(s) from disk`)
+} catch (_) {}
+
+function saveUserState() {
+    const serializable = {}
+    userState.forEach((state, phone) => {
+        serializable[phone] = {
+            listing:             state.listing,
+            consentPending:      state.consentPending,
+            registrationPending: state.registrationPending
+        }
+    })
+    try {
+        fs.writeFileSync(USER_STATE_FILE, JSON.stringify(serializable, null, 2))
+    } catch (err) {
+        console.error('Error saving userState:', err)
+    }
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -102,6 +128,7 @@ client.on('message', async msg => {
             registrationPending: false,
             timer: null
         })
+        saveUserState()
     }
 
     // ── Group messages ────────────────────────────────────────────────────────
@@ -149,6 +176,7 @@ client.on('message', async msg => {
                             'Do you consent to adding your listing to our marketplace? Reply YES or NO.'
                         )
                         userState.get(contact.number).consentPending = true
+                        saveUserState()
                     } catch (error) {
                         console.error('Failed to send consent message:', error)
                     }
@@ -159,15 +187,18 @@ client.on('message', async msg => {
                         if (success === true) {
                             await client.sendMessage(contact.number + '@c.us', 'Your listing has been uploaded successfully!')
                             userState.delete(contact.number)
+                            saveUserState()
                         } else if (success === null) {
                             const appBaseUrl = process.env.APP_BASE_URL || 'http://localhost:8080'
                             await client.sendMessage(contact.number + '@c.us',
                                 `You need to register first! Visit ${appBaseUrl} and click Sign Up. ` +
                                 'Reply "registered" when done and I will upload your listing automatically.')
                             userState.get(contact.number).registrationPending = true
+                            saveUserState()
                         } else {
                             await client.sendMessage(contact.number + '@c.us', 'Something went wrong uploading your listing. Please try again later.')
                             userState.delete(contact.number)
+                            saveUserState()
                         }
                     } catch (error) {
                         console.error('Failed to send post-listing message:', error)
@@ -175,6 +206,7 @@ client.on('message', async msg => {
                 }
             } else {
                 userState.delete(contact.number)
+                saveUserState()
                 console.log('Gemini: not a listing — discarding')
             }
 
@@ -197,6 +229,7 @@ client.on('message', async msg => {
             userState.get(contact.number).listing.messages.push(msg.body)
         }
 
+        saveUserState()
     }
 
     // ── DM responses (consent flow) ───────────────────────────────────────────
@@ -235,6 +268,7 @@ client.on('message', async msg => {
                         `You need to register first! Visit ${appBaseUrl} and click Sign Up. ` +
                         'Reply "registered" when done and I will upload your listing automatically.')
                     userState.get(contact.number).registrationPending = true
+                    saveUserState()
                 } catch (error) {
                     console.error('Failed to send registration prompt:', error)
                 }
@@ -253,7 +287,7 @@ client.on('message', async msg => {
 
             consentedUsers.add(contact.number)
             try {
-                fs.writeFileSync(require('path').join(__dirname, '../consentedUsersPersistence.json'), JSON.stringify([...consentedUsers]))
+                fs.writeFileSync(CONSENTED_USERS_FILE, JSON.stringify([...consentedUsers]))
             } catch (error) {
                 console.error('Error saving consented users:', error)
             }
@@ -264,6 +298,7 @@ client.on('message', async msg => {
                     'Your listing has been uploaded successfully!'
                 )
                 userState.delete(contact.number)
+                saveUserState()
             } catch (error) {
                 console.error('Failed to send success message:', error)
             }
@@ -271,6 +306,7 @@ client.on('message', async msg => {
         } else if (dmResponse === 'no') {
             NOT_CONSENTED_TO_MESSAGE_UPLOAD.add(contact.number)
             userState.delete(contact.number)
+            saveUserState()
             console.log('User declined consent')
         }
 
@@ -282,8 +318,9 @@ client.on('message', async msg => {
                     try {
                         await client.sendMessage(contact.number + '@c.us', 'Your listing has been uploaded successfully!')
                         consentedUsers.add(contact.number)
-                        fs.writeFileSync(require('path').join(__dirname, '../consentedUsersPersistence.json'), JSON.stringify([...consentedUsers]))
+                        fs.writeFileSync(CONSENTED_USERS_FILE, JSON.stringify([...consentedUsers]))
                         userState.delete(contact.number)
+                        saveUserState()
                     } catch (error) {
                         console.error('Failed to send success message:', error)
                     }
@@ -302,12 +339,15 @@ client.on('message', async msg => {
 
 // ─── Cleanup: remove stale listings every 3 hours (12-hour expiry) ────────────
 setInterval(() => {
+    let anyDeleted = false
     userState.forEach((state, phoneNumber) => {
         if (state.listing.createdAt + LISTING_EXPIRY_HOURS * 60 * 60 * 1000 < Date.now()) {
             userState.delete(phoneNumber)
+            anyDeleted = true
             console.log('Expired listing removed for:', phoneNumber)
         }
     })
+    if (anyDeleted) saveUserState()
 }, 3 * 60 * 60 * 1000)
 
 client.initialize()
