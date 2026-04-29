@@ -1,3 +1,8 @@
 {
-  "dependencies": {}
+  "dependencies": {
+    "@langfuse/openai": "^5.2.0",
+    "@langfuse/otel": "^5.2.0",
+    "@opentelemetry/sdk-node": "^0.215.0",
+    "openai": "^6.35.0"
+  }
 }

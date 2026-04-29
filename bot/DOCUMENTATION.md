@@ -36,6 +36,7 @@ The bot also handles WhatsApp-based QR login, allowing users to authenticate on 
 | [`axios`](https://axios-http.com/) | ^1.14.0 | HTTP client for all Spring Boot API calls. |
 | [`dotenv`](https://github.com/motdotla/dotenv) | ^17.4.1 | Loads `.env` variables into `process.env`. |
 | [`qrcode-terminal`](https://github.com/gtanner/qrcode-terminal) | ^0.12.0 | Renders the WhatsApp QR code directly in the terminal for initial authentication. |
+| [`langfuse`](https://langfuse.com) | ^3.38.20 | LLM observability — traces every Gemini/Gemma call with latency, token usage, and errors. |
 
 ### Why `whatsapp-web.js`?
 
@@ -52,14 +53,17 @@ The bot also handles WhatsApp-based QR login, allowing users to authenticate on 
 bot/
 ├── src/
 │   ├── WhatsappBot.js              # Entry point — client lifecycle + message handler
-│   └── services/
-│       ├── botGeminiService.js     # Gemini classification & parsing logic
-│       ├── springServices.js       # All Spring Boot REST API calls
-│       ├── webhookService.js       # Express server for the seller-registered webhook
-│       ├── claudinary.js           # Cloudinary image upload helper
-│       └── Prompt-File.js          # Gemini prompt templates (classification + parsing)
-├── src/tests/
-│   └── GeminiAPI-test-Mock.js      # Standalone test harness with mocked services
+│   ├── services/
+│   │   ├── botGeminiService.js     # Gemini classification & parsing (production LLM)
+│   │   ├── Gemma4Service.js        # Gemma 4 via local Ollama (benchmark/testing only)
+│   │   ├── langfuseService.js      # Langfuse singleton for LLM observability tracing
+│   │   ├── springServices.js       # All Spring Boot REST API calls
+│   │   ├── webhookService.js       # Express server for the seller-registered webhook
+│   │   ├── claudinary.js           # Cloudinary image upload helper
+│   │   └── Prompt-File.js          # Gemini prompt templates (classification + parsing)
+│   └── tests/
+│       ├── GeminiAPI-test-Mock.js  # Standalone test harness with mocked services
+│       └── runBenchmark.js         # Head-to-head Gemini vs Gemma benchmark (requires Ollama)
 ├── consentedUsersPersistence.json  # Persisted list of phone numbers that gave consent
 ├── .env                            # Local secrets (not committed)
 ├── .env.example                    # Template showing required variables
@@ -111,9 +115,9 @@ A `setInterval` runs every 3 hours and removes entries from `userState` whose `c
 
 ---
 
-### 4.2 `botGeminiService.js` — AI Classification & Parsing
+### 4.2 `botGeminiService.js` — AI Classification & Parsing (Production)
 
-All Gemini logic is isolated here. It exposes two functions:
+All production Gemini logic is isolated here. It exposes two functions:
 
 #### `GeminiContextClassifier(messages: string[]) → 'YES' | 'NO'`
 
@@ -131,11 +135,44 @@ Takes the joined message text and asks Gemini to extract structured listing fiel
 - Strips any surrounding markdown from the response and parses the JSON.
 - Returns an object `{ title, price, description, category }` or `null` on failure.
 
-**Model used:** `gemini-2.5-flash-lite`
+**Model fallback chain:** `gemini-2.5-flash-lite` → `gemini-2.0-flash-lite` → `gemini-1.5-flash-8b` → `gemini-1.5-flash`
+
+If the primary model fails for any reason (403, quota exceeded, rate limit, network error), the next model in the chain automatically takes over. A warning is printed to the console on each fallback. If all models fail, a final error is logged and the function returns `null`/`'NO'` safely.
 
 ---
 
-### 4.3 `springServices.js` — Backend API Calls
+### 4.3 `Gemma4Service.js` — Local Model (Benchmark & Testing Only)
+
+> **This service is not used by the bot at runtime.** It is only imported by the benchmark script. Teammates without a local Ollama installation are not affected.
+
+`Gemma4Service.js` mirrors the exact interface of `botGeminiService.js` but calls a locally running [Ollama](https://ollama.com) instance instead of the Gemini API. It is used to evaluate whether a local model can replace the cloud API for cost or latency reasons.
+
+- Calls `POST http://localhost:11434/api/generate` with `stream: false`.
+- Uses Node's native `http` module — no extra dependencies.
+- Exports `GemmaMessageParser` and `GemmaContextClassifier` with the same signatures.
+- Full Langfuse tracing is included, identical to `botGeminiService.js`.
+
+**Configuration (optional `.env` overrides):**
+
+| Variable | Default | Description |
+|---|---|---|
+| `OLLAMA_MODEL` | `gemma4:e4b` | Model name as it appears in `ollama list` |
+| `OLLAMA_HOST` | `127.0.0.1` | Ollama server host |
+| `OLLAMA_PORT` | `11434` | Ollama server port |
+
+To run Gemma4 locally: `ollama pull gemma4:e4b` then start the benchmark.
+
+---
+
+### 4.4 `langfuseService.js` — LLM Observability
+
+A singleton [Langfuse](https://langfuse.com) client shared across all services. Provides tracing for every LLM call — model name, input prompt, output, latency, token usage (Gemini only), and error details. Traces are visible in the Langfuse dashboard grouped by `sessionId` (phone number) and `userId`.
+
+Required `.env` variables: `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_BASEURL`.
+
+---
+
+### 4.5 `springServices.js` — Backend API Calls
 
 Three functions, all authenticated via the `X-Bot-Api-Key` header (where required):
 
@@ -164,7 +201,7 @@ Used in the QR login flow. Sends the login token + phone number to Spring, which
 
 ---
 
-### 4.4 `webhookService.js` — Spring-to-Bot Webhook
+### 4.6 `webhookService.js` — Spring-to-Bot Webhook
 
 Starts an Express server that Spring Boot can call **after a user completes registration on the website**. This closes the loop when a user was asked to register before their listing could be processed.
 
@@ -187,7 +224,7 @@ Default port: `3001` (configurable via `BOT_WEBHOOK_PORT`).
 
 ---
 
-### 4.5 `claudinary.js` — Image Upload
+### 4.7 `claudinary.js` — Image Upload
 
 A thin wrapper around the Cloudinary v2 SDK. Accepts a Base64 data URI and returns the secure CDN URL, or `null` on failure.
 
@@ -203,7 +240,7 @@ Upload options: `unique_filename: true`, `overwrite: false`. Images are stored p
 
 ---
 
-### 4.6 `Prompt-File.js` — Gemini Prompt Templates
+### 4.8 `Prompt-File.js` — Gemini Prompt Templates
 
 Centralizes both prompt strings, keeping business logic separate from AI instructions.
 
@@ -445,6 +482,30 @@ The listing detection timer defaults to 30 seconds in development. Before deploy
 }, 30000)   //TODO: change back to 300000 (5 min) for production
 //   ↑ change to 300000
 ```
+
+### Running the Benchmark (optional — requires Ollama)
+
+The benchmark compares Gemini and local Gemma4 head-to-head on the same test cases and logs everything to Langfuse.
+
+> Teammates without Ollama installed can skip this entirely — it has no effect on the bot.
+
+**Prerequisites:**
+```bash
+ollama pull gemma4:e4b
+```
+
+**Run:**
+```bash
+node bot/src/tests/runBenchmark.js
+```
+
+Each run appends results to `bot/src/benchmark/benchmark-history.json` with:
+- Per-test scores (valid JSON, correct fields, correct price, correct category)
+- Per-model latency
+- Per-model reliability score (`1 − errors/tests`)
+- Full trace links in Langfuse
+
+---
 
 ### Troubleshooting
 

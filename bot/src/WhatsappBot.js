@@ -5,6 +5,7 @@ const { uploadImage }                              = require('./services/claudin
 const { createPost, getSellerByPhone, confirmWhatsAppLogin } = require('./services/springServices.js')
 const { GeminiMessageParser, GeminiContextClassifier } = require('./services/botGeminiService.js')
 const { startWebhookServer }                          = require('./services/webhookService.js')
+const langfuse                                        = require('./services/langfuseService')
 
 // ─── Persistent state ────────────────────────────────────────────────────────
 const NOT_CONSENTED_TO_MESSAGE_UPLOAD     = new Set()
@@ -27,26 +28,51 @@ const LISTING_EXPIRY_HOURS = 12
 // ─── Helper function ───────────────────────────────────────────────────────────────────
 
 async function processListing(contact, currentUserListing) {
-    
-// Cloudinary upload 
+    const trace = langfuse.trace({
+        name: "ProcessListing",
+        sessionId: contact.number,
+        userId: contact.number
+    });
+
+    // Cloudinary upload span
+    const cloudinarySpan = trace.span({ name: "CloudinaryUpload" });
     const uploadResults = await Promise.all(
         currentUserListing.imageUrls.map(image => {
             const base64 = `data:${image.mimetype};base64,${image.data}`
             return uploadImage(base64)
         })
-    )
-    const cloudinaryUrls = uploadResults.filter(url => url !== null)
+    );
+    const cloudinaryUrls = uploadResults.filter(url => url !== null);
+    cloudinarySpan.end({ output: { count: cloudinaryUrls.length } });
 
-    const parsedListing = await GeminiMessageParser(currentUserListing.messages.join('\n'))
+    const parsedListing = await GeminiMessageParser(currentUserListing.messages.join('\n'), {
+        sessionId: contact.number,
+        userId: contact.number,
+        parent: trace
+    })
+    
     if (!parsedListing) {
         console.error('Failed to parse listing with Gemini')
+        trace.end({ level: "ERROR", statusMessage: "Gemini parsing failed" });
+        await langfuse.flush()
         return false
     }
 
     const seller = await getSellerByPhone(contact.number)
-    if (!seller) return null
+    if (!seller) {
+        trace.end({ level: "WARNING", statusMessage: "Seller not found" });
+        await langfuse.flush()
+        return null
+    }
 
+    // Spring create post span
+    const springSpan = trace.span({ name: "CreatePost" });
     const result = await createPost(parsedListing, cloudinaryUrls, seller.sellerId)
+    springSpan.end({ output: result ? "SUCCESS" : "FAILED" });
+    
+    trace.end({ output: result ? "SUCCESS" : "FAILED" });
+    await langfuse.flush()
+
     if (!result) return false
     return true
 }
@@ -88,7 +114,21 @@ client.on('message', async msg => {
             const state = userState.get(contact.number)
             if (!state) return
 
-            const geminiResponse = await GeminiContextClassifier(state.listing.messages)
+            // Trace the classification decision for this user's messages
+            const classificationTrace = langfuse.trace({
+                name: "ClassificationTimer",
+                sessionId: contact.number,
+                userId: contact.number
+            });
+
+            const geminiResponse = await GeminiContextClassifier(state.listing.messages, {
+                sessionId: contact.number,
+                userId: contact.number,
+                parent: classificationTrace
+            });
+
+            classificationTrace.update({ output: geminiResponse });
+            await langfuse.flush()
 
             if (geminiResponse === 'YES') {
                 if (!userState.has(contact.number)) return

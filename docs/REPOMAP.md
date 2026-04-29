@@ -43,7 +43,17 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 ├── bot/                       # Node.js WhatsApp Bot integration
 │   ├── src/
 │   │   ├── WhatsappBot.js     # Main bot script: consent flow + QR login handler
-│   │   └── services/          # springServices.js, botGeminiService.js, claudinary.js, Prompt-File.js, webhookService.js
+│   │   ├── services/
+│   │   │   ├── botGeminiService.js   # Production LLM: Gemini with 4-model fallback chain
+│   │   │   ├── Gemma4Service.js      # Local LLM via Ollama (benchmark/testing only — not used by bot)
+│   │   │   ├── langfuseService.js    # Shared Langfuse client for LLM observability
+│   │   │   ├── springServices.js     # Spring Boot REST API calls
+│   │   │   ├── webhookService.js     # Express webhook server (seller-registered)
+│   │   │   ├── claudinary.js         # Cloudinary image upload helper
+│   │   │   └── Prompt-File.js        # Gemini/Gemma prompt templates
+│   │   └── tests/
+│   │       ├── GeminiAPI-test-Mock.js  # Standalone test harness with mocked services
+│   │       └── runBenchmark.js         # Head-to-head Gemini vs Gemma benchmark (requires Ollama)
 │   └── package.json           # Bot dependencies
 └── docker-compose.yaml        # Local PostgreSQL setup
 ```
@@ -189,7 +199,9 @@ The frontend is a **Progressive Web App (PWA)** built for speed and simplicity.
 
 ### **WhatsApp Bot Bridge**
 - **Bot Engine:** Built with `whatsapp-web.js`. Handles group message parsing and interactive commands.
-- **AI Analysis:** Uses **Google Gemini** (`gemini-2.0-flash-lite`) for intent classification and data extraction from natural language.
+- **AI Analysis:** Uses **Google Gemini** (`gemini-2.5-flash-lite`, with automatic fallback to `gemini-2.0-flash-lite` → `gemini-1.5-flash-8b` → `gemini-1.5-flash`) for intent classification and data extraction from natural language.
+- **Local Model (Benchmark only):** `Gemma4Service.js` calls a locally running **Gemma 4** model via [Ollama](https://ollama.com) for benchmarking against Gemini. It is not part of the production bot flow and requires no setup from teammates.
+- **LLM Observability:** [Langfuse](https://langfuse.com) traces every LLM call (latency, token usage, errors) across both Gemini and Gemma.
 - **Webhook Service:** Dispatches parsed data to the backend via secure endpoints.
 - **Cloudinary Integration:** Both bot and backend use Cloudinary for optimized image hosting.
 
