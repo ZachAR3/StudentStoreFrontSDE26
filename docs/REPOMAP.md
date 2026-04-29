@@ -25,25 +25,25 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 ├── src/
 │   ├── main/
 │   │   ├── kotlin/com/studentstorefront/
-│   │   │   ├── config/        # Security (JWT, Spring Security), OpenApi, System, and DataLoader
-│   │   │   ├── controller/    # REST Endpoints (Auth, Post, Seller, WhatsAppQrLogin)
+│   │   │   ├── config/        # Security (JWT, Spring Security), OpenApi, and DataLoader
+│   │   │   ├── controller/    # REST Endpoints (Auth, Favourite, Post, Seller, WhatsAppQrLogin)
 │   │   │   ├── dto/           # Data Transfer Objects (request, response, update)
-│   │   │   ├── entity/        # JPA Entities (Post, PostMedia, Seller, WhatsAppLoginSession)
+│   │   │   ├── entity/        # JPA Entities (Favourite, PasswordResetToken, Post, PostMedia, Seller, WhatsAppLoginSession)
 │   │   │   ├── enums/         # Enums (Category, Role, WhatsAppSessionStatus)
 │   │   │   ├── exception/     # Global Exception Handling
-│   │   │   ├── repository/    # Database Access Layers (Post, PostMedia, Seller, WhatsAppLoginSession)
-│   │   │   └── service/       # Business Logic (JwtService, UserDetailsService, PostService, SellerService, WhatsAppQrLoginService)
+│   │   │   ├── repository/    # Database Access Layers (Favourite, PasswordResetToken, Post, PostMedia, Seller, WhatsAppLoginSession)
+│   │   │   └── service/       # Business Logic (CloudinaryService, EmailService, FavouriteService, JwtService, PasswordResetService, PostService, SellerService, WhatsAppQrLoginService)
 │   │   └── resources/
 │   │       ├── static/        # Frontend (index.html, css/custom.css, js/app.js)
-│   │       └── application.properties # Database, JWT & WhatsApp bot config
+│   │       └── application.properties # Database, JWT, Email & WhatsApp bot config
 │   └── test/
 │       └── kotlin/com/studentstorefront/
-│           ├── service/       # Unit tests (WhatsAppQrLoginServiceTest — MockK, no Spring context)
+│           ├── service/       # Unit tests (WhatsAppQrLoginServiceTest — MockK)
 │           └── controller/    # Integration tests (WhatsAppQrLoginControllerTest — MockMvc + Testcontainers)
 ├── bot/                       # Node.js WhatsApp Bot integration
 │   ├── src/
 │   │   ├── WhatsappBot.js     # Main bot script: consent flow + QR login handler
-│   │   └── services/          # springServices.js, botGeminiService.js, claudinary.js
+│   │   └── services/          # springServices.js, botGeminiService.js, claudinary.js, Prompt-File.js, webhookService.js
 │   └── package.json           # Bot dependencies
 └── docker-compose.yaml        # Local PostgreSQL setup
 ```
@@ -58,125 +58,49 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 | :--- | :--- | :--- | :--- |
 | `POST` | `/api/auth/register` | Public | Register a new seller and receive a JWT Bearer token |
 | `POST` | `/api/auth/login` | Public | Authenticate with email/password and receive a JWT Bearer token |
-| `POST` | `/api/auth/whatsapp/session` | Public | Create a WhatsApp QR login session; returns `sessionId`, `qrContent` (wa.me deep link), and `expiresAt` |
+| `POST` | `/api/auth/forgot-password`| Public | Request a password reset link (sent via email) |
+| `POST` | `/api/auth/reset-password` | Public | Reset password using a valid token |
+| `POST` | `/api/auth/whatsapp/session` | Public | Create a WhatsApp QR login session; returns `sessionId`, `qrContent`, and `expiresAt` |
 | `GET` | `/api/auth/whatsapp/session/{sessionId}` | Public | Poll session status; returns `PENDING`, `COMPLETED` (with `claimToken`), `EXPIRED`, `PHONE_NOT_LINKED`, or `CLAIMED` |
-| `POST` | `/api/auth/whatsapp/confirm` | `X-Bot-Api-Key` header | Bot-only: confirm a login by supplying `loginToken` + `phoneNumber`; transitions session to `COMPLETED` and generates a `claimToken` |
-| `POST` | `/api/auth/whatsapp/claim` | Public | Exchange a one-time `claimToken` for a JWT; returns 410 Gone if already used or expired |
+| `POST` | `/api/auth/whatsapp/confirm` | `X-Bot-Api-Key` | Bot-only: confirm a login by supplying `loginToken` + `phoneNumber` |
+| `POST` | `/api/auth/whatsapp/claim` | Public | Exchange a one-time `claimToken` for a JWT |
 
 ### **Post Management** (`/api/posts`)
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/api/posts` | Fetch paginated list of all posts (default size=20) |
-| `POST` | `/api/posts` | Create a new listing (legacy JSON only) |
-| `POST` | `/api/posts/upload` | Create a new listing with multiple image file uploads (multipart/form-data) |
-| `GET` | `/api/posts/{id}` | Get details of a specific post |
-| `PUT` | `/api/posts/{id}` | Update an existing post |
-| `PATCH` | `/api/posts/{id}/mark-sold` | Mark a post as sold (removes from active feed) |
-| `DELETE` | `/api/posts/{id}` | Delete a post |
-| `GET` | `/api/posts/available` | Get only unsold listings |
-| `GET` | `/api/posts/category/{name}` | Filter posts by category (e.g., ELECTRONICS, BOOKS) |
-| `GET` | `/api/posts/seller/{id}` | Get all posts by a specific seller |
+| Method | Endpoint | Auth | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/posts` | Public | Fetch paginated list of all posts |
+| `POST` | `/api/posts` | SELLER/ADMIN | Create a new listing (JSON) |
+| `POST` | `/api/posts/upload` | SELLER/ADMIN | Create a new listing with multiple image file uploads (multipart/form-data) |
+| `POST` | `/api/posts/bot` | `X-Bot-Api-Key` | Bot-only: Create a new listing (e.g., from group chat parsing) |
+| `GET` | `/api/posts/{id}` | Public | Get details of a specific post |
+| `PUT` | `/api/posts/{id}` | SELLER/ADMIN | Update an existing post |
+| `PATCH` | `/api/posts/{id}/mark-sold`| SELLER/ADMIN | Mark a post as sold (removes from active feed) |
+| `DELETE` | `/api/posts/{id}` | SELLER/ADMIN | Delete a post |
+| `GET` | `/api/posts/available` | Public | Get only unsold listings |
+| `GET` | `/api/posts/category/{name}`| Public | Filter posts by category (e.g., ELECTRONICS, BOOKS) |
+| `GET` | `/api/posts/seller/{id}` | Public | Get all posts by a specific seller |
 
 ### **Seller Management** (`/api/sellers`)
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/api/sellers` | Fetch paginated list of all sellers (default size=20) |
-| `POST` | `/api/sellers` | Create a new seller directly (bypassing auth/register if admin) |
-| `GET` | `/api/sellers/{id}` | Get details of a specific seller |
-| `GET` | `/api/sellers/email/{email}`| Get details of a specific seller by email |
-| `GET` | `/api/sellers/by-phone` | Bot-specific: Lookup seller by phone number |
-| `PUT` | `/api/sellers/{id}` | Update an existing seller |
-| `DELETE` | `/api/sellers/me` | Self-service account deletion (requires password re-entry; deletes all user's posts) |
-| `DELETE` | `/api/sellers/{id}` | Delete a seller (admin only) |
+| Method | Endpoint | Auth | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/sellers` | ADMIN | Fetch paginated list of all sellers |
+| `POST` | `/api/sellers` | Public* | Create a new seller directly (Vulnerable: use `/auth/register`) |
+| `GET` | `/api/sellers/{id}` | SELLER/ADMIN | Get details of a specific seller |
+| `GET` | `/api/sellers/email/{email}`| ADMIN | Get details of a specific seller by email |
+| `GET` | `/api/sellers/by-phone` | Public* | Bot-specific: Lookup seller by phone number (Vulnerable: leaks PII) |
+| `PUT` | `/api/sellers/{id}` | SELLER/ADMIN | Update an existing seller |
+| `DELETE` | `/api/sellers/me` | SELLER/ADMIN | Self-service account deletion (requires password re-entry) |
+| `DELETE` | `/api/sellers/{id}` | ADMIN | Delete a seller |
 
-#### **Data Formats (JSON)**
+### **Favourites** (`/api/favourites`)
 
-**WhatsApp Session Response (`POST /api/auth/whatsapp/session`):**
-```json
-{
-  "sessionId": "a1b2c3d4-...",
-  "qrContent": "https://wa.me/15551234567?text=login%3Af7e8d9c0-...",
-  "expiresAt": "2026-04-21T14:35:00"
-}
-```
-
-**WhatsApp Poll Response (`GET /api/auth/whatsapp/session/{sessionId}`):**
-```json
-{ "status": "PENDING",    "claimToken": null }
-{ "status": "COMPLETED",  "claimToken": "x9y8z7w6-..." }
-{ "status": "EXPIRED",    "claimToken": null }
-```
-
-**WhatsApp Confirm Request (`POST /api/auth/whatsapp/confirm`) — bot only:**
-```json
-{ "loginToken": "f7e8d9c0-...", "phoneNumber": "15559876543" }
-```
-
-**WhatsApp Claim Request (`POST /api/auth/whatsapp/claim`):**
-```json
-{ "claimToken": "x9y8z7w6-..." }
-```
-
-**Auth Response (login, register, and claim all return this shape):**
-```json
-{
-  "token": "eyJhbGciOiJIUz...",
-  "type": "Bearer",
-  "seller": {
-    "sellerId": 1,
-    "name": "John Doe",
-    "email": "j.doe@constructor.university",
-    "phoneNumber": "+491234567890"
-  }
-}
-```
-
-**Post Request (`POST /api/posts`):**
-```json
-{
-  "title": "Calculus Textbook",
-  "price": 45.00,
-  "description": "Like new condition",
-  "imageUrlList": ["https://res.cloudinary.com/..."],
-  "category": "BOOKS",
-  "sellerId": 1,
-  "expiresAt": "2026-05-01T14:00:00"
-}
-```
-
-**Post Upload Request (Multipart `POST /api/posts/upload`):**
-- `post`: JSON Blob matching the above `Post Request` format.
-- `images`: Array of `MultipartFile` binary objects (up to 10).
-- `coverIndex`: Integer indicating which image index is the cover.
-
-**Post Response:**
-```json
-{
-  "postId": 1,
-  "title": "Calculus Textbook",
-  "price": 45.00,
-  "mediaUrls": ["https://res.cloudinary.com/..."],
-  "description": "Like new condition",
-  "category": "BOOKS",
-  "isSold": false,
-  "createdAt": "2026-03-23T14:00:00",
-  "expiresAt": "2026-05-01T14:00:00",
-  "seller": {
-    "sellerId": 1,
-    "name": "John Doe",
-    "email": "j.doe@constructor.university",
-    "phoneNumber": "+491234567890"
-  }
-}
-```
-
-**Delete Account Request (`DELETE /api/sellers/me`):**
-```json
-{ "password": "currentPassword123!" }
-```
-Returns `204 No Content` on success, `403 Forbidden` with `{"message": "Incorrect password"}` on wrong password.
+| Method | Endpoint | Auth | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/favourites` | SELLER/ADMIN | Get a list of `postId`s that the current user has favourited |
+| `POST` | `/api/favourites/{postId}` | SELLER/ADMIN | Add a post to user's favourites |
+| `DELETE` | `/api/favourites/{postId}`| SELLER/ADMIN | Remove a post from user's favourites |
 
 ---
 
@@ -211,19 +135,31 @@ Returns `204 No Content` on success, `403 Forbidden` with `{"message": "Incorrec
 - `isEnabled`: Boolean active status flag
 - `createdAt`: Timestamp
 
+### **Favourite**
+- `id`: Primary Key (Long)
+- `seller`: Reference to the `Seller` who favourited
+- `post`: Reference to the favourited `Post`
+- `createdAt`: Timestamp
+
+### **PasswordResetToken**
+- `id`: Primary Key (Long)
+- `token`: Unique reset token (String)
+- `seller`: Reference to the `Seller`
+- `expiryDate`: Timestamp after which token is invalid
+
 ### **WhatsAppLoginSession** (table: `whatsapp_login_sessions`)
 - `id`: Primary Key (UUID)
 - `sessionId`: UUID shared with the frontend for polling (unique)
 - `loginToken`: UUID embedded in the QR code / wa.me deep link (unique)
 - `claimToken`: UUID issued on bot confirmation, exchanged once for a JWT (unique, nullable)
 - `status`: Enum — `PENDING` → `COMPLETED` → `CLAIMED`; or `EXPIRED` / `PHONE_NOT_LINKED`
-- `sellerId`: FK to `sellers.sellerId` (populated when bot confirms a matching phone)
-- `phoneNumber`: Raw phone number received from bot (audit log)
+- `sellerId`: FK to `sellers.sellerId`
+- `phoneNumber`: Raw phone number received from bot
 - `creatorIp`: IP address of the browser that created the session
 - `createdAt`: Session creation timestamp
-- `expiresAt`: `createdAt + 5 minutes`; session rejects confirmation after this
+- `expiresAt`: `createdAt + 5 minutes`
 - `completedAt`: Timestamp when bot confirmed the login
-- `claimedAt`: Timestamp when frontend exchanged claimToken for JWT (terminal state)
+- `claimedAt`: Timestamp when frontend exchanged claimToken for JWT
 
 ---
 
@@ -231,39 +167,36 @@ Returns `204 No Content` on success, `403 Forbidden` with `{"message": "Incorrec
 
 The frontend is a **Progressive Web App (PWA)** built for speed and simplicity.
 
-- **`index.html`**: Uses **Pico.css** for a native-feeling mobile UI. **Alpine.js** handles the reactive state (listing grid, form visibility, profile view).
-- **`js/app.js`**: Contains client-side logic to communicate with the Spring Boot backend REST API. Includes SPA navigation across views: listings, login, register, create listing, WhatsApp login, and user profile.
+- **`index.html`**: Uses **Pico.css** for a native-feeling mobile UI. **Alpine.js** handles the reactive state.
+- **`js/app.js`**: Client-side logic for API communication, SPA navigation, and interactive features.
 - **`css/custom.css`**: Supplementary styling overrides.
 
-**Views (SPA):**
-- **Listings** — Homepage grid of item cards with category/sort filters and search. Includes an Alpine.js interactive image carousel for multi-photo listings. Each card features quick-contact links (Email & pre-filled WhatsApp `wa.me` links).
-- **Favourites** — Grid view of saved items, fully synced with the backend via `FavouriteController`. Accessible via the header icon.
-- **Profile** — Displays seller info (avatar, name, email, phone, listing count) and their posted listings. Own-profile includes listing management (mark sold, delete) and a "Danger Zone" for account deletion with password-verified confirmation modal.
-- **Login / Register / WhatsApp Login** — Authentication flows.
-- **Create Listing** — Authenticated form for posting new items. Features a drag-and-drop upload zone supporting up to 10 local images with live previews and drag-to-reorder functionality. Uploads are handled securely via the Spring Boot backend to Cloudinary.
+**Key Features:**
+- **Listings Feed:** Interactive grid with category filters, search, and image carousels.
+- **Favourites System:** Real-time sync with backend to track saved items.
+- **Create Listing:** Multi-image upload with drag-and-drop, previews, and reordering.
+- **Profile Management:** Listing management (mark sold, delete) and account settings.
+- **Auth Flows:** Traditional Login/Register, WhatsApp QR Login, and Password Reset.
 
 ---
 
 ## 6. Integrations & Special Features
 
 ### **Security & University Verification**
-- Access and registrations enforce `@constructor.university` email domains to ensure a high-trust local community.
-- Authentication relies on **JSON Web Tokens (JWT)** generated during login, registration, or WhatsApp QR login to secure backend endpoints.
-- **TODO: Known Vulnerabilities**: `POST /api/sellers` is currently public and should be restricted to admins. `GET /api/sellers/by-phone` is public and should enforce the `X-Bot-Api-Key` header to prevent PII leakage.
+- Access and registrations enforce `@constructor.university` email domains.
+- Authentication relies on **JWT** Bearer tokens.
+- **Email Service:** Used for sending password reset links and other notifications.
 
 ### **WhatsApp Bot Bridge**
-- **Bot Engine:** The Node.js application (`whatsapp-web.js`) acts as a bridge.
-- **AI Analysis:** Uses **Google Gemini** (`gemini-2.0-flash-lite`) to classify if a group message is a valid listing and to parse structured data from natural language.
-- **Image Hosting:** Integrates with **Cloudinary** for storing and serving listing images.
-- **Consent Mechanism:** The bot tracks user consent state when users interact with it. Consent is explicitly registered or denied via chat before interactions or uploads to the platform occur.
+- **Bot Engine:** Built with `whatsapp-web.js`. Handles group message parsing and interactive commands.
+- **AI Analysis:** Uses **Google Gemini** (`gemini-2.0-flash-lite`) for intent classification and data extraction from natural language.
+- **Webhook Service:** Dispatches parsed data to the backend via secure endpoints.
+- **Cloudinary Integration:** Both bot and backend use Cloudinary for optimized image hosting.
 
 ### **WhatsApp QR Login**
-- **Flow:** Frontend calls `POST /session` → receives a `wa.me` deep link rendered as a QR code → user scans with phone → WhatsApp pre-fills `login:<token>` to the bot → bot calls `POST /confirm` with the token and sender's phone → backend looks up the Seller, issues a `claimToken`, marks session `COMPLETED` → frontend polls until `COMPLETED` → calls `POST /claim` with the `claimToken` → receives JWT.
-- **Session TTL:** 5 minutes from creation. `claimToken` TTL: 5 minutes from bot confirmation. Both are single-use.
-- **Bot authentication:** `POST /confirm` is guarded by `X-Bot-Api-Key` header (shared secret).
-- **Cleanup:** `@Scheduled` job runs every 5 minutes to expire stale `PENDING` sessions.
-- **Required env vars:** `WHATSAPP_BOT_PHONE` (bot number without `+`), `BOT_API_KEY` (set on both backend and bot).
+- A seamless, passwordless login flow where users scan a QR code on the website using WhatsApp to authenticate.
+- Relies on a shared secret (`BOT_API_KEY`) for secure communication between the Bot and Backend.
 
 ### **Testing**
-- **Unit tests** (`WhatsAppQrLoginServiceTest`): 19 tests covering all service branches using MockK — no Spring context loaded.
-- **Integration tests** (`WhatsAppQrLoginControllerTest`): 14 tests covering full HTTP stack using MockMvc + Testcontainers (real PostgreSQL). Each test runs in a rolled-back transaction for isolation.
+- **Unit tests:** High coverage for critical services using MockK.
+- **Integration tests:** Full-stack validation using MockMvc and Testcontainers (PostgreSQL).
