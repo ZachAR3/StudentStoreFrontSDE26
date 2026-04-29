@@ -2,4 +2,7 @@
 node_modules/
 .wwebjs_auth/
 .wwebjs_cache/
+.gemini/
+.junie/
+bot/LANGFUSE_DOCUMENTATION.md
 consentedUsersPersistence.json

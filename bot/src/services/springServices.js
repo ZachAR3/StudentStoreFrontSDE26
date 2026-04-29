@@ -1,6 +1,13 @@
 const axios = require('axios');
 require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') })
 
+if (!process.env.SPRING_BASE_URL) {
+    console.error('CRITICAL ERROR: SPRING_BASE_URL is not set in .env file');
+}
+if (!process.env.BOT_API_KEY) {
+    console.error('CRITICAL ERROR: BOT_API_KEY is not set in .env file');
+}
+
 const POST_EXPIRY_HOURS = 48
 
 async function createPost(geminiListing, cloudinaryUrls, sellerId) {

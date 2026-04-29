@@ -201,6 +201,7 @@ client.on('message', async msg => {
 
     // ── DM responses (consent flow) ───────────────────────────────────────────
     if (msg.from.endsWith('@c.us') || msg.from.endsWith('@lid')) {
+        if (msg.fromMe) return
         const dmResponse = msg.body.toLowerCase().trim()
 
         // ── QR login handler ─────────────────────────────────────────────────
@@ -280,6 +281,8 @@ client.on('message', async msg => {
                 if (success) {
                     try {
                         await client.sendMessage(contact.number + '@c.us', 'Your listing has been uploaded successfully!')
+                        consentedUsers.add(contact.number)
+                        fs.writeFileSync(require('path').join(__dirname, '../consentedUsersPersistence.json'), JSON.stringify([...consentedUsers]))
                         userState.delete(contact.number)
                     } catch (error) {
                         console.error('Failed to send success message:', error)
