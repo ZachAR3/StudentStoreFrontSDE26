@@ -3,11 +3,14 @@ package com.studentstorefront.service
 import com.studentstorefront.dto.request.SellerRequestDTO
 import com.studentstorefront.dto.response.SellerResponseDTO
 import com.studentstorefront.dto.update.SellerUpdateDTO
+import com.studentstorefront.entity.EmailVerificationToken
 import com.studentstorefront.entity.Seller
 import com.studentstorefront.enums.Role
+import com.studentstorefront.repository.EmailVerificationTokenRepository
 import com.studentstorefront.repository.FavouriteRepository
 import com.studentstorefront.repository.PostRepository
 import com.studentstorefront.repository.SellerRepository
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.security.access.AccessDeniedException
@@ -15,6 +18,7 @@ import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDateTime
 
 @Service
 @Transactional
@@ -22,7 +26,10 @@ class SellerService(
     private val sellerRepository: SellerRepository,
     private val postRepository: PostRepository,
     private val favouriteRepository: FavouriteRepository,
-    private val passwordEncoder: PasswordEncoder
+    private val passwordEncoder: PasswordEncoder,
+    private val emailVerificationTokenRepository: EmailVerificationTokenRepository,
+    private val emailService: EmailService,
+    @Value("\${app.base-url}") private val baseUrl: String
 ) {
 
     fun createSeller(sellerRequestDTO: SellerRequestDTO): SellerResponseDTO {
@@ -38,7 +45,25 @@ class SellerService(
 
         val seller = createSellerEntity(sellerRequestDTO)
         val savedSeller = sellerRepository.save(seller)
+
+        val verificationToken = emailVerificationTokenRepository.save(
+            EmailVerificationToken(seller = savedSeller)
+        )
+        val verificationLink = "$baseUrl/api/auth/verify-email?token=${verificationToken.token}"
+        emailService.sendVerificationEmail(savedSeller.email, verificationLink)
+
         return mapToResponseDTO(savedSeller)
+    }
+
+    fun verifyEmail(token: String) {
+        val record = emailVerificationTokenRepository.findByToken(token)
+            ?: throw IllegalArgumentException("Invalid verification token")
+        if (record.used) throw IllegalArgumentException("Token already used")
+        if (record.expiresAt.isBefore(LocalDateTime.now()))
+            throw IllegalArgumentException("Verification token has expired")
+
+        sellerRepository.save(record.seller.copy(isEnabled = true))
+        emailVerificationTokenRepository.save(record.copy(used = true))
     }
 
     @Transactional(readOnly = true)
@@ -137,7 +162,8 @@ class SellerService(
             name = sellerRequestDTO.name,
             email = sellerRequestDTO.email,
             phoneNumber = normalizePhone(sellerRequestDTO.phoneNumber),
-            password = passwordEncoder.encode(sellerRequestDTO.password)!! // Hash the password
+            password = passwordEncoder.encode(sellerRequestDTO.password)!!,
+            isEnabled = false
         )
     }
 
