@@ -1,3 +1,6 @@
+const { MessageMedia } = require('whatsapp-web.js')
+const { isDirectMessage, getDirectChatId } = require('../services/chatIdentity')
+
 const DEFAULT_PAGE_SIZE = 5
 const DEFAULT_SESSION_TTL_MS = 30 * 60 * 1000
 const CATEGORY_NAMES = [
@@ -25,12 +28,17 @@ class WhatsAppShoppingChat {
     }
 
     async handleMessage(msg, contact) {
-        if (msg.fromMe || !this.isDirectMessage(msg)) return false
-
-        const chatId = msg.from
         const command = this.parseCommand(msg.body)
-        if (!command) return false
+        if (msg.fromMe || !command) return false
 
+        if (isDirectMessage(msg)) {
+            return this.executeCommand(msg.from, command)
+        }
+
+        return this.handleGroupCommand(msg, contact, command)
+    }
+
+    async executeCommand(chatId, command) {
         switch (command.type) {
             case 'help':
                 await this.showHelp(chatId)
@@ -68,16 +76,36 @@ class WhatsAppShoppingChat {
         }
     }
 
-    async handleReaction(reaction) {
-        const emoji = reaction.reaction
-        if (emoji !== '➡️' && emoji !== '⬅️') return false
+    async handleGroupCommand(msg, contact, command) {
+        const directChatId = getDirectChatId(contact)
+        if (!directChatId) {
+            await this.client.sendMessage(
+                msg.from,
+                'I could not open a DM from this group message. Message me directly with "shop" and I will help there.'
+            )
+            return true
+        }
 
-        const messageId = this.getSerializedMessageId(reaction.msgId)
-        const chatId = this.messageToSession.get(messageId)
-        if (!chatId) return false
+        if (command.type === 'stop') {
+            this.clearSession(directChatId)
+            await this.client.sendMessage(directChatId, 'Shopping session closed. Send "shop" whenever you want to browse again.')
+            await this.client.sendMessage(msg.from, 'I closed your shopping session in DM.')
+            return true
+        }
 
-        await this.movePage(chatId, emoji === '➡️' ? 1 : -1)
+        if (command.type === 'help') {
+            await this.showHelp(directChatId)
+            await this.client.sendMessage(msg.from, 'I sent the shopping commands to your DM.')
+            return true
+        }
+
+        await this.client.sendMessage(msg.from, 'I sent the shopping response to your DM so the group stays tidy.')
+        await this.executeCommand(directChatId, command)
         return true
+    }
+
+    async handleReaction(reaction) {
+        return false
     }
 
     parseCommand(body = '') {
@@ -89,8 +117,8 @@ class WhatsAppShoppingChat {
         if (['shop', '/shop', 'browse', '/browse', 'recent', '/recent'].includes(lower)) return { type: 'recent' }
         if (['help', '/help', 'menu', '/menu'].includes(lower)) return { type: 'help' }
         if (['categories', '/categories'].includes(lower)) return { type: 'categories' }
-        if (['next', '/next'].includes(lower)) return { type: 'next' }
-        if (['prev', 'previous', '/prev', '/previous'].includes(lower)) return { type: 'prev' }
+        if (['n', 'next', '/n', '/next'].includes(lower)) return { type: 'next' }
+        if (['p', 'prev', 'previous', '/p', '/prev', '/previous'].includes(lower)) return { type: 'prev' }
         if (['stop', '/stop', 'cancel', '/cancel'].includes(lower)) return { type: 'stop' }
 
         const searchMatch = normalized.match(/^\/?search\s+(.+)$/i)
@@ -120,12 +148,13 @@ class WhatsAppShoppingChat {
             '',
             'Commands:',
             'shop - view recent listings',
+            'post - create a marketplace listing in DM',
             'search desk - search listings',
             'category electronics - browse a category',
             'categories - list categories',
             'details 1 - view more about an item',
             '1 - get a seller WhatsApp link',
-            'next / prev - change page',
+            'n / p - change page',
             'stop - close this shopping session'
         ].join('\n'))
     }
@@ -250,10 +279,8 @@ class WhatsAppShoppingChat {
         lines.push('')
         lines.push('Reply 1-5 for a seller link, or "details 1" for more info.')
 
-        const controls = []
-        if (session.page > 0) controls.push('⬅️')
-        if (session.totalPages && session.page + 1 < session.totalPages) controls.push('➡️')
-        if (controls.length > 0) lines.push(`React ${controls.join(' / ')} or type next / prev to browse.`)
+        const controls = this.getPageControls(session)
+        if (controls.length > 0) lines.push(`Reply ${controls.join(' / ')} to browse.`)
 
         return lines.join('\n')
     }
@@ -272,7 +299,7 @@ class WhatsAppShoppingChat {
         if (!item) return
 
         const imageUrl = item.mediaUrls?.length ? item.mediaUrls[0] : null
-        const lines = [
+        const caption = [
             `${item.title}`,
             `Price: ${this.formatPrice(item.price)}`,
             `Category: ${this.formatCategory(item.category)}`,
@@ -280,11 +307,21 @@ class WhatsAppShoppingChat {
             '',
             item.description || 'No description provided.',
             '',
-            imageUrl ? `Image: ${imageUrl}` : null,
             `Reply ${itemRef} for the seller WhatsApp link.`
-        ].filter(Boolean)
+        ].filter(Boolean).join('\n')
 
-        await this.client.sendMessage(chatId, lines.join('\n'))
+        if (!imageUrl) {
+            await this.client.sendMessage(chatId, caption)
+            return
+        }
+
+        try {
+            const media = await MessageMedia.fromUrl(imageUrl, { unsafeMime: true })
+            await this.client.sendMessage(chatId, media, { caption })
+        } catch (error) {
+            console.error('Failed to send item cover image:', error.message)
+            await this.client.sendMessage(chatId, `${caption}\n\nImage: ${imageUrl}`)
+        }
     }
 
     async sendSellerLink(chatId, itemRef) {
@@ -404,8 +441,11 @@ class WhatsAppShoppingChat {
         return id._serialized || id.id || null
     }
 
-    isDirectMessage(msg) {
-        return msg.from.endsWith('@c.us') || msg.from.endsWith('@lid')
+    getPageControls(session) {
+        const controls = []
+        if (session.page > 0) controls.push('p')
+        if (session.totalPages && session.page + 1 < session.totalPages) controls.push('n')
+        return controls
     }
 }
 

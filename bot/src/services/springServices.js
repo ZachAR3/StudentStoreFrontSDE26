@@ -27,9 +27,14 @@ async function createPost(geminiListing, cloudinaryUrls, sellerId) {
         return response.data
     }
     catch(error) {
-        
-     console.error('Post creation failed:', error); 
-     return false;
+        const status = error.response?.status
+        const responseData = error.response?.data
+        console.error('Post creation failed:', {
+            status,
+            message: responseData?.message || error.message,
+            data: responseData
+        })
+        return false;
 
     }
 }
@@ -101,7 +106,15 @@ async function searchPosts({ query = '', category = '', page = 0, size = 5, sort
 }
 
 async function getRecentPosts({ page = 0, size = 5, sort = DEFAULT_POST_SORT } = {}) {
-    return searchPosts({ page, size, sort })
+    try {
+        const response = await axios.get(`${process.env.SPRING_BASE_URL}/api/posts/available`, {
+            params: { page, size, sort }
+        })
+        return response.data
+    } catch (error) {
+        console.error('Recent posts lookup failed:', error.message)
+        return null
+    }
 }
 
 async function getPostById(postId) {

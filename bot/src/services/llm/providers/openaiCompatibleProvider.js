@@ -53,7 +53,23 @@ function createOpenAICompatibleProvider({ langfuse }) {
         apiKey
     }) : null
 
-    async function complete(prompt, tracingParams = {}, operationName = "OpenAICompatibleCompletion") {
+    function buildContent(prompt, images = []) {
+        const content = [{ type: "text", text: prompt }]
+
+        images.forEach(image => {
+            if (!image?.data || !image?.mimetype) return
+            content.push({
+                type: "image_url",
+                image_url: {
+                    url: `data:${image.mimetype};base64,${image.data}`
+                }
+            })
+        })
+
+        return content
+    }
+
+    async function complete(prompt, images = [], tracingParams = {}, operationName = "OpenAICompatibleCompletion") {
         if (!client) {
             throw new Error("LITELLM_API_KEY is not configured")
         }
@@ -63,14 +79,16 @@ function createOpenAICompatibleProvider({ langfuse }) {
             tracingParams,
             operationName,
             model,
-            tracingParams?.input || prompt
+            tracingParams?.input || { prompt, imageCount: images.length }
         )
         const startTime = new Date()
 
         try {
             const response = await client.chat.completions.create({
                 model,
-                messages: [{ role: "user", content: prompt }]
+                messages: [{ role: "user", content: buildContent(prompt, images) }],
+                temperature: 0,
+                max_tokens: Number(process.env.LISTING_PARSE_MAX_TOKENS || 180)
             })
 
             const text = extractText(response?.choices?.[0]?.message?.content)
@@ -98,9 +116,14 @@ function createOpenAICompatibleProvider({ langfuse }) {
         }
     }
 
-    async function parseListing(message, tracingParams = {}) {
-        const prompt = UserMessagePrompt(message)
-        const text = await complete(prompt, { ...tracingParams, input: message }, "OpenAICompatibleMessageParser")
+    async function parseListing(message, images = [], tracingParams = {}) {
+        const prompt = UserMessagePrompt(message, images.length)
+        const text = await complete(
+            prompt,
+            images,
+            { ...tracingParams, input: { message, imageCount: images.length } },
+            "OpenAICompatibleMessageParser"
+        )
         const jsonMatch = text.match(/\{[\s\S]*\}/)
         const jsonString = jsonMatch ? jsonMatch[0] : text
         return JSON.parse(jsonString)
@@ -108,7 +131,7 @@ function createOpenAICompatibleProvider({ langfuse }) {
 
     async function classifyContext(messages, tracingParams = {}) {
         const prompt = classificationPrompt(messages)
-        const text = await complete(prompt, { ...tracingParams, input: messages }, "OpenAICompatibleContextClassifier")
+        const text = await complete(prompt, [], { ...tracingParams, input: messages }, "OpenAICompatibleContextClassifier")
         const decision = text.trim().toUpperCase()
         return decision.includes("YES") ? "YES" : "NO"
     }

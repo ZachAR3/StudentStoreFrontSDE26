@@ -3,14 +3,24 @@ const { UserMessagePrompt, classificationPrompt } = require("../../Prompt-File.j
 
 const DEFAULT_MODELS = [
     "gemini-2.5-flash-lite",
-    "gemini-2.0-flash-lite",
-    "gemini-1.5-flash-8b",
-    "gemini-1.5-flash"
+    "gemini-2.5-flash"
 ]
+const DEPRECATED_MODEL_REPLACEMENTS = {
+    "gemini-1.5-flash": "gemini-2.5-flash-lite",
+    "gemini-1.5-flash-8b": "gemini-2.5-flash-lite",
+    "gemini-1.5-pro": "gemini-2.5-flash",
+    "gemini-pro-vision": "gemini-2.5-flash-lite"
+}
 
 function parseModelList(raw) {
     if (!raw) return DEFAULT_MODELS
-    return raw.split(",").map(item => item.trim()).filter(Boolean)
+    const models = raw
+        .split(",")
+        .map(item => item.trim())
+        .filter(Boolean)
+        .map(modelName => DEPRECATED_MODEL_REPLACEMENTS[modelName] || modelName)
+
+    return [...new Set(models.length ? models : DEFAULT_MODELS)]
 }
 
 function createObservation(langfuse, tracingParams, name, model, input) {
@@ -42,7 +52,23 @@ function createGeminiProvider({ langfuse }) {
     const fallbackModels = parseModelList(process.env.GEMINI_FALLBACK_MODELS)
     const client = apiKey ? new GoogleGenerativeAI(apiKey) : null
 
-    async function generate(prompt, tracingParams = {}, operationName = "GeminiGeneration") {
+    function buildParts(prompt, images = []) {
+        const parts = [{ text: prompt }]
+
+        images.forEach(image => {
+            if (!image?.data || !image?.mimetype) return
+            parts.push({
+                inlineData: {
+                    data: image.data,
+                    mimeType: image.mimetype
+                }
+            })
+        })
+
+        return parts
+    }
+
+    async function generate(prompt, images = [], tracingParams = {}, operationName = "GeminiGeneration") {
         if (!client) {
             throw new Error("GEMINI_API_KEY is not configured")
         }
@@ -55,13 +81,19 @@ function createGeminiProvider({ langfuse }) {
                 tracingParams,
                 operationName,
                 modelName,
-                tracingParams?.input || prompt
+                tracingParams?.input || { prompt, imageCount: images.length }
             )
             const startTime = new Date()
 
             try {
-                const model = client.getGenerativeModel({ model: modelName })
-                const result = await model.generateContent(prompt)
+                const model = client.getGenerativeModel({
+                    model: modelName,
+                    generationConfig: {
+                        temperature: 0,
+                        maxOutputTokens: Number(process.env.LISTING_PARSE_MAX_TOKENS || 180)
+                    }
+                })
+                const result = await model.generateContent(buildParts(prompt, images))
                 const response = result.response
 
                 observation.end({
@@ -91,9 +123,14 @@ function createGeminiProvider({ langfuse }) {
         throw lastError || new Error("Gemini failed with all fallback models")
     }
 
-    async function parseListing(message, tracingParams = {}) {
-        const prompt = UserMessagePrompt(message)
-        const text = await generate(prompt, { ...tracingParams, input: message }, "GeminiMessageParser")
+    async function parseListing(message, images = [], tracingParams = {}) {
+        const prompt = UserMessagePrompt(message, images.length)
+        const text = await generate(
+            prompt,
+            images,
+            { ...tracingParams, input: { message, imageCount: images.length } },
+            "GeminiMessageParser"
+        )
         const jsonMatch = text.match(/\{[\s\S]*\}/)
         const jsonString = jsonMatch ? jsonMatch[0] : text
         return JSON.parse(jsonString)
@@ -101,7 +138,7 @@ function createGeminiProvider({ langfuse }) {
 
     async function classifyContext(messages, tracingParams = {}) {
         const prompt = classificationPrompt(messages)
-        const text = await generate(prompt, { ...tracingParams, input: messages }, "GeminiContextClassifier")
+        const text = await generate(prompt, [], { ...tracingParams, input: messages }, "GeminiContextClassifier")
         const decision = text.trim().toUpperCase()
         return decision.includes("YES") ? "YES" : "NO"
     }

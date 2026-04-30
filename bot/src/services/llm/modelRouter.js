@@ -52,9 +52,9 @@ async function runWithFallback(operationName, executor) {
     throw lastError || new Error(`[LLM] ${operationName} failed on all configured providers`)
 }
 
-async function MessageParser(message, tracingParams = {}) {
+async function MessageParser(message, images = [], tracingParams = {}) {
     try {
-        return await runWithFallback("MessageParser", provider => provider.parseListing(message, tracingParams))
+        return await runWithFallback("MessageParser", provider => provider.parseListing(message, images, tracingParams))
     } catch (error) {
         console.error("LLM Message Parser error:", error.message)
         return null
