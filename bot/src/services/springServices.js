@@ -48,18 +48,20 @@ async function getSellerByPhone(phoneNumber) {
     if (digitsOnly.length < 10 || digitsOnly.length > 15) {
         console.error('Invalid phone number format:', phoneNumber)
         return null
-    }
-
     try {
         // Try searching with '+' prefix first (matching your current DB/DataLoader format)
         let response = await axios.get(`${process.env.SPRING_BASE_URL}/api/sellers/by-phone`, {
-            params: { phone: `+${digitsOnly}` }
+            params: { phone: `+${digitsOnly}` },
+            headers: { 'X-Bot-Api-Key': process.env.BOT_API_KEY },
+            timeout: AXIOS_TIMEOUT
         })
 
         // If not found with '+', try the raw digits (in case backend is updated)
         if (!response.data && digitsOnly !== phoneNumber) {
             response = await axios.get(`${process.env.SPRING_BASE_URL}/api/sellers/by-phone`, {
-                params: { phone: digitsOnly }
+                params: { phone: digitsOnly },
+                headers: { 'X-Bot-Api-Key': process.env.BOT_API_KEY },
+                timeout: AXIOS_TIMEOUT
             })
         }
 
@@ -78,7 +80,10 @@ async function confirmWhatsAppLogin(loginToken, phoneNumber) {
         const response = await axios.post(
             `${process.env.SPRING_BASE_URL}/api/auth/whatsapp/confirm`,
             { loginToken, phoneNumber },
-            { headers: { 'X-Bot-Api-Key': process.env.BOT_API_KEY } }
+            { 
+                headers: { 'X-Bot-Api-Key': process.env.BOT_API_KEY },
+                timeout: AXIOS_TIMEOUT
+            }
         )
         return response.data.result
     } catch (error) {
@@ -96,7 +101,8 @@ async function searchPosts({ query = '', category = '', page = 0, size = 5, sort
                 page,
                 size,
                 sort
-            }
+            },
+            timeout: AXIOS_TIMEOUT
         })
         return response.data
     } catch (error) {
@@ -108,7 +114,8 @@ async function searchPosts({ query = '', category = '', page = 0, size = 5, sort
 async function getRecentPosts({ page = 0, size = 5, sort = DEFAULT_POST_SORT } = {}) {
     try {
         const response = await axios.get(`${process.env.SPRING_BASE_URL}/api/posts/available`, {
-            params: { page, size, sort }
+            params: { page, size, sort },
+            timeout: AXIOS_TIMEOUT
         })
         return response.data
     } catch (error) {
@@ -119,7 +126,9 @@ async function getRecentPosts({ page = 0, size = 5, sort = DEFAULT_POST_SORT } =
 
 async function getPostById(postId) {
     try {
-        const response = await axios.get(`${process.env.SPRING_BASE_URL}/api/posts/${postId}`)
+        const response = await axios.get(`${process.env.SPRING_BASE_URL}/api/posts/${postId}`, {
+            timeout: AXIOS_TIMEOUT
+        })
         return response.data
     } catch (error) {
         if (error.response?.status !== 404) {

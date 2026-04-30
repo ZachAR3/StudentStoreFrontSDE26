@@ -175,7 +175,7 @@ class ListingSubmissionService {
         }
 
         if (result === 'missing-price') {
-            if (clearStateOnFailure) this.stateStore.clear(phoneNumber)
+            // DO NOT clear state here, so user can just send the price to retry
             await this.client.sendMessage(replyChatId, missingPriceMessage)
             return 'missing-price'
         }

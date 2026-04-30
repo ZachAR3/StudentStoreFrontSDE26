@@ -1,6 +1,5 @@
 const path   = require('path')
-const https  = require('https')
-const http   = require('http')
+const axios  = require('axios')
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') })
 console.log('GEMINI_API_KEY loaded:', !!process.env.GEMINI_API_KEY)
 console.log('OPENAI_API_KEY loaded:', !!process.env.OPENAI_API_KEY)
@@ -9,7 +8,6 @@ const { createGeminiProvider }             = require('../services/llm/providers/
 const { createOpenAICompatibleProvider }   = require('../services/llm/providers/openaiCompatibleProvider.js')
 const langfuse                             = require('../services/langfuseService.js')
 
-const gemmaProvider   = createOpenAICompatibleProvider({ langfuse })
 const chatgptProvider = createOpenAICompatibleProvider({
     langfuse,
     baseURL: 'https://api.openai.com/v1',
@@ -19,70 +17,56 @@ const chatgptProvider = createOpenAICompatibleProvider({
 const geminiProvider  = createGeminiProvider({ langfuse })
 
 // ─── Image fetcher ────────────────────────────────────────────────────────────
-function fetchImage(url) {
-    return new Promise((resolve, reject) => {
-        const protocol = url.startsWith('https') ? https : http
-
-        const request = (targetUrl) => {
-            protocol.get(targetUrl, (res) => {
-                if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-                    return request(res.headers.location)
-                }
-                if (res.statusCode < 200 || res.statusCode >= 300) {
-                    return reject(new Error(`HTTP ${res.statusCode} fetching ${targetUrl}`))
-                }
-
-                const chunks = []
-                res.on('data', chunk => chunks.push(chunk))
-                res.on('end', () => {
-                    const buffer   = Buffer.concat(chunks)
-                    const mimeType = res.headers['content-type'] || 'image/jpeg'
-                    resolve({ data: buffer.toString('base64'), mimetype: mimeType.split(';')[0] })
-                })
-            }).on('error', reject)
+async function fetchImage(url) {
+    const response = await axios.get(url, {
+        responseType: 'arraybuffer',
+        headers: {
+            'User-Agent': 'StudentStoreFrontBot/1.0 (https://github.com/teodor/StudentStoreFrontSDE26)'
         }
-
-        request(url)
     })
+    const buffer = Buffer.from(response.data, 'binary')
+    const mimeType = response.headers['content-type'] || 'image/jpeg'
+    return { 
+        data: buffer.toString('base64'), 
+        mimetype: mimeType.split(';')[0] 
+    }
 }
 
 // ─── Test cases ───────────────────────────────────────────────────────────────
-// Each case has an image URL, expected keywords the description should mention,
-// and an optional condition hint to check (e.g. "used", "good condition").
 const TEST_CASES = [
     {
         id:               'image-macbook-laptop',
-        imageUrl:         'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/MacBook_with_Retina_Display.jpg/640px-MacBook_with_Retina_Display.jpg',
+        imageUrl:         'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=800&q=80',
         expectedOutput:   'Description mentioning a laptop or MacBook',
         expectedKeywords: ['laptop', 'macbook', 'computer', 'screen', 'keyboard', 'apple']
     },
     {
         id:               'image-textbooks-shelf',
-        imageUrl:         'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/PhysicsBooks.jpg/640px-PhysicsBooks.jpg',
+        imageUrl:         'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?auto=format&fit=crop&w=800&q=80',
         expectedOutput:   'Description mentioning books or textbooks',
         expectedKeywords: ['book', 'textbook', 'shelf', 'spine', 'pages', 'reading']
     },
     {
         id:               'image-denim-jacket',
-        imageUrl:         'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/Jeans_jacket.jpg/480px-Jeans_jacket.jpg',
+        imageUrl:         'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=800&q=80',
         expectedOutput:   'Description mentioning a jacket or clothing item',
         expectedKeywords: ['jacket', 'denim', 'jeans', 'clothing', 'coat', 'wear']
     },
     {
         id:               'image-wooden-desk',
-        imageUrl:         'https://upload.wikimedia.org/wikipedia/commons/thumb/4/40/Desk_and_bookcase.jpg/640px-Desk_and_bookcase.jpg',
+        imageUrl:         'https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=800&q=80',
         expectedOutput:   'Description mentioning a desk or furniture',
         expectedKeywords: ['desk', 'table', 'furniture', 'wood', 'drawer', 'shelf']
     },
     {
         id:               'image-bicycle',
-        imageUrl:         'https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Velosiped.jpg/640px-Velosiped.jpg',
+        imageUrl:         'https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=800&q=80',
         expectedOutput:   'Description mentioning a bicycle',
         expectedKeywords: ['bicycle', 'bike', 'wheel', 'frame', 'cycle', 'handlebar', 'pedal']
     },
     {
         id:               'image-headphones',
-        imageUrl:         'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Sennheiser_HD_558_headphones.jpg/640px-Sennheiser_HD_558_headphones.jpg',
+        imageUrl:         'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80',
         expectedOutput:   'Description mentioning headphones or audio equipment',
         expectedKeywords: ['headphone', 'headset', 'audio', 'ear', 'music', 'sennheiser', 'sound']
     }
@@ -137,19 +121,8 @@ async function runTestCase(testCase, image) {
         parent:    benchmarkTrace
     }
 
-    let gemmaOutput,   gemmaLatencyMs,   gemmaError   = null
     let chatgptOutput, chatgptLatencyMs, chatgptError = null
     let geminiOutput,  geminiLatencyMs,  geminiError  = null
-
-    // Gemma
-    const gemmaStart = Date.now()
-    try {
-        gemmaOutput = await gemmaProvider.imageProcessing([image], tracingParams)
-    } catch (err) {
-        gemmaError  = err.message
-        gemmaOutput = null
-    }
-    gemmaLatencyMs = Date.now() - gemmaStart
 
     // ChatGPT
     const chatgptStart = Date.now()
@@ -171,25 +144,21 @@ async function runTestCase(testCase, image) {
     }
     geminiLatencyMs = Date.now() - geminiStart
 
-    const gemmaScores   = computeAndScore(benchmarkTrace.id, 'gemma',   testCase, gemmaOutput)
     const chatgptScores = computeAndScore(benchmarkTrace.id, 'chatgpt', testCase, chatgptOutput)
     const geminiScores  = computeAndScore(benchmarkTrace.id, 'gemini',  testCase, geminiOutput)
 
     benchmarkTrace.update({
         output: {
-            gemma:   { output: gemmaOutput,   latencyMs: gemmaLatencyMs },
             chatgpt: { output: chatgptOutput, latencyMs: chatgptLatencyMs },
             gemini:  { output: geminiOutput,  latencyMs: geminiLatencyMs }
         }
     })
 
-    console.log(`  Gemma   (${gemmaLatencyMs}ms) score=${gemmaScores.overall.toFixed(2)}: ${truncate(gemmaOutput)}`)
     console.log(`  ChatGPT (${chatgptLatencyMs}ms) score=${chatgptScores.overall.toFixed(2)}: ${truncate(chatgptOutput)}`)
     console.log(`  Gemini  (${geminiLatencyMs}ms) score=${geminiScores.overall.toFixed(2)}: ${truncate(geminiOutput)}`)
 
     return {
         testId:  testCase.id,
-        gemma:   { latencyMs: gemmaLatencyMs,   scores: gemmaScores,   error: gemmaError },
         chatgpt: { latencyMs: chatgptLatencyMs, scores: chatgptScores, error: chatgptError },
         gemini:  { latencyMs: geminiLatencyMs,  scores: geminiScores,  error: geminiError }
     }
@@ -198,21 +167,21 @@ async function runTestCase(testCase, image) {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 ;(async () => {
     const runStart = Date.now()
-    console.log(`Fetching ${TEST_CASES.length} images and running benchmark...`)
+    console.log(`Fetching ${TEST_CASES.length} images sequentially...`)
 
-    // Fetch all images up front so network time is not counted in model latency
-    const images = await Promise.all(
-        TEST_CASES.map(async (tc) => {
-            try {
-                const image = await fetchImage(tc.imageUrl)
-                console.log(`  ✓ Fetched ${tc.id} (${image.mimetype}, ${Math.round(image.data.length * 0.75 / 1024)}KB)`)
-                return image
-            } catch (err) {
-                console.error(`  ✗ Failed to fetch ${tc.id}: ${err.message}`)
-                return null
-            }
-        })
-    )
+    const images = []
+    for (const tc of TEST_CASES) {
+        try {
+            const image = await fetchImage(tc.imageUrl)
+            console.log(`  ✓ Fetched ${tc.id} (${image.mimetype}, ${Math.round(image.data.length * 0.75 / 1024)}KB)`)
+            images.push(image)
+            // Small delay to be polite to Wikimedia
+            await new Promise(resolve => setTimeout(resolve, 500))
+        } catch (err) {
+            console.error(`  ✗ Failed to fetch ${tc.id}: ${err.message}`)
+            images.push(null)
+        }
+    }
 
     const results = []
     for (let i = 0; i < TEST_CASES.length; i++) {
@@ -226,7 +195,7 @@ async function runTestCase(testCase, image) {
     const totalDurationMs = Date.now() - runStart
 
     const summary = {}
-    for (const model of ['gemma', 'chatgpt', 'gemini']) {
+    for (const model of ['chatgpt', 'gemini']) {
         const modelResults = results.filter(r => r[model])
         const scores       = modelResults.map(r => r[model].scores.overall)
         const latencies    = modelResults.map(r => r[model].latencyMs)
@@ -241,7 +210,7 @@ async function runTestCase(testCase, image) {
 
     console.log('\n── Image Benchmark Summary ──────────────────────────────')
     console.log(`  Total time : ${(totalDurationMs / 1000).toFixed(1)}s`)
-    for (const model of ['gemma', 'chatgpt', 'gemini']) {
+    for (const model of ['chatgpt', 'gemini']) {
         const s = summary[model]
         console.log(`  ${model.padEnd(8)}: avg score=${s.avgScore.toFixed(2)}  reliability=${s.reliability.toFixed(2)}  avg latency=${s.avgLatencyMs}ms  errors=${s.errorCount}`)
     }
@@ -249,6 +218,6 @@ async function runTestCase(testCase, image) {
     console.log('\n  Scores: non-empty + sufficient-detail + mentions-item + mentions-condition (each 0-1, avg = overall)')
 
     await langfuse.flush()
-    console.log('\nBenchmark complete. Check Langfuse dashboard for full traces.')
+    console.log('\nBenchmark complete. Check Langfuse dashboard for full traces.');
     process.exit(0)
 })()

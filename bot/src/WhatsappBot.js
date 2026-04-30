@@ -2,19 +2,15 @@ const fs = require('fs')
 const path = require('path')
 const { Client, LocalAuth } = require('whatsapp-web.js')
 const qrcode = require('qrcode-terminal')
-const { uploadImage } = require('./services/claudinary.js')
-const springServices = require('./services/springServices.js')
-const { confirmWhatsAppLogin } = springServices
-const { MessageParser, ContextClassifier, getActiveProviderConfig } = require('./services/llm/modelRouter.js')
-const { startWebhookServer } = require('./services/webhookService.js')
-const WhatsAppShoppingChat = require('./shopping/WhatsAppShoppingChat.js')
-const BotStateStore = require('./services/BotStateStore.js')
-const ListingSubmissionService = require('./services/ListingSubmissionService.js')
-const { isDirectMessage, getDirectChatId, getContactNumber } = require('./services/chatIdentity.js')
-const langfuse = require('./services/langfuseService')
+const { downscaleImagesForLlm, cleanupTempImages, checkImageMagick } = require('./services/imagePreprocessor')
 
 const NOT_CONSENTED_TO_MESSAGE_UPLOAD = new Set()
 const consentedUsers = new Set()
+
+// ... (rest of the file imports)
+
+cleanupTempImages()
+checkImageMagick()
 
 const CONSENTED_USERS_FILE = path.join(__dirname, '../consentedUsersPersistence.json')
 const USER_STATE_FILE = path.join(__dirname, '../userStatePersistence.json')
@@ -43,7 +39,10 @@ function persistConsentedUsers() {
 }
 
 const client = new Client({ authStrategy: new LocalAuth() })
-const shoppingChat = new WhatsAppShoppingChat(client, { postService: springServices })
+const shoppingChat = new WhatsAppShoppingChat(client, { 
+    postService: springServices,
+    stateStore: stateStore 
+})
 const listingSubmissionService = new ListingSubmissionService({
     client,
     stateStore,
@@ -311,7 +310,7 @@ async function handleIncomingMessage(msg) {
     console.log('author:', msg.author, '| from:', msg.from)
 
     const contact = await msg.getContact()
-    const phoneNumber = getContactNumber(contact, msg.from)
+    const phoneNumber = normalizePhoneNumber(getContactNumber(contact, msg.from))
     const directMessage = isDirectMessage(msg)
 
     if (directMessage) {

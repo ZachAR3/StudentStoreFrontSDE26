@@ -69,7 +69,38 @@ async function downscaleImagesForLlm(images = [], options = {}) {
     return Promise.all(images.map(image => downscaleImageForLlm(image, options)))
 }
 
+async function cleanupTempImages() {
+    try {
+        const tmpDir = os.tmpdir()
+        const files = await fs.readdir(tmpDir)
+        const toDelete = files.filter(f => f.startsWith('ssf-listing-'))
+        
+        for (const file of toDelete) {
+            try {
+                await fs.unlink(path.join(tmpDir, file))
+            } catch (_) {}
+        }
+        if (toDelete.length > 0) {
+            console.log(`Cleaned up ${toDelete.length} abandoned temporary image(s)`)
+        }
+    } catch (error) {
+        console.error('Failed to cleanup temporary images:', error.message)
+    }
+}
+
+async function checkImageMagick() {
+    try {
+        await execFileAsync('magick', ['-version'])
+        return true
+    } catch (error) {
+        console.warn('WARNING: ImageMagick ("magick" command) not found. Image downscaling for LLM will be disabled. Images will be sent at full resolution, which may increase costs and latency.')
+        return false
+    }
+}
+
 module.exports = {
     downscaleImageForLlm,
-    downscaleImagesForLlm
+    downscaleImagesForLlm,
+    cleanupTempImages,
+    checkImageMagick
 }

@@ -18,10 +18,10 @@ class WhatsAppShoppingChat {
     constructor(client, options = {}) {
         this.client = client
         this.postService = options.postService
+        this.stateStore = options.stateStore
         this.pageSize = Number(options.pageSize || process.env.SHOPPING_PAGE_SIZE || DEFAULT_PAGE_SIZE)
         this.appBaseUrl = options.appBaseUrl || process.env.APP_BASE_URL || 'http://localhost:8080'
         this.sessionTtlMs = Number(options.sessionTtlMs || DEFAULT_SESSION_TTL_MS)
-        this.sessions = new Map()
         this.messageToSession = new Map()
 
         setInterval(() => this.cleanupExpiredSessions(), Math.min(this.sessionTtlMs, 5 * 60 * 1000))
@@ -444,6 +444,19 @@ class WhatsAppShoppingChat {
     getPageControls(session) {
         const controls = []
         if (session.page > 0) controls.push('p')
+        if (session.totalPages && session.page + 1 < session.totalPages) controls.push('n')
+        return controls
+    }
+}
+
+module.exports = WhatsAppShoppingChat
+sion.page + 1 < session.totalPages) controls.push('n')
+        return controls
+    }
+}
+
+module.exports = WhatsAppShoppingChat
+
         if (session.totalPages && session.page + 1 < session.totalPages) controls.push('n')
         return controls
     }

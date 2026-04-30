@@ -8,12 +8,6 @@ const { createOpenAICompatibleProvider } = require("./providers/openaiCompatible
 const providers = {
     gemini: createGeminiProvider({ langfuse }),
     "openai-compatible": createOpenAICompatibleProvider({ langfuse }),
-    gemma: createOpenAICompatibleProvider({
-        langfuse,
-        baseURL: process.env.LITELLM_BASE_URL,
-        apiKey: process.env.LITELLM_API_KEY,
-        model: process.env.LITELLM_MODEL
-    }),
     chatgpt: createOpenAICompatibleProvider({
         langfuse,
         baseURL: "https://api.openai.com/v1",

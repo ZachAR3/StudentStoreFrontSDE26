@@ -2,7 +2,6 @@ const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') })
 console.log('GEMINI_API_KEY loaded:', !!process.env.GEMINI_API_KEY)
 const { GeminiMessageParser, GeminiContextClassifier } = require('./LLM_Services_For_Testing/botGeminiService.js');
-const { GemmaMessageParser, GemmaContextClassifier }   = require('./LLM_Services_For_Testing/Gemma4Service.js');
 const { createOpenAICompatibleProvider }               = require('../services/llm/providers/openaiCompatibleProvider.js');
 const langfuse = require('../services/langfuseService.js');
 
@@ -118,7 +117,7 @@ function computeAndScore(traceId, model, testCase, output) {
 async function runTestCase(testCase) {
     console.log(`\n─── ${testCase.id} (${testCase.type}) ───`);
 
-    // Parent benchmark trace; both Gemini and Gemma generations nest under this,
+    // Parent benchmark trace; both Gemini and ChatGPT generations nest under this,
     // so they appear side-by-side in the Langfuse dashboard for easy comparison.
     const benchmarkTrace = langfuse.trace({
         name: 'Benchmark',
@@ -137,7 +136,6 @@ async function runTestCase(testCase) {
     };
 
     let geminiOutput,  geminiLatencyMs,  geminiError  = null;
-    let gemmaOutput,   gemmaLatencyMs,   gemmaError   = null;
     let chatgptOutput, chatgptLatencyMs, chatgptError = null;
 
     // Gemini
@@ -151,18 +149,6 @@ async function runTestCase(testCase) {
         geminiOutput = null;
     }
     geminiLatencyMs = Date.now() - geminiStart;
-
-    // Gemma
-    const gemmaStart = Date.now();
-    try {
-        gemmaOutput = testCase.type === 'parser'
-            ? await GemmaMessageParser(testCase.input, tracingParams)
-            : await GemmaContextClassifier(testCase.input, tracingParams);
-    } catch (err) {
-        gemmaError  = err.message;
-        gemmaOutput = null;
-    }
-    gemmaLatencyMs = Date.now() - gemmaStart;
 
     // ChatGPT (gpt-4o-mini)
     const chatgptStart = Date.now();
@@ -178,26 +164,22 @@ async function runTestCase(testCase) {
 
     // Compute scores and emit to Langfuse
     const geminiScores  = computeAndScore(benchmarkTrace.id, 'gemini',  testCase, geminiOutput);
-    const gemmaScores   = computeAndScore(benchmarkTrace.id, 'gemma',   testCase, gemmaOutput);
     const chatgptScores = computeAndScore(benchmarkTrace.id, 'chatgpt', testCase, chatgptOutput);
 
     benchmarkTrace.update({
         output: {
             gemini:  { output: geminiOutput,  latencyMs: geminiLatencyMs },
-            gemma:   { output: gemmaOutput,   latencyMs: gemmaLatencyMs },
             chatgpt: { output: chatgptOutput, latencyMs: chatgptLatencyMs }
         }
     });
 
     console.log(`  Gemini  (${geminiLatencyMs}ms) score=${geminiScores.overall.toFixed(2)}: ${truncate(geminiOutput)}`);
-    console.log(`  Gemma   (${gemmaLatencyMs}ms) score=${gemmaScores.overall.toFixed(2)}: ${truncate(gemmaOutput)}`);
     console.log(`  ChatGPT (${chatgptLatencyMs}ms) score=${chatgptScores.overall.toFixed(2)}: ${truncate(chatgptOutput)}`);
 
     return {
         testId:  testCase.id,
         type:    testCase.type,
         gemini:  { latencyMs: geminiLatencyMs,  scores: geminiScores,  error: geminiError },
-        gemma:   { latencyMs: gemmaLatencyMs,   scores: gemmaScores,   error: gemmaError  },
         chatgpt: { latencyMs: chatgptLatencyMs, scores: chatgptScores, error: chatgptError }
     };
 }
@@ -216,7 +198,7 @@ async function runTestCase(testCase) {
 
     // Compute per-model run summary
     const summary = {};
-    for (const model of ['gemini', 'gemma', 'chatgpt']) {
+    for (const model of ['gemini', 'chatgpt']) {
         const scores      = results.map(r => r[model].scores.overall);
         const latencies   = results.map(r => r[model].latencyMs);
         const errors      = results.filter(r => r[model].error !== null).map(r => ({ testId: r.testId, error: r[model].error }));
@@ -231,7 +213,7 @@ async function runTestCase(testCase) {
 
     console.log('\n── Run Summary ──────────────────────────────────────────');
     console.log(`  Total time : ${(totalDurationMs / 1000).toFixed(1)}s`);
-    for (const model of ['gemini', 'gemma', 'chatgpt']) {
+    for (const model of ['gemini', 'chatgpt']) {
         const s = summary[model];
         console.log(`  ${model.padEnd(8)}: avg score=${s.avgScore.toFixed(2)}  reliability=${s.reliability.toFixed(2)}  avg latency=${s.avgLatencyMs}ms  errors=${s.errorCount}`);
     }

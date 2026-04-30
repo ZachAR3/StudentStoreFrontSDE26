@@ -29,9 +29,8 @@ class SecurityConfig(
                     // Public API endpoints
                     .requestMatchers("/api/auth/**").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/posts/**").permitAll()
-                    .requestMatchers(HttpMethod.POST, "/api/sellers").permitAll() // Allow registration
-                    .requestMatchers(HttpMethod.GET, "/api/sellers/by-phone").permitAll() // Bot phone lookup
-                    .requestMatchers(HttpMethod.POST, "/api/posts/bot").permitAll() // Bot post creation
+                    .requestMatchers(HttpMethod.GET, "/api/sellers/by-phone").permitAll() // Bot phone lookup (API Key checked in controller)
+                    .requestMatchers(HttpMethod.POST, "/api/posts/bot").permitAll() // Bot post creation (API Key checked in controller)
                     
                     // Static resources (Frontend)
                     .requestMatchers("/", "/index.html", "/static/**", "/css/**", "/js/**", "/config/**", "/favicon.ico").permitAll()

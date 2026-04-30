@@ -131,9 +131,17 @@ function createGeminiProvider({ langfuse }) {
             { ...tracingParams, input: { message, imageCount: images.length } },
             "GeminiMessageParser"
         )
-        const jsonMatch = text.match(/\{[\s\S]*\}/)
-        const jsonString = jsonMatch ? jsonMatch[0] : text
-        return JSON.parse(jsonString)
+        
+        try {
+            const firstBrace = text.indexOf('{')
+            const lastBrace = text.lastIndexOf('}')
+            if (firstBrace === -1 || lastBrace === -1) throw new Error('No JSON object found in response')
+            const jsonString = text.slice(firstBrace, lastBrace + 1)
+            return JSON.parse(jsonString)
+        } catch (error) {
+            console.error('Gemini JSON parse failed. Raw text:', text)
+            throw new Error(`Failed to parse listing JSON: ${error.message}`)
+        }
     }
 
     async function imageProcessing(images, tracingParams = {}) {

@@ -1,4 +1,5 @@
 const fs = require('fs')
+const path = require('path')
 
 class BotStateStore {
     constructor({ filePath, listingExpiryHours }) {
@@ -23,6 +24,7 @@ class BotStateStore {
             mode: null,
             consentPending: false,
             registrationPending: false,
+            shoppingSession: null,
             timer: null
         }
     }
@@ -32,12 +34,15 @@ class BotStateStore {
             const saved = JSON.parse(fs.readFileSync(this.filePath, 'utf8'))
             let droppedStaleDrafts = 0
             Object.entries(saved).forEach(([phone, state]) => {
-                if (state?.mode === 'dm-post' && !state.consentPending && !state.registrationPending) {
+                // Ensure we use normalized phone as key even if legacy file had different format
+                const normalizedPhone = phone.replace(/\D/g, '')
+                
+                if (state?.mode === 'dm-post' && !state.consentPending && !state.registrationPending && !state.shoppingSession) {
                     droppedStaleDrafts += 1
                     return
                 }
 
-                this.userState.set(phone, {
+                this.userState.set(normalizedPhone, {
                     ...this.createState(),
                     ...state,
                     listing: { ...this.createListingDraft(), ...(state.listing || {}) },
@@ -48,7 +53,7 @@ class BotStateStore {
                 console.log(`Restored ${this.userState.size} user state(s) from disk`)
             }
             if (droppedStaleDrafts > 0) {
-                console.log(`Dropped ${droppedStaleDrafts} stale DM post draft(s) from disk`)
+                console.log(`Dropped ${droppedStaleDrafts} stale user state(s) from disk`)
                 this.save()
             }
         } catch (_) {}
@@ -61,14 +66,20 @@ class BotStateStore {
                 listing: state.listing,
                 mode: state.mode || null,
                 consentPending: state.consentPending,
-                registrationPending: state.registrationPending
+                registrationPending: state.registrationPending,
+                shoppingSession: state.shoppingSession || null
             }
         })
 
+        const tmpPath = `${this.filePath}.tmp`
         try {
-            fs.writeFileSync(this.filePath, JSON.stringify(serializable, null, 2))
+            fs.writeFileSync(tmpPath, JSON.stringify(serializable, null, 2))
+            fs.renameSync(tmpPath, this.filePath)
         } catch (error) {
-            console.error('Error saving userState:', error)
+            console.error('Error saving userState atomically:', error)
+            if (fs.existsSync(tmpPath)) {
+                try { fs.unlinkSync(tmpPath) } catch (_) {}
+            }
         }
     }
 
@@ -156,6 +167,18 @@ class BotStateStore {
         this.userState.forEach((state, phoneNumber) => {
             if (state.listing.createdAt + this.listingExpiryMs < Date.now()) {
                 this.clearTimer(phoneNumber)
+                this.userState.delete(phoneNumber)
+                anyDeleted = true
+                console.log('Expired listing removed for:', phoneNumber)
+            }
+        })
+        if (anyDeleted) this.save()
+        return anyDeleted
+    }
+}
+
+module.exports = BotStateStore
+   this.clearTimer(phoneNumber)
                 this.userState.delete(phoneNumber)
                 anyDeleted = true
                 console.log('Expired listing removed for:', phoneNumber)

@@ -17,7 +17,10 @@ import org.springframework.web.bind.annotation.*
 @RestController
 @RequestMapping("/api/sellers")
 @CrossOrigin(origins = ["http://localhost:8080", "http://127.0.0.1:8080", "http://localhost:3000"])
-class SellerController(private val sellerService: SellerService) {
+class SellerController(
+    private val sellerService: SellerService,
+    @Value("\${whatsapp.bot.api-key}") private val botApiKey: String
+) {
 
     /**
      * Self-service account deletion. Requires password re-entry for safety.

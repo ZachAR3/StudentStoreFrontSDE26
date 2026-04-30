@@ -1,5 +1,6 @@
 const express = require('express')
 require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') })
+const { normalizePhoneNumber } = require('./chatIdentity')
 
 function startWebhookServer(stateStore, listingSubmissionService) {
     const app  = express()
@@ -13,13 +14,13 @@ function startWebhookServer(stateStore, listingSubmissionService) {
             return res.status(401).json({ error: 'Unauthorized' })
         }
 
-        let { phoneNumber } = req.body
-        if (!phoneNumber) {
+        const rawPhoneNumber = req.body.phoneNumber
+        if (!rawPhoneNumber) {
             return res.status(400).json({ error: 'phoneNumber is required' })
         }
 
-        // Normalize: Strip all non-digits (removes '+', spaces, etc.) to match bot's userState keys
-        phoneNumber = phoneNumber.replace(/\D/g, '')
+        // Use centralized normalization
+        const phoneNumber = normalizePhoneNumber(rawPhoneNumber)
 
         const state = stateStore.get(phoneNumber)
         if (!state || !state.registrationPending) {

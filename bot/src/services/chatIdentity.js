@@ -31,9 +31,15 @@ function getDirectChatId(contact, fallbackChatId = null) {
     return `${user}@c.us`
 }
 
+function normalizePhoneNumber(phoneNumber = '') {
+    if (!phoneNumber) return ''
+    return phoneNumber.replace(/\D/g, '')
+}
+
 module.exports = {
     isDirectChatId,
     isDirectMessage,
     getContactNumber,
-    getDirectChatId
+    getDirectChatId,
+    normalizePhoneNumber
 }

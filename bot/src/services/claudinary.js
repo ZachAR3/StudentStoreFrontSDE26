@@ -17,7 +17,10 @@ const uploadImage = async (imagePath) => {
 
         try {
             // Upload the image
-            const result = await cloudinary.uploader.upload(imagePath, options);
+            const result = await cloudinary.uploader.upload(imagePath, {
+                ...options,
+                timeout: 30000 // 30 seconds for image upload
+            });
             console.log('Cloudinary upload OK:', result.secure_url);
             return result.secure_url;
         } catch (error) {
