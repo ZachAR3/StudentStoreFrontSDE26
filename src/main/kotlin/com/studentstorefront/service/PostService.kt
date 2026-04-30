@@ -13,7 +13,6 @@ import com.studentstorefront.repository.FavouriteRepository
 import com.studentstorefront.repository.PostMediaRepository
 import com.studentstorefront.repository.PostRepository
 import com.studentstorefront.repository.SellerRepository
-import org.hibernate.internal.util.collections.ArrayHelper.forEach
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.security.access.AccessDeniedException
@@ -111,6 +110,12 @@ class PostService(
     @Transactional(readOnly = true)
     fun getAvailablePosts(pageable: Pageable): Page<PostResponseDTO> {
         return postRepository.findByIsSoldFalse(pageable).map { mapToResponseDTO(it) }
+    }
+
+    @Transactional(readOnly = true)
+    fun searchAvailablePosts(query: String?, category: Category?, pageable: Pageable): Page<PostResponseDTO> {
+        val normalizedQuery = query?.trim()?.takeIf { it.isNotEmpty() }
+        return postRepository.searchAvailablePosts(normalizedQuery, category, pageable).map { mapToResponseDTO(it) }
     }
 
     fun updatePost(postId: Long, postUpdateDTO: PostUpdateDTO): PostResponseDTO {

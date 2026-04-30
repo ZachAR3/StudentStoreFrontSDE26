@@ -9,6 +9,7 @@ import jakarta.validation.Valid
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Sort
 import org.springframework.data.web.PageableDefault
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -56,6 +57,21 @@ class PostController(
         @PageableDefault(size = 20) pageable: Pageable
     ): ResponseEntity<Page<PostResponseDTO>> {
         val posts = postService.getAllPosts(pageable)
+        return ResponseEntity.ok(posts)
+    }
+
+    @GetMapping("/search")
+    fun searchPosts(
+        @RequestParam(required = false) q: String?,
+        @RequestParam(required = false) category: String?,
+        @PageableDefault(size = 20, sort = ["createdAt"], direction = Sort.Direction.DESC) pageable: Pageable
+    ): ResponseEntity<Page<PostResponseDTO>> {
+        val categoryEnum = category?.trim()?.takeIf { it.isNotEmpty() }?.let {
+            runCatching { Category.valueOf(it.uppercase()) }.getOrNull()
+                ?: return ResponseEntity.badRequest().build()
+        }
+
+        val posts = postService.searchAvailablePosts(q, categoryEnum, pageable)
         return ResponseEntity.ok(posts)
     }
 
