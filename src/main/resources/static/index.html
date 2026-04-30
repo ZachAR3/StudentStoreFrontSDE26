@@ -535,7 +535,7 @@
                         <div class="password-meter-rules">
                             <span :style="{ color: /[a-z]/.test(auth.resetPasswordForm.newPassword) ? '#22c55e' : '#9ca3af' }">lowercase</span>
                             <span :style="{ color: /[A-Z]/.test(auth.resetPasswordForm.newPassword) ? '#22c55e' : '#9ca3af' }">uppercase</span>
-                            <span :style="{ color: /\\d/.test(auth.resetPasswordForm.newPassword) ? '#22c55e' : '#9ca3af' }">digit</span>
+                            <span :style="{ color: /\d/.test(auth.resetPasswordForm.newPassword) ? '#22c55e' : '#9ca3af' }">digit</span>
                             <span :style="{ color: /[@$!%*?&]/.test(auth.resetPasswordForm.newPassword) ? '#22c55e' : '#9ca3af' }">special</span>
                         </div>
                     </div>
@@ -588,7 +588,7 @@
                         <div class="password-meter-rules">
                             <span :style="{ color: /[a-z]/.test(auth.registerForm.password) ? '#22c55e' : '#9ca3af' }">lowercase</span>
                             <span :style="{ color: /[A-Z]/.test(auth.registerForm.password) ? '#22c55e' : '#9ca3af' }">uppercase</span>
-                            <span :style="{ color: /\\d/.test(auth.registerForm.password) ? '#22c55e' : '#9ca3af' }">digit</span>
+                            <span :style="{ color: /\d/.test(auth.registerForm.password) ? '#22c55e' : '#9ca3af' }">digit</span>
                             <span :style="{ color: /[@$!%*?&]/.test(auth.registerForm.password) ? '#22c55e' : '#9ca3af' }">special</span>
                         </div>
                     </div>
