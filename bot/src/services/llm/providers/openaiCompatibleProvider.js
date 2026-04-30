@@ -2,8 +2,8 @@ const OpenAIImport = require("openai")
 const { UserMessagePrompt, classificationPrompt } = require("../../Prompt-File.js")
 
 const OpenAI = OpenAIImport.default || OpenAIImport
-const DEFAULT_BASE_URL = "https://ai.zachar3.duckdns.org/v1"
-const DEFAULT_MODEL = "ollama/gemma4:e4b"
+const DEFAULT_BASE_URL = "https://api.openai.com/v1"
+const DEFAULT_MODEL = "gpt-5.4-nano"
 
 function extractText(content) {
     if (typeof content === "string") return content
@@ -44,9 +44,9 @@ function createObservation(langfuse, tracingParams, name, model, input) {
 }
 
 function createOpenAICompatibleProvider({ langfuse }) {
-    const baseURL = process.env.LITELLM_BASE_URL || DEFAULT_BASE_URL
-    const apiKey = process.env.LITELLM_API_KEY
-    const model = process.env.LITELLM_MODEL || DEFAULT_MODEL
+    const baseURL = process.env.OPENAI_BASE_URL || DEFAULT_BASE_URL
+    const apiKey = process.env.OPENAI_API_KEY || process.env.LITELLM_API_KEY
+    const model = process.env.OPENAI_MODEL || DEFAULT_MODEL
 
     const client = apiKey ? new OpenAI({
         baseURL,
@@ -71,7 +71,7 @@ function createOpenAICompatibleProvider({ langfuse }) {
 
     async function complete(prompt, images = [], tracingParams = {}, operationName = "OpenAICompatibleCompletion") {
         if (!client) {
-            throw new Error("LITELLM_API_KEY is not configured")
+            throw new Error("OPENAI_API_KEY is not configured")
         }
 
         const observation = createObservation(

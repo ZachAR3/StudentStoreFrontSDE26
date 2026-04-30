@@ -438,12 +438,12 @@ cp .env.example .env
 | `CLOUDINARY_API_KEY` | Yes | — | Cloudinary API key. |
 | `CLOUDINARY_API_SECRET` | Yes | — | Cloudinary API secret. |
 | `APP_BASE_URL` | No | `http://localhost:8080` | URL shown to unregistered users in DMs (e.g., `https://yourdomain.com`). |
-| `LLM_PRIMARY_PROVIDER` | No | `gemini` | Primary runtime provider (`gemini` or `openai-compatible`). |
+| `LLM_PRIMARY_PROVIDER` | No | `openai-compatible` | Primary runtime provider (`gemini` or `openai-compatible`). |
 | `LLM_FALLBACK_PROVIDERS` | No | empty | Comma-separated provider fallback chain. |
 | `GEMINI_FALLBACK_MODELS` | No | internal defaults | Comma-separated Gemini model fallback list. |
-| `LITELLM_BASE_URL` | No | `https://ai.zachar3.duckdns.org/v1` | Base URL for OpenAI-compatible endpoint. |
-| `LITELLM_API_KEY` | Yes* | — | API key for OpenAI-compatible endpoint. Required when using `openai-compatible`. |
-| `LITELLM_MODEL` | No | `ollama/gemma4:e4b` | Model name passed to OpenAI-compatible chat completions API. |
+| `OPENAI_BASE_URL` | No | `https://api.openai.com/v1` | Base URL for the OpenAI-compatible provider. |
+| `OPENAI_API_KEY` | Yes* | — | API key for the OpenAI API. Required when using `openai-compatible`. |
+| `OPENAI_MODEL` | No | `gpt-5.4-nano` | Model name passed to the OpenAI chat completions API. |
 
 ### Target Group
 
