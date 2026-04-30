@@ -54,22 +54,26 @@ The bot also handles WhatsApp-based QR login, allowing users to authenticate on 
 bot/
 ├── src/
 │   ├── WhatsappBot.js              # Entry point — client lifecycle + message handler
-│   ├── services/llm/
-│   │   ├── modelRouter.js          # Multi-provider routing (primary + fallback chain)
-│   │   └── providers/
-│   │       ├── geminiProvider.js   # Gemini provider implementation
-│   │       └── openaiCompatibleProvider.js # LiteLLM/OpenAI-style provider implementation
+│   ├── shopping/
+│   │   └── WhatsAppShoppingChat.js # DM shopping commands and reaction pagination
 │   ├── services/
-│   │   ├── botGeminiService.js     # Gemini classification & parsing (production LLM)
-│   │   ├── Gemma4Service.js        # Gemma 4 via local Ollama (benchmark/testing only)
+│   │   ├── llm/
+│   │   │   ├── modelRouter.js          # Multi-provider routing (primary + fallback chain)
+│   │   │   └── providers/
+│   │   │       ├── geminiProvider.js   # Gemini provider implementation
+│   │   │       └── openaiCompatibleProvider.js # LiteLLM/OpenAI-style provider implementation
 │   │   ├── langfuseService.js      # Langfuse singleton for LLM observability tracing
 │   │   ├── springServices.js       # All Spring Boot REST API calls
 │   │   ├── webhookService.js       # Express server for the seller-registered webhook
 │   │   ├── claudinary.js           # Cloudinary image upload helper
-│   │   └── Prompt-File.js          # Gemini prompt templates (classification + parsing)
+│   │   └── Prompt-File.js          # Prompt templates (classification, parsing, image description)
 │   └── tests/
+│       ├── LLM_Services_For_Testing/
+│       │   ├── botGeminiService.js     # Gemini classification & parsing (benchmark/legacy)
+│       │   └── Gemma4Service.js        # Gemma via LiteLLM (benchmark/testing only)
 │       ├── GeminiAPI-test-Mock.js  # Standalone test harness with mocked services
-│       └── runBenchmark.js         # Head-to-head Gemini vs Gemma benchmark (requires Ollama)
+│       ├── runBenchmark.js         # Text benchmark: Gemini vs Gemma vs ChatGPT
+│       └── Benchmark_Images.js     # Image description benchmark: Gemma vs ChatGPT vs Gemini
 ├── consentedUsersPersistence.json  # Persisted list of phone numbers that gave consent
 ├── .env                            # Local secrets (not committed)
 ├── .env.example                    # Template showing required variables
@@ -121,9 +125,9 @@ A `setInterval` runs every 3 hours and removes entries from `userState` whose `c
 
 ---
 
-### 4.2 `botGeminiService.js` — AI Classification & Parsing (Production)
+### 4.2 `tests/LLM_Services_For_Testing/botGeminiService.js` — AI Classification & Parsing (Benchmark/Legacy)
 
-All production Gemini logic is isolated here. It exposes two functions:
+All legacy Gemini logic is isolated here. It is used for benchmarking and isolated tests. Production traffic uses the Model Router.
 
 #### `GeminiContextClassifier(messages: string[]) → 'YES' | 'NO'`
 

@@ -4,7 +4,7 @@ const qrcode                                       = require('qrcode-terminal')
 const { uploadImage }                              = require('./services/claudinary.js')
 const springServices                                = require('./services/springServices.js')
 const { createPost, getSellerByPhone, confirmWhatsAppLogin } = springServices
-const { MessageParser, ContextClassifier, getActiveProviderConfig } = require('./services/llm/modelRouter.js')
+const { MessageParser, ContextClassifier, ImageDescriber, getActiveProviderConfig } = require('./services/llm/modelRouter.js')
 const { startWebhookServer }                          = require('./services/webhookService.js')
 const WhatsAppShoppingChat                            = require('./shopping/WhatsAppShoppingChat.js')
 const langfuse                                        = require('./services/langfuseService')
@@ -63,18 +63,30 @@ async function processListing(contact, currentUserListing) {
         userId: contact.number
     });
 
-    // Cloudinary upload span
+    // Cloudinary upload and image description run in parallel
     const cloudinarySpan = trace.span({ name: "CloudinaryUpload" });
-    const uploadResults = await Promise.all(
-        currentUserListing.imageUrls.map(image => {
-            const base64 = `data:${image.mimetype};base64,${image.data}`
-            return uploadImage(base64)
-        })
-    );
-    const cloudinaryUrls = uploadResults.filter(url => url !== null);
-    cloudinarySpan.end({ output: { count: cloudinaryUrls.length } });
+    const [cloudinaryUrls, imageDescription] = await Promise.all([
+        Promise.all(
+            currentUserListing.imageUrls.map(image => {
+                const base64 = `data:${image.mimetype};base64,${image.data}`
+                return uploadImage(base64)
+            })
+        ).then(results => {
+            const urls = results.filter(url => url !== null)
+            cloudinarySpan.end({ output: { count: urls.length } })
+            return urls
+        }),
+        currentUserListing.imageUrls.length > 0
+            ? ImageDescriber(currentUserListing.imageUrls, { sessionId: contact.number, userId: contact.number, parent: trace })
+            : Promise.resolve(null)
+    ]);
 
-    const parsedListing = await MessageParser(currentUserListing.messages.join('\n'), {
+    const messages = [...currentUserListing.messages]
+    if (imageDescription) {
+        messages.push(`Image description: ${imageDescription}`)
+    }
+
+    const parsedListing = await MessageParser(messages.join('\n'), {
         sessionId: contact.number,
         userId: contact.number,
         parent: trace

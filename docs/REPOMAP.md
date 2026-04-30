@@ -57,22 +57,24 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 │   │   ├── WhatsappBot.js     # Main bot script: group listing capture, consent flow, QR login, shopping chat delegation
 │   │   ├── shopping/
 │   │   │   └── WhatsAppShoppingChat.js # DM shopping commands, listing pagination, reaction navigation, seller contact links
-│   │   ├── services/llm/
-│   │   │   ├── modelRouter.js # Provider router with primary+fallback chain for runtime LLM selection
-│   │   │   └── providers/
-│   │   │       ├── geminiProvider.js # Gemini provider adapter (prompt + parse/classify + model fallback)
-│   │   │       └── openaiCompatibleProvider.js # OpenAI-style adapter for LiteLLM/self-hosted endpoints
 │   │   ├── services/
-│   │   │   ├── botGeminiService.js   # Legacy Gemini-only service (kept for compatibility/tests)
-│   │   │   ├── Gemma4Service.js      # Local LLM via Ollama (benchmark/testing only — not used by bot)
+│   │   │   ├── llm/
+│   │   │   │   ├── modelRouter.js # Provider router with primary+fallback chain for runtime LLM selection
+│   │   │   │   └── providers/
+│   │   │   │       ├── geminiProvider.js # Gemini provider adapter (prompt + parse/classify + model fallback)
+│   │   │   │       └── openaiCompatibleProvider.js # OpenAI-style adapter for LiteLLM/self-hosted endpoints
 │   │   │   ├── langfuseService.js    # Shared Langfuse client for LLM observability
 │   │   │   ├── springServices.js     # Spring Boot REST API calls for listing creation, lookup, search, and WhatsApp login
 │   │   │   ├── webhookService.js     # Express webhook server (seller-registered)
 │   │   │   ├── claudinary.js         # Cloudinary image upload helper
-│   │   │   └── Prompt-File.js        # Gemini/Gemma prompt templates
+│   │   │   └── Prompt-File.js        # Prompt templates (classification, parsing, image description)
 │   │   └── tests/
+│   │       ├── LLM_Services_For_Testing/
+│   │       │   ├── botGeminiService.js   # Legacy Gemini-only service (kept for compatibility/tests)
+│   │       │   └── Gemma4Service.js      # Gemma via LiteLLM (benchmark/testing only)
 │   │       ├── GeminiAPI-test-Mock.js  # Standalone test harness with mocked services
-│   │       └── runBenchmark.js         # Head-to-head Gemini vs Gemma benchmark (requires Ollama)
+│   │       ├── runBenchmark.js         # Text benchmark: Gemini vs Gemma vs ChatGPT
+│   │       └── Benchmark_Images.js     # Image description benchmark: Gemma vs ChatGPT vs Gemini
 │   ├── .env.example           # Bot environment template (provider routing, LiteLLM/OpenAI-compatible vars)
 │   └── package.json           # Bot dependencies (includes `openai` SDK for OpenAI-compatible provider)
 └── docker-compose.yaml        # Local PostgreSQL setup

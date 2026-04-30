@@ -7,7 +7,20 @@ const { createOpenAICompatibleProvider } = require("./providers/openaiCompatible
 
 const providers = {
     gemini: createGeminiProvider({ langfuse }),
-    "openai-compatible": createOpenAICompatibleProvider({ langfuse })
+    "openai-compatible": createOpenAICompatibleProvider({ langfuse }),
+    gemma: createOpenAICompatibleProvider({ langfuse }),
+    chatgpt: createOpenAICompatibleProvider({
+        langfuse,
+        baseURL: "https://api.openai.com/v1",
+        apiKey: process.env.OPENAI_API_KEY,
+        model: "gpt-4o-mini"
+    })
+}
+
+const PARSE_PROVIDER_PREFERENCE = ["gemma", "chatgpt", "gemini"]
+
+function getParseSequence() {
+    return PARSE_PROVIDER_PREFERENCE.filter(name => providers[name]?.isConfigured)
 }
 
 function uniqueNonEmpty(values) {
@@ -35,8 +48,7 @@ function getProviderSequence() {
     return sequence
 }
 
-async function runWithFallback(operationName, executor) {
-    const sequence = getProviderSequence()
+async function runWithFallback(operationName, executor, sequence = getProviderSequence()) {
     let lastError = null
 
     for (const providerName of sequence) {
@@ -54,9 +66,18 @@ async function runWithFallback(operationName, executor) {
 
 async function MessageParser(message, tracingParams = {}) {
     try {
-        return await runWithFallback("MessageParser", provider => provider.parseListing(message, tracingParams))
+        return await runWithFallback("MessageParser", provider => provider.parseListing(message, tracingParams), getParseSequence())
     } catch (error) {
         console.error("LLM Message Parser error:", error.message)
+        return null
+    }
+}
+
+async function ImageDescriber(images, tracingParams = {}) {
+    try {
+        return await runWithFallback("ImageDescriber", provider => provider.imageProcessing(images, tracingParams), getParseSequence())
+    } catch (error) {
+        console.error("LLM Image Describer error:", error.message)
         return null
     }
 }
@@ -83,5 +104,6 @@ function getActiveProviderConfig() {
 module.exports = {
     MessageParser,
     ContextClassifier,
+    ImageDescriber,
     getActiveProviderConfig
 }
