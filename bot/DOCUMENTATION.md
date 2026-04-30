@@ -19,7 +19,7 @@ The WhatsApp bot is an AI-powered bridge between a WhatsApp group chat and the S
 1. The bot monitors a specific WhatsApp group for messages.
 2. After the inactivity window, it sends the accumulated messages to the configured LLM provider to determine whether they represent a marketplace listing.
 3. If the classifier says yes, it DMs the user to ask for consent.
-4. Once consent is granted, it parses the listing text and images through the model router, uploads the original images to Cloudinary, and posts the result to the Spring Boot backend via a REST API.
+4. Once consent is granted, it parses the listing text and images through the model router, reuses existing stored image URLs when duplicate image bytes are already known to the backend, uploads only missing originals to Cloudinary, and posts the result to the Spring Boot backend via a REST API. If the LLM finds multiple distinct priced items, the bot creates multiple marketplace posts.
 
 The bot also handles WhatsApp-based QR login, allowing users to authenticate on the web app by scanning a QR code and then DMing the bot a confirmation token.
 
@@ -59,6 +59,7 @@ bot/
 │   ├── services/
 │   │   ├── llm/
 │   │   │   ├── modelRouter.js          # Multi-provider routing (primary + fallback chain)
+│   │   │   ├── parseJsonFromLlmText.js # Shared JSON/array extraction for wrapped LLM responses
 │   │   │   └── providers/
 │   │   │       ├── geminiProvider.js   # Gemini provider with multimodal parsing
 │   │   │       └── openaiCompatibleProvider.js # OpenAI/LiteLLM multimodal provider
@@ -125,7 +126,9 @@ The `UserState` object shape:
 ```
 
 **Stale listing cleanup:**
-A `setInterval` runs every 3 hours and removes entries from `userState` whose `createdAt` is older than 12 hours (`LISTING_EXPIRY_HOURS`). This prevents memory leaks from users who never reply.
+A `setInterval` runs every 3 hours and removes entries from `userState` whose `createdAt` is older than 24 hours (`LISTING_EXPIRY_HOURS`). This prevents memory leaks from users who never reply.
+
+If a draft is parseable as a listing but has no valid price, it is moved into an `awaiting-price` stage instead of being posted. The bot DMs the seller to reply with a price, keeps the staged draft for up to 24 hours, and only attempts post creation after a valid price is later received.
 
 ---
 
@@ -141,13 +144,13 @@ Takes an array of raw message strings from a single user and asks Gemini whether
 - Returns `'YES'` if the response contains "YES", otherwise `'NO'`.
 - On error, fails safely to `'NO'` so the bot never crashes on a Gemini timeout.
 
-#### `GeminiMessageParser(message: string) → Object | null`
+#### `GeminiMessageParser(message: string) → Object | Object[] | null`
 
-Takes the joined message text and asks Gemini to extract structured listing fields.
+Takes the joined message text and asks Gemini to extract one or more structured listing fields.
 
 - Uses the `UserMessagePrompt` from `Prompt-File.js`.
 - Strips any surrounding markdown from the response and parses the JSON.
-- Returns an object `{ title, price, description, category }` or `null` on failure.
+- Returns either a single object `{ title, price, description, category }`, an array of those objects when multiple distinct items are detected, or `null` on failure.
 
 **Model fallback chain:** the production Gemini provider defaults to `gemini-2.5-flash-lite` → `gemini-2.5-flash` and remaps older `gemini-1.5-*` names to current models.
 
@@ -166,7 +169,9 @@ Current providers:
 - `openai-compatible` (for LiteLLM / OpenAI-style endpoints)
 - `gemma` and `chatgpt` aliases for benchmark/provider experiments
 
-`MessageParser(message, images, tracingParams)` sends text and downscaled image payloads directly to the chosen multimodal provider. `ImageDescriber(images, tracingParams)` remains available for image-description benchmarks and diagnostics, but the production listing flow does not duplicate work by describing images before parsing.
+`MessageParser(message, images, tracingParams)` sends text and downscaled image payloads directly to the chosen multimodal provider. It returns either a single listing object for backward compatibility or an array of listing objects when multiple distinct items are detected. The parse token budget is controlled by `LISTING_PARSE_MAX_TOKENS` and now defaults high enough for multi-item image sheets. `ImageDescriber(images, tracingParams)` remains available for image-description benchmarks and diagnostics, but the production listing flow does not duplicate work by describing images before parsing.
+
+Provider parsers now use a shared JSON extraction utility that can recover structured output from common LLM wrappers (for example code fences, leading explanations, or extra trailing text) instead of relying on a single greedy `{...}` match.
 
 ---
 
@@ -191,7 +196,7 @@ Required `.env` variables: `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFU
 
 ### 4.5 `springServices.js` — Backend API Calls
 
-Three functions, all authenticated via the `X-Bot-Api-Key` header (where required):
+This service wrapper covers seller lookup, bot post creation, duplicate-image resolution by hash, shopping queries, and QR login confirmation. Bot-only write operations authenticate via the `X-Bot-Api-Key` header.
 
 #### `getSellerByPhone(phoneNumber) → SellerObject | null`
 
@@ -200,13 +205,24 @@ GET /api/sellers/by-phone?phone=+<digits>
 ```
 Normalizes the phone number to digits-only, then prefixes with `+` for the API call. Returns the seller object (containing `sellerId`) or `null` if the seller is not registered (404) or the number is invalid.
 
-#### `createPost(geminiListing, cloudinaryUrls, sellerId) → ResponseData | false`
+#### `createPost(geminiListing, cloudinaryUrls, sellerId, imageHashes) → { ok, status, data? }`
 
 ```
 POST /api/posts/bot
 X-Bot-Api-Key: <BOT_API_KEY>
 ```
 Creates a marketplace post. Sets `expiresAt` to 48 hours from now. The `category` field is uppercased to match the backend enum.
+
+When available, the bot also sends `imageHashList`, allowing the backend to reuse an existing stored image URL for duplicate image bytes even when the listing itself is new.
+
+#### `resolveMediaUrlsByHash(imageHashes) → Object`
+
+```
+POST /api/posts/bot/media/resolve
+X-Bot-Api-Key: <BOT_API_KEY>
+```
+
+Accepts a list of SHA-256 image hashes and returns a map of `{ hash: existingMediaUrl }` for any images already known to the backend. `ListingSubmissionService` uses this to skip redundant Cloudinary uploads.
 
 #### `confirmWhatsAppLogin(loginToken, phoneNumber) → 'OK' | 'EXPIRED' | 'PHONE_NOT_LINKED' | 'ALREADY_USED' | null`
 
@@ -253,7 +269,7 @@ A thin wrapper around the Cloudinary v2 SDK. Accepts a Base64 data URI and retur
 'https://res.cloudinary.com/<cloud>/image/upload/...'
 ```
 
-Upload options: `unique_filename: true`, `overwrite: false`. Images are stored permanently unless manually deleted from the Cloudinary dashboard.
+Upload options: `unique_filename: true`, `overwrite: false`. Images are stored permanently unless manually deleted from the Cloudinary dashboard. The bot now attempts image-hash reuse first, so this uploader is called only for images that are not already known to the backend.
 
 ---
 
@@ -263,7 +279,7 @@ Centralizes prompt strings, keeping business logic separate from AI instructions
 
 **`classificationPrompt(messages[])`** — instructs the provider to reply with only `YES` or `NO`. Provides concrete positive/negative examples to reduce hallucination.
 
-**`UserMessagePrompt(message, imageCount)`** — instructs the provider to extract `title`, `price`, `description`, and `category` from text plus any attached images and return **only** a JSON object with no markdown or extra text. Categories are restricted to: `ELECTRONICS`, `BOOKS`, `CLOTHING`, `FURNITURE`, `SPORTS`, `FOOD`, `SERVICES`, `OTHER`.
+**`UserMessagePrompt(message, imageCount)`** — instructs the provider to extract listing data from text plus attached images and return **only** a JSON array of items. Each item includes `title`, `price`, `description`, `category`, and optional `imageIndexes` (zero-based image mapping for that item). Prices must be `null` when not visible. Categories are restricted to: `ELECTRONICS`, `BOOKS`, `CLOTHING`, `FURNITURE`, `SPORTS`, `FOOD`, `SERVICES`, `OTHER`.
 
 **`imageDescriptionPrompt()`** — used by benchmark and diagnostic image-description paths.
 
@@ -372,7 +388,7 @@ Original image payloads are kept for upload. Downscaled copies are sent to the L
                          Array of CDN URLs passed to createPost()
 ```
 
-All images for a single user's session are uploaded in parallel via `Promise.all`.
+Images are hash-resolved first (`/api/posts/bot/media/resolve`) to reuse existing backend media URLs. Only images that are not known by hash are uploaded to Cloudinary.
 
 ---
 
@@ -406,15 +422,18 @@ async processListing(contact, listingDraft)
 
 Orchestrates the full upload pipeline:
 1. Downscale image copies for LLM parsing.
-2. Call `MessageParser(rawListingText, llmImages, tracingParams)` to extract structured fields.
+2. Call `MessageParser(rawListingText, llmImages, tracingParams)` to extract one or more structured listing items.
 3. Call `getSellerByPhone` to retrieve the `sellerId`.
-4. Upload original images to Cloudinary (`Promise.all`).
-5. Call `createPost` with the parsed data, CDN URLs, and seller ID.
+4. Resolve image hashes against backend-known media URLs, then upload only unresolved images.
+5. For each parsed listing item, pick item-scoped images using `imageIndexes` (fallback: all draft images) and call `createPost` as a distinct marketplace post.
 
 **Return values:**
 | Value | Meaning |
 |---|---|
-| `true` | Listing created successfully |
+| `{ ok: true, postedCount }` | One or more listings created successfully |
+| `{ ok: false, reason: 'missing-price', parsedListing: { missingItems } }` | Parse detected item(s) missing price; bot asks seller for each missing item |
+| `'missing-price'` | Single-item missing-price path |
+| `'listing-conflict'` | Backend rejected because of existing/conflicting listing |
 | `false` | LLM parse failed or `createPost` failed |
 | `null` | Seller not found — user needs to register |
 

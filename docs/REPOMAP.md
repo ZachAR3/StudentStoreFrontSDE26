@@ -59,6 +59,7 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 │   │   │   └── WhatsAppShoppingChat.js # DM shopping commands, n/p pagination, cover-image details, seller contact links
 │   │   ├── services/llm/
 │   │   │   ├── modelRouter.js # Provider router with primary+fallback chain for runtime LLM selection
+│   │   │   ├── parseJsonFromLlmText.js # Shared JSON/array extraction utility for wrapped LLM output
 │   │   │   └── providers/
 │   │   │       ├── geminiProvider.js # Gemini provider adapter with current fallback defaults and multimodal parsing
 │   │   │       └── openaiCompatibleProvider.js # OpenAI-style adapter for GPT/LiteLLM multimodal parsing
@@ -108,7 +109,8 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 | `GET` | `/api/posts` | Public | Fetch paginated list of all posts |
 | `POST` | `/api/posts` | SELLER/ADMIN | Create a new listing (JSON) |
 | `POST` | `/api/posts/upload` | SELLER/ADMIN | Create a new listing with multiple image file uploads (multipart/form-data) |
-| `POST` | `/api/posts/bot` | `X-Bot-Api-Key` | Bot-only: Create a new listing (e.g., from group chat parsing) |
+| `POST` | `/api/posts/bot` | `X-Bot-Api-Key` | Bot-only: Create one marketplace listing from parsed WhatsApp output, including reusable image hashes |
+| `POST` | `/api/posts/bot/media/resolve` | `X-Bot-Api-Key` | Bot-only: Resolve known media URLs by SHA-256 image hash so duplicate image bytes can be reused |
 | `GET` | `/api/posts/{id}` | Public | Get details of a specific post |
 | `PUT` | `/api/posts/{id}` | SELLER/ADMIN | Update an existing post |
 | `PATCH` | `/api/posts/{id}/mark-sold`| SELLER/ADMIN | Mark a post as sold (removes from active feed) |
@@ -158,6 +160,7 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 ### **PostMedia**
 - `id`: Primary Key (Long)
 - `mediaUrl`: URL to the hosted image (String)
+- `imageHash`: Optional SHA-256 hash of the original image bytes, used by the bot/backend to reuse stored URLs for duplicate images
 - `displayOrder`: User-defined order for image display (Integer)
 - `isCover`: Flag indicating the primary thumbnail (Boolean)
 - `post`: Reference to the parent `Post`
@@ -277,13 +280,16 @@ Created sites are local browser artifacts, not backend records. A created site s
 - **Bot Engine:** Built with `whatsapp-web.js`. Handles group message parsing, DM commands, QR login confirmations, and explicit DM posting flows.
 - **Command Short-Circuiting:** Known bot commands are detected before listing classification in the target chat, so command messages skip LLM classification entirely (lower latency and token usage).
 - **DM Posting Flow:** Users can start a draft with `post`, send text and photos, and let the inactivity timer submit the draft. Consent and registration retries use persisted bot-side state so drafts survive restarts.
+- **Missing-Price Staging:** If the parser can identify items but one or more are missing valid prices, the draft moves into `awaiting-price` for up to 24 hours. The bot DMs an itemized missing-price list (for each missing item) and retries the same staged draft when the seller replies.
 - **Text-Chat Shopping:** `WhatsAppShoppingChat.js` lets buyers browse the store in WhatsApp DMs with commands like `shop`, `recent`, `search desk`, `category electronics`, `details 1`, numeric replies for seller links, and `n` / `p` for paging. Item details send the cover image when available.
 - **Multi-Model LLM Routing:** Runtime classification/parsing goes through `services/llm/modelRouter.js` with env-configured primary provider (`LLM_PRIMARY_PROVIDER`) and fallback providers (`LLM_FALLBACK_PROVIDERS`).
 - **Gemini Provider:** Includes current fallback defaults (`gemini-2.5-flash-lite` → `gemini-2.5-flash`) and remaps older `gemini-1.5-*` env values to current models.
 - **OpenAI-Compatible Provider:** Uses the official `openai` JS SDK with the OpenAI chat completions API. Current defaults target `gpt-5.4-nano`.
+- **Multi-Item Listing Extraction:** The parsing prompt requests one listing per distinct visible item and returns an array payload with per-item metadata plus optional `imageIndexes`. The bot creates one marketplace post per parsed item and maps each post to item-scoped images when indices are provided.
 - **Local Model (Benchmark only):** `Gemma4Service.js` calls a locally running **Gemma 4** model via [Ollama](https://ollama.com) for benchmarking against Gemini. It is not part of the production bot flow and requires no setup from teammates.
 - **LLM Observability:** [Langfuse](https://langfuse.com) traces every LLM call (latency, token usage, errors) across configured providers.
-- **Image Preprocessing:** Listing images are downscaled to fit inside `960x720` before LLM parsing, preserving aspect ratio while reducing latency and payload size. Original images are still uploaded for the final post.
+- **Image Preprocessing:** Listing images are downscaled to fit inside `960x720` before LLM parsing, preserving aspect ratio while reducing latency and payload size.
+- **Image Hash Reuse:** Before uploading to Cloudinary, the bot hashes each WhatsApp image, asks the backend whether that exact image is already known, and reuses the existing stored media URL when possible. Only missing images are uploaded.
 - **Spring Service Wrapper:** `springServices.js` dispatches parsed listings to secure bot endpoints and reads public listing/search APIs for shopping chat.
 - **Webhook Service:** Receives seller registration callbacks so pending bot-created listings can continue after signup.
 - **Cloudinary Integration:** Both bot and backend use Cloudinary for optimized image hosting.
