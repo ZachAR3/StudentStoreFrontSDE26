@@ -197,13 +197,13 @@ class WhatsAppQrLoginServiceTest {
     fun `confirmLogin returns PHONE_NOT_LINKED and saves session when no seller matches phone`() {
         val session = WhatsAppLoginSession(creatorIp = "127.0.0.1")
         every { sessionRepository.findByLoginToken(session.loginToken) } returns session
-        every { sellerRepository.findByPhoneNumber("99999999999") } returns null
+        every { sellerRepository.findByPhoneNumber("+99999999999") } returns null
 
         val result = service.confirmLogin(session.loginToken, "99999999999")
 
         assertEquals("PHONE_NOT_LINKED", result.result)
         assertEquals(WhatsAppSessionStatus.PHONE_NOT_LINKED, session.status)
-        assertEquals("99999999999", session.phoneNumber)
+        assertEquals("+99999999999", session.phoneNumber)
         verify { sessionRepository.save(session) }
     }
 
@@ -212,14 +212,14 @@ class WhatsAppQrLoginServiceTest {
         val seller = buildSeller()
         val session = WhatsAppLoginSession(creatorIp = "127.0.0.1")
         every { sessionRepository.findByLoginToken(session.loginToken) } returns session
-        every { sellerRepository.findByPhoneNumber(seller.phoneNumber) } returns seller
+        every { sellerRepository.findByPhoneNumber("+${seller.phoneNumber}") } returns seller
 
         val result = service.confirmLogin(session.loginToken, seller.phoneNumber)
 
         assertEquals("OK", result.result)
         assertEquals(WhatsAppSessionStatus.COMPLETED, session.status)
         assertEquals(seller.sellerId, session.sellerId)
-        assertEquals(seller.phoneNumber, session.phoneNumber)
+        assertEquals("+${seller.phoneNumber}", session.phoneNumber)
         assertNotNull(session.claimToken)
         assertNotNull(session.completedAt)
         verify { sessionRepository.save(session) }

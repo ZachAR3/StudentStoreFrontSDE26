@@ -115,7 +115,14 @@ class PostService(
     @Transactional(readOnly = true)
     fun searchAvailablePosts(query: String?, category: Category?, pageable: Pageable): Page<PostResponseDTO> {
         val normalizedQuery = query?.trim()?.takeIf { it.isNotEmpty() }
-        return postRepository.searchAvailablePosts(normalizedQuery, category, pageable).map { mapToResponseDTO(it) }
+
+        val posts = when {
+            normalizedQuery == null && category == null -> postRepository.findByIsSoldFalse(pageable)
+            normalizedQuery == null && category != null -> postRepository.findByCategoryAndIsSoldFalse(category, pageable)
+            else -> postRepository.searchAvailablePosts(normalizedQuery, category, pageable)
+        }
+
+        return posts.map { mapToResponseDTO(it) }
     }
 
     fun updatePost(postId: Long, postUpdateDTO: PostUpdateDTO): PostResponseDTO {

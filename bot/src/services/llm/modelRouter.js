@@ -7,7 +7,19 @@ const { createOpenAICompatibleProvider } = require("./providers/openaiCompatible
 
 const providers = {
     gemini: createGeminiProvider({ langfuse }),
-    "openai-compatible": createOpenAICompatibleProvider({ langfuse })
+    "openai-compatible": createOpenAICompatibleProvider({ langfuse }),
+    gemma: createOpenAICompatibleProvider({
+        langfuse,
+        baseURL: process.env.LITELLM_BASE_URL,
+        apiKey: process.env.LITELLM_API_KEY,
+        model: process.env.LITELLM_MODEL
+    }),
+    chatgpt: createOpenAICompatibleProvider({
+        langfuse,
+        baseURL: "https://api.openai.com/v1",
+        apiKey: process.env.OPENAI_API_KEY,
+        model: "gpt-4o-mini"
+    })
 }
 
 function uniqueNonEmpty(values) {
@@ -23,20 +35,31 @@ function normalizeProviderName(name) {
     return (name || "").trim().toLowerCase()
 }
 
-function getProviderSequence() {
-    const primary = normalizeProviderName(process.env.LLM_PRIMARY_PROVIDER || "gemini")
-    const fallbacks = (process.env.LLM_FALLBACK_PROVIDERS || "")
+function parseProviderList(raw) {
+    return (raw || "")
         .split(",")
         .map(normalizeProviderName)
         .filter(Boolean)
+}
+
+function getProviderSequence() {
+    const primary = normalizeProviderName(process.env.LLM_PRIMARY_PROVIDER || "gemini")
+    const fallbacks = parseProviderList(process.env.LLM_FALLBACK_PROVIDERS)
 
     const sequence = uniqueNonEmpty([primary, ...fallbacks]).filter(name => providers[name])
     if (sequence.length === 0) return ["gemini"]
     return sequence
 }
 
-async function runWithFallback(operationName, executor) {
-    const sequence = getProviderSequence()
+function getParseSequence() {
+    const configuredParseProviders = parseProviderList(process.env.LLM_PARSE_PROVIDERS)
+    if (configuredParseProviders.length === 0) return getProviderSequence()
+
+    const sequence = uniqueNonEmpty(configuredParseProviders).filter(name => providers[name])
+    return sequence.length ? sequence : getProviderSequence()
+}
+
+async function runWithFallback(operationName, executor, sequence = getProviderSequence()) {
     let lastError = null
 
     for (const providerName of sequence) {
@@ -54,9 +77,18 @@ async function runWithFallback(operationName, executor) {
 
 async function MessageParser(message, images = [], tracingParams = {}) {
     try {
-        return await runWithFallback("MessageParser", provider => provider.parseListing(message, images, tracingParams))
+        return await runWithFallback("MessageParser", provider => provider.parseListing(message, images, tracingParams), getParseSequence())
     } catch (error) {
         console.error("LLM Message Parser error:", error.message)
+        return null
+    }
+}
+
+async function ImageDescriber(images, tracingParams = {}) {
+    try {
+        return await runWithFallback("ImageDescriber", provider => provider.imageProcessing(images, tracingParams), getParseSequence())
+    } catch (error) {
+        console.error("LLM Image Describer error:", error.message)
         return null
     }
 }
@@ -73,15 +105,14 @@ async function ContextClassifier(messages, tracingParams = {}) {
 function getActiveProviderConfig() {
     return {
         primary: normalizeProviderName(process.env.LLM_PRIMARY_PROVIDER || "gemini"),
-        fallbacks: (process.env.LLM_FALLBACK_PROVIDERS || "")
-            .split(",")
-            .map(normalizeProviderName)
-            .filter(Boolean)
+        fallbacks: parseProviderList(process.env.LLM_FALLBACK_PROVIDERS),
+        parseProviders: parseProviderList(process.env.LLM_PARSE_PROVIDERS)
     }
 }
 
 module.exports = {
     MessageParser,
     ContextClassifier,
+    ImageDescriber,
     getActiveProviderConfig
 }

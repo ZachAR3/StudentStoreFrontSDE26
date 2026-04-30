@@ -1,4 +1,4 @@
-const { GeminiMessageParser, GeminiContextClassifier } = require('../services/botGeminiService.js');
+const { GeminiMessageParser, GeminiContextClassifier } = require('./LLM_Services_For_Testing/botGeminiService.js');
 const fs = require('fs');
 
 // --- Mocks for Services ---

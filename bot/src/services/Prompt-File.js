@@ -25,4 +25,10 @@ ${allMessages}
 </messages>`
 }
 
-module.exports = {UserMessagePrompt, classificationPrompt}
+function imageDescriptionPrompt() {
+    return `You are helping list an item for sale on a student marketplace.
+Describe what you see in the image(s): the item, its condition, any visible brand names, model numbers, notable features, or defects.
+Be concise and factual — 2 to 4 sentences. Do not invent details you cannot see.`
+}
+
+module.exports = {UserMessagePrompt, classificationPrompt, imageDescriptionPrompt}

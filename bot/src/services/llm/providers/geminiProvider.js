@@ -1,5 +1,5 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai")
-const { UserMessagePrompt, classificationPrompt } = require("../../Prompt-File.js")
+const { UserMessagePrompt, classificationPrompt, imageDescriptionPrompt } = require("../../Prompt-File.js")
 
 const DEFAULT_MODELS = [
     "gemini-2.5-flash-lite",
@@ -136,6 +136,62 @@ function createGeminiProvider({ langfuse }) {
         return JSON.parse(jsonString)
     }
 
+    async function imageProcessing(images, tracingParams = {}) {
+        if (!client) {
+            throw new Error("GEMINI_API_KEY is not configured")
+        }
+
+        const parts = [
+            ...images.map(img => ({
+                inlineData: { data: img.data, mimeType: img.mimetype }
+            })),
+            { text: imageDescriptionPrompt() }
+        ]
+
+        let lastError
+        for (const modelName of fallbackModels) {
+            const observation = createObservation(
+                langfuse,
+                tracingParams,
+                "GeminiImageDescriber",
+                modelName,
+                `${images.length} image(s)`
+            )
+            const startTime = new Date()
+
+            try {
+                const model = client.getGenerativeModel({ model: modelName })
+                const result = await model.generateContent(parts)
+                const response = result.response
+                const text = response.text()
+
+                observation.end({
+                    output: text,
+                    startTime,
+                    endTime: new Date(),
+                    usage: response.usageMetadata ? {
+                        promptTokens: response.usageMetadata.promptTokenCount,
+                        completionTokens: response.usageMetadata.candidatesTokenCount,
+                        totalTokens: response.usageMetadata.totalTokenCount
+                    } : undefined
+                })
+
+                return text
+            } catch (error) {
+                lastError = error
+                observation.end({
+                    level: "ERROR",
+                    statusMessage: error.message,
+                    startTime,
+                    endTime: new Date()
+                })
+                continue
+            }
+        }
+
+        throw lastError || new Error("Gemini image processing failed with all fallback models")
+    }
+
     async function classifyContext(messages, tracingParams = {}) {
         const prompt = classificationPrompt(messages)
         const text = await generate(prompt, [], { ...tracingParams, input: messages }, "GeminiContextClassifier")
@@ -145,8 +201,10 @@ function createGeminiProvider({ langfuse }) {
 
     return {
         name: "gemini",
+        isConfigured: !!client,
         parseListing,
-        classifyContext
+        classifyContext,
+        imageProcessing
     }
 }
 

@@ -1,5 +1,5 @@
 const OpenAIImport = require("openai")
-const { UserMessagePrompt, classificationPrompt } = require("../../Prompt-File.js")
+const { UserMessagePrompt, classificationPrompt, imageDescriptionPrompt } = require("../../Prompt-File.js")
 
 const OpenAI = OpenAIImport.default || OpenAIImport
 const DEFAULT_BASE_URL = "https://api.openai.com/v1"
@@ -43,10 +43,14 @@ function createObservation(langfuse, tracingParams, name, model, input) {
     })
 }
 
-function createOpenAICompatibleProvider({ langfuse }) {
-    const baseURL = process.env.OPENAI_BASE_URL || DEFAULT_BASE_URL
-    const apiKey = process.env.OPENAI_API_KEY || process.env.LITELLM_API_KEY
-    const model = process.env.OPENAI_MODEL || DEFAULT_MODEL
+const _UNSET = Symbol("unset")
+
+function createOpenAICompatibleProvider({ langfuse, baseURL: baseURLOverride, apiKey: apiKeyOverride = _UNSET, model: modelOverride } = {}) {
+    const baseURL = baseURLOverride || process.env.OPENAI_BASE_URL || process.env.LITELLM_BASE_URL || DEFAULT_BASE_URL
+    const apiKey = apiKeyOverride !== _UNSET
+        ? apiKeyOverride
+        : process.env.OPENAI_API_KEY || process.env.LITELLM_API_KEY
+    const model = modelOverride || process.env.OPENAI_MODEL || process.env.LITELLM_MODEL || DEFAULT_MODEL
 
     const client = apiKey ? new OpenAI({
         baseURL,
@@ -71,7 +75,7 @@ function createOpenAICompatibleProvider({ langfuse }) {
 
     async function complete(prompt, images = [], tracingParams = {}, operationName = "OpenAICompatibleCompletion") {
         if (!client) {
-            throw new Error("OPENAI_API_KEY is not configured")
+            throw new Error(`API key is not configured for provider at ${baseURL}`)
         }
 
         const observation = createObservation(
@@ -129,6 +133,59 @@ function createOpenAICompatibleProvider({ langfuse }) {
         return JSON.parse(jsonString)
     }
 
+    async function imageProcessing(images, tracingParams = {}) {
+        if (!client) {
+            throw new Error(`API key is not configured for provider at ${baseURL}`)
+        }
+
+        const content = [
+            ...images.map(img => ({
+                type: "image_url",
+                image_url: { url: `data:${img.mimetype};base64,${img.data}` }
+            })),
+            { type: "text", text: imageDescriptionPrompt() }
+        ]
+
+        const observation = createObservation(
+            langfuse,
+            tracingParams,
+            "OpenAICompatibleImageDescriber",
+            model,
+            `${images.length} image(s)`
+        )
+        const startTime = new Date()
+
+        try {
+            const response = await client.chat.completions.create({
+                model,
+                messages: [{ role: "user", content }]
+            })
+
+            const text = extractText(response?.choices?.[0]?.message?.content)
+
+            observation.end({
+                output: text,
+                startTime,
+                endTime: new Date(),
+                usage: response?.usage ? {
+                    promptTokens: response.usage.prompt_tokens,
+                    completionTokens: response.usage.completion_tokens,
+                    totalTokens: response.usage.total_tokens
+                } : undefined
+            })
+
+            return text
+        } catch (error) {
+            observation.end({
+                level: "ERROR",
+                statusMessage: error.message,
+                startTime,
+                endTime: new Date()
+            })
+            throw error
+        }
+    }
+
     async function classifyContext(messages, tracingParams = {}) {
         const prompt = classificationPrompt(messages)
         const text = await complete(prompt, [], { ...tracingParams, input: messages }, "OpenAICompatibleContextClassifier")
@@ -138,9 +195,13 @@ function createOpenAICompatibleProvider({ langfuse }) {
 
     return {
         name: "openai-compatible",
+        isConfigured: !!client,
         parseListing,
+        imageProcessing,
         classifyContext
     }
+
 }
+
 
 module.exports = { createOpenAICompatibleProvider }

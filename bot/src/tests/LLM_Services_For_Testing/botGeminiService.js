@@ -1,9 +1,9 @@
-const { UserMessagePrompt, classificationPrompt } = require("./Prompt-File.js");
+const { UserMessagePrompt, classificationPrompt } = require("../../services/Prompt-File.js");
 const path = require('path');
 // This ensures .env is loaded from the bot folder regardless of where you run node
-require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
+require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
 const { GoogleGenerativeAI } = require("@google/generative-ai");
-const langfuse = require("./langfuseService");
+const langfuse = require("../../services/langfuseService");
 
 if (!process.env.GEMINI_API_KEY) {
     console.error('CRITICAL ERROR: GEMINI_API_KEY is not set in .env file');

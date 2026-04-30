@@ -12,6 +12,7 @@ import org.springframework.stereotype.Repository
 @Repository
 interface PostRepository: JpaRepository<Post, Long> {
     fun findByCategory(category: Category, pageable: Pageable): Page<Post>
+    fun findByCategoryAndIsSoldFalse(category: Category, pageable: Pageable): Page<Post>
     fun findBySellerSellerId(sellerId: Long, pageable: Pageable): Page<Post>
     fun findBySellerSellerId(sellerId: Long): List<Post>
     fun findByIsSoldFalse(pageable: Pageable): Page<Post>

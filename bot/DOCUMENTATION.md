@@ -17,9 +17,9 @@ The WhatsApp bot is an AI-powered bridge between a WhatsApp group chat and the S
 
 **How it works at a high level:**
 1. The bot monitors a specific WhatsApp group for messages.
-2. After 5 minutes of user inactivity, it sends the accumulated messages to Google Gemini to determine whether they represent a marketplace listing.
-3. If Gemini says yes, it DMs the user to ask for consent.
-4. Once consent is granted, it uploads any images to Cloudinary, parses the listing details with Gemini, and posts the result to the Spring Boot backend via a REST API.
+2. After the inactivity window, it sends the accumulated messages to the configured LLM provider to determine whether they represent a marketplace listing.
+3. If the classifier says yes, it DMs the user to ask for consent.
+4. Once consent is granted, it parses the listing text and images through the model router, uploads the original images to Cloudinary, and posts the result to the Spring Boot backend via a REST API.
 
 The bot also handles WhatsApp-based QR login, allowing users to authenticate on the web app by scanning a QR code and then DMing the bot a confirmation token.
 
@@ -30,8 +30,8 @@ The bot also handles WhatsApp-based QR login, allowing users to authenticate on 
 | Library | Version | Role |
 |---|---|---|
 | [`whatsapp-web.js`](https://wwebjs.dev/) | ^1.34.6 | Core WhatsApp automation framework. Controls the WhatsApp Web client via Puppeteer. |
-| [`@google/generative-ai`](https://ai.google.dev/) | ^0.24.1 | Google Gemini SDK. Used for both classifying messages as listings and parsing unstructured text into structured JSON. |
-| [`openai`](https://www.npmjs.com/package/openai) | ^6.0.0 | OpenAI-compatible SDK used against LiteLLM/OpenAI-style endpoints. |
+| [`@google/generative-ai`](https://ai.google.dev/) | ^0.24.1 | Google Gemini SDK. Used by the Gemini LLM provider for classification, parsing, and image description benchmarks. |
+| [`openai`](https://www.npmjs.com/package/openai) | ^6.0.0 | OpenAI-compatible SDK used against OpenAI, LiteLLM, or OpenAI-style endpoints. |
 | [`cloudinary`](https://cloudinary.com/documentation/node_integration) | ^2.9.0 | Cloud image hosting. Images sent in WhatsApp are uploaded here; the resulting CDN URLs are stored with the listing. |
 | [`express`](https://expressjs.com/) | ^5.1.0 | Minimal HTTP server for the webhook endpoint that Spring Boot calls after a user registers. |
 | [`axios`](https://axios-http.com/) | ^1.14.0 | HTTP client for all Spring Boot API calls. |
@@ -54,22 +54,30 @@ The bot also handles WhatsApp-based QR login, allowing users to authenticate on 
 bot/
 ├── src/
 │   ├── WhatsappBot.js              # Entry point — client lifecycle + message handler
-│   ├── services/llm/
-│   │   ├── modelRouter.js          # Multi-provider routing (primary + fallback chain)
-│   │   └── providers/
-│   │       ├── geminiProvider.js   # Gemini provider implementation
-│   │       └── openaiCompatibleProvider.js # LiteLLM/OpenAI-style provider implementation
+│   ├── shopping/
+│   │   └── WhatsAppShoppingChat.js # DM shopping commands, n/p pagination, cover-image details
 │   ├── services/
-│   │   ├── botGeminiService.js     # Gemini classification & parsing (production LLM)
-│   │   ├── Gemma4Service.js        # Gemma 4 via local Ollama (benchmark/testing only)
+│   │   ├── llm/
+│   │   │   ├── modelRouter.js          # Multi-provider routing (primary + fallback chain)
+│   │   │   └── providers/
+│   │   │       ├── geminiProvider.js   # Gemini provider with multimodal parsing
+│   │   │       └── openaiCompatibleProvider.js # OpenAI/LiteLLM multimodal provider
+│   │   ├── BotStateStore.js       # Persistent per-user draft/consent/registration state
+│   │   ├── ListingSubmissionService.js # Listing parsing, image preprocessing, upload, and post creation
+│   │   ├── chatIdentity.js        # WhatsApp chat/contact normalization helpers
+│   │   ├── imagePreprocessor.js   # Downscales images before LLM parsing
 │   │   ├── langfuseService.js      # Langfuse singleton for LLM observability tracing
 │   │   ├── springServices.js       # All Spring Boot REST API calls
 │   │   ├── webhookService.js       # Express server for the seller-registered webhook
 │   │   ├── claudinary.js           # Cloudinary image upload helper
-│   │   └── Prompt-File.js          # Gemini prompt templates (classification + parsing)
+│   │   └── Prompt-File.js          # Prompt templates (classification, parsing, image description)
 │   └── tests/
+│       ├── LLM_Services_For_Testing/
+│       │   ├── botGeminiService.js     # Gemini classification & parsing (benchmark/legacy)
+│       │   └── Gemma4Service.js        # Gemma via LiteLLM (benchmark/testing only)
 │       ├── GeminiAPI-test-Mock.js  # Standalone test harness with mocked services
-│       └── runBenchmark.js         # Head-to-head Gemini vs Gemma benchmark (requires Ollama)
+│       ├── runBenchmark.js         # Text benchmark: Gemini vs Gemma vs ChatGPT
+│       └── Benchmark_Images.js     # Image description benchmark: Gemma vs ChatGPT vs Gemini
 ├── consentedUsersPersistence.json  # Persisted list of phone numbers that gave consent
 ├── .env                            # Local secrets (not committed)
 ├── .env.example                    # Template showing required variables
@@ -97,7 +105,7 @@ client.initialize()
 
 | Variable | Type | Purpose |
 |---|---|---|
-| `userState` | `Map<phone, UserState>` | Tracks each user's active listing buffer, timers, and flags |
+| `stateStore` | `BotStateStore` | Tracks each user's active listing buffer, timers, mode, consent, and registration flags |
 | `consentedUsers` | `Set<phone>` | Phone numbers that have consented; persisted to disk |
 | `NOT_CONSENTED_TO_MESSAGE_UPLOAD` | `Set<phone>` | Phone numbers that explicitly declined; held in memory only |
 
@@ -108,7 +116,7 @@ The `UserState` object shape:
     imageUrls: [],       // Array of { data: base64String, mimetype: 'image/jpeg' }
     messages: [],        // Array of text message strings
     createdAt: Date.now(),
-    isListing: false     // Set to true after Gemini confirms it's a listing
+    isListing: false     // Set to true after the classifier confirms it's a listing
   },
   consentPending: false,       // True while waiting for YES/NO DM reply
   registrationPending: false,  // True while waiting for the user to register
@@ -121,9 +129,9 @@ A `setInterval` runs every 3 hours and removes entries from `userState` whose `c
 
 ---
 
-### 4.2 `botGeminiService.js` — AI Classification & Parsing (Production)
+### 4.2 `tests/LLM_Services_For_Testing/botGeminiService.js` — AI Classification & Parsing (Benchmark/Legacy)
 
-All production Gemini logic is isolated here. It exposes two functions:
+All legacy Gemini logic is isolated here. It is used for benchmarking and isolated tests. Production traffic uses the Model Router.
 
 #### `GeminiContextClassifier(messages: string[]) → 'YES' | 'NO'`
 
@@ -141,7 +149,7 @@ Takes the joined message text and asks Gemini to extract structured listing fiel
 - Strips any surrounding markdown from the response and parses the JSON.
 - Returns an object `{ title, price, description, category }` or `null` on failure.
 
-**Model fallback chain:** `gemini-2.5-flash-lite` → `gemini-2.0-flash-lite` → `gemini-1.5-flash-8b` → `gemini-1.5-flash`
+**Model fallback chain:** the production Gemini provider defaults to `gemini-2.5-flash-lite` → `gemini-2.5-flash` and remaps older `gemini-1.5-*` names to current models.
 
 If the primary model fails for any reason (403, quota exceeded, rate limit, network error), the next model in the chain automatically takes over. A warning is printed to the console on each fallback. If all models fail, a final error is logged and the function returns `null`/`'NO'` safely.
 
@@ -150,36 +158,26 @@ If the primary model fails for any reason (403, quota exceeded, rate limit, netw
 The bot runtime now routes model calls through a provider router that supports:
 - Configurable primary provider (`LLM_PRIMARY_PROVIDER`)
 - Configurable fallback providers (`LLM_FALLBACK_PROVIDERS`, comma-separated)
+- Optional parse-specific provider order (`LLM_PARSE_PROVIDERS`, comma-separated)
 - Provider-specific implementations under `services/llm/providers/*`
 
 Current providers:
 - `gemini`
 - `openai-compatible` (for LiteLLM / OpenAI-style endpoints)
+- `gemma` and `chatgpt` aliases for benchmark/provider experiments
 
-This keeps runtime selection in environment config and makes adding a third provider a small, isolated provider-module addition plus registry entry.
+`MessageParser(message, images, tracingParams)` sends text and downscaled image payloads directly to the chosen multimodal provider. `ImageDescriber(images, tracingParams)` remains available for image-description benchmarks and diagnostics, but the production listing flow does not duplicate work by describing images before parsing.
 
 ---
 
-### 4.3 `Gemma4Service.js` — Local Model (Benchmark & Testing Only)
+### 4.3 `tests/LLM_Services_For_Testing/Gemma4Service.js` — Gemma-Compatible Benchmark Adapter
 
-> **This service is not used by the bot at runtime.** It is only imported by the benchmark script. Teammates without a local Ollama installation are not affected.
+> **This service is not used by the bot at runtime.** It is only imported by benchmark scripts.
 
-`Gemma4Service.js` mirrors the exact interface of `botGeminiService.js` but calls a locally running [Ollama](https://ollama.com) instance instead of the Gemini API. It is used to evaluate whether a local model can replace the cloud API for cost or latency reasons.
+`Gemma4Service.js` mirrors the exact interface of `botGeminiService.js` but delegates to the OpenAI-compatible provider, so it can be pointed at LiteLLM or another compatible Gemma endpoint for cost/latency benchmarking.
 
-- Calls `POST http://localhost:11434/api/generate` with `stream: false`.
-- Uses Node's native `http` module — no extra dependencies.
 - Exports `GemmaMessageParser` and `GemmaContextClassifier` with the same signatures.
-- Full Langfuse tracing is included, identical to `botGeminiService.js`.
-
-**Configuration (optional `.env` overrides):**
-
-| Variable | Default | Description |
-|---|---|---|
-| `OLLAMA_MODEL` | `gemma4:e4b` | Model name as it appears in `ollama list` |
-| `OLLAMA_HOST` | `127.0.0.1` | Ollama server host |
-| `OLLAMA_PORT` | `11434` | Ollama server port |
-
-To run Gemma4 locally: `ollama pull gemma4:e4b` then start the benchmark.
+- Full Langfuse tracing is included through the shared OpenAI-compatible provider.
 
 ---
 
@@ -234,9 +232,9 @@ Content-Type: application/json
 
 **Behavior:**
 1. Validates the `X-Bot-Api-Key` header.
-2. Looks up the phone number in `userState`. Returns 404 if no pending registration exists.
+2. Looks up the phone number in `BotStateStore`. Returns 404 if no pending registration exists.
 3. Responds immediately with `200 { status: 'processing' }` so Spring is not blocked.
-4. Asynchronously calls `processListing` and DMs the user with the result.
+4. Asynchronously submits the pending listing draft and DMs the user with the result.
 5. On success, persists the phone number to `consentedUsers`.
 
 Default port: `3001` (configurable via `BOT_WEBHOOK_PORT`).
@@ -259,25 +257,27 @@ Upload options: `unique_filename: true`, `overwrite: false`. Images are stored p
 
 ---
 
-### 4.8 `Prompt-File.js` — Gemini Prompt Templates
+### 4.8 `Prompt-File.js` — LLM Prompt Templates
 
-Centralizes both prompt strings, keeping business logic separate from AI instructions.
+Centralizes prompt strings, keeping business logic separate from AI instructions.
 
-**`classificationPrompt(messages[])`** — instructs Gemini to reply with only `YES` or `NO`. Provides concrete positive/negative examples to reduce hallucination.
+**`classificationPrompt(messages[])`** — instructs the provider to reply with only `YES` or `NO`. Provides concrete positive/negative examples to reduce hallucination.
 
-**`UserMessagePrompt(message)`** — instructs Gemini to extract `title`, `price`, `description`, and `category` and return **only** a JSON object with no markdown or extra text. Categories are restricted to: `Electronics`, `Clothing`, `Furniture`, `Books`, `Sports`, `Food`, `Services`, `Other`.
+**`UserMessagePrompt(message, imageCount)`** — instructs the provider to extract `title`, `price`, `description`, and `category` from text plus any attached images and return **only** a JSON object with no markdown or extra text. Categories are restricted to: `ELECTRONICS`, `BOOKS`, `CLOTHING`, `FURNITURE`, `SPORTS`, `FOOD`, `SERVICES`, `OTHER`.
+
+**`imageDescriptionPrompt()`** — used by benchmark and diagnostic image-description paths.
 
 ---
 
 ## 5. Key Workflows
 
-### 5.1 Listing Detection (Group → Gemini → Post)
+### 5.1 Listing Detection (Group → LLM → Post)
 
 ```
 User sends messages in group
          │
          ▼
-Bot accumulates text + images in userState[phone].listing
+Bot accumulates text + images in stateStore[phone].listing
          │
          │  On every new message:
          ▼
@@ -286,14 +286,14 @@ Bot accumulates text + images in userState[phone].listing
          │
          │  After 5 minutes of silence:
          ▼
-  GeminiContextClassifier(messages[]) ──► 'NO'? → delete userState, done
+  ContextClassifier(messages[]) ──► 'NO'? → delete stateStore entry, done
          │
          │  'YES':
          ▼
   User in NOT_CONSENTED set? ──► Yes → skip silently
          │
          │  No — has user consented before?
-         ├──► Yes (in consentedUsers) → processListing() directly
+         ├──► Yes (in consentedUsers) → submit listing draft directly
          └──► No              → DM user asking for consent
 ```
 
@@ -310,13 +310,13 @@ Bot DMs: "Do you consent...? Reply YES or NO."
    YES        NO
     │          │
     ▼          ▼
-processListing  Add to NOT_CONSENTED_TO_MESSAGE_UPLOAD
-    │           Delete userState
+submit listing  Add to NOT_CONSENTED_TO_MESSAGE_UPLOAD
+    │           Delete stateStore entry
     │
     ▼  On success:
 Add to consentedUsers Set
 Write consentedUsersPersistence.json to disk   ← persistence across restarts
-Delete userState
+Delete stateStore entry
 ```
 
 **Persistence file format** (`consentedUsersPersistence.json`):
@@ -333,7 +333,7 @@ Triggered when `getSellerByPhone` returns `null` — the user has not registered
 
 ```
 Bot DMs: "Visit <APP_BASE_URL> and click Sign Up. Reply 'registered' when done."
-userState[phone].registrationPending = true
+stateStore[phone].registrationPending = true
 
          ┌──────────────────────┬────────────────────────┐
          │                      │                        │
@@ -342,7 +342,7 @@ userState[phone].registrationPending = true
          │                      │
          └──────────┬───────────┘
                     ▼
-             processListing()
+             submit listing draft
 ```
 
 The webhook path is the automated route — Spring triggers it immediately after successful registration. The `"registered"` DM reply is a manual fallback.
@@ -358,18 +358,18 @@ WhatsApp message (hasMedia = true)
 msg.downloadMedia()
   → { data: '<base64>', mimetype: 'image/jpeg' }
          │
-Stored in userState[phone].listing.imageUrls[]
+Stored in stateStore[phone].listing.imageUrls[]
          │
-         │  At processListing() time:
+         │  At listing submission time:
          ▼
-Construct Base64 data URI:
-  `data:${mimetype};base64,${data}`
+Original image payloads are kept for upload. Downscaled copies are sent to the LLM parser first, capped at `960x720` to keep latency and request size predictable.
          │
-         ▼
-uploadImage(dataUri) → Cloudinary secure_url
+         ├──► downscaleImagesForLlm() → MessageParser(text, images)
          │
-         ▼
-Array of CDN URLs passed to createPost()
+         └──► uploadImage(dataUri) → Cloudinary secure_url
+                                      │
+                                      ▼
+                         Array of CDN URLs passed to createPost()
 ```
 
 All images for a single user's session are uploaded in parallel via `Promise.all`.
@@ -398,23 +398,24 @@ confirmWhatsAppLogin(token, phoneNumber)
 
 ---
 
-### 5.6 `processListing` — The Core Helper
+### 5.6 `ListingSubmissionService.processListing` — The Core Helper
 
 ```js
-async function processListing(contact, currentUserListing)
+async processListing(contact, listingDraft)
 ```
 
 Orchestrates the full upload pipeline:
-1. Upload all images to Cloudinary (`Promise.all`).
-2. Call `GeminiMessageParser` to extract structured fields.
+1. Downscale image copies for LLM parsing.
+2. Call `MessageParser(rawListingText, llmImages, tracingParams)` to extract structured fields.
 3. Call `getSellerByPhone` to retrieve the `sellerId`.
-4. Call `createPost` with the parsed data, CDN URLs, and seller ID.
+4. Upload original images to Cloudinary (`Promise.all`).
+5. Call `createPost` with the parsed data, CDN URLs, and seller ID.
 
 **Return values:**
 | Value | Meaning |
 |---|---|
 | `true` | Listing created successfully |
-| `false` | Gemini parse failed or `createPost` failed |
+| `false` | LLM parse failed or `createPost` failed |
 | `null` | Seller not found — user needs to register |
 
 ---
@@ -438,12 +439,15 @@ cp .env.example .env
 | `CLOUDINARY_API_KEY` | Yes | — | Cloudinary API key. |
 | `CLOUDINARY_API_SECRET` | Yes | — | Cloudinary API secret. |
 | `APP_BASE_URL` | No | `http://localhost:8080` | URL shown to unregistered users in DMs (e.g., `https://yourdomain.com`). |
-| `LLM_PRIMARY_PROVIDER` | No | `openai-compatible` | Primary runtime provider (`gemini` or `openai-compatible`). |
+| `LLM_PRIMARY_PROVIDER` | No | `gemini` | Primary runtime provider (`gemini` or `openai-compatible`). |
 | `LLM_FALLBACK_PROVIDERS` | No | empty | Comma-separated provider fallback chain. |
+| `LLM_PARSE_PROVIDERS` | No | empty | Optional comma-separated provider order for parsing. Uses the primary/fallback chain when empty. |
 | `GEMINI_FALLBACK_MODELS` | No | internal defaults | Comma-separated Gemini model fallback list. |
 | `OPENAI_BASE_URL` | No | `https://api.openai.com/v1` | Base URL for the OpenAI-compatible provider. |
-| `OPENAI_API_KEY` | Yes* | — | API key for the OpenAI API. Required when using `openai-compatible`. |
+| `LITELLM_BASE_URL` | No | — | Alternative base URL for LiteLLM/OpenAI-compatible endpoints. Used when `OPENAI_BASE_URL` is not set. |
+| `OPENAI_API_KEY` / `LITELLM_API_KEY` | Yes* | — | API key for the selected OpenAI-compatible endpoint. Required when using `openai-compatible`. |
 | `OPENAI_MODEL` | No | `gpt-5.4-nano` | Model name passed to the OpenAI chat completions API. |
+| `LITELLM_MODEL` | No | — | Alternative model env var used when `OPENAI_MODEL` is not set. |
 
 ### Target Group
 
@@ -509,21 +513,16 @@ The listing detection timer defaults to 30 seconds in development. Before deploy
 //   ↑ change to 300000
 ```
 
-### Running the Benchmark (optional — requires Ollama)
+### Running the Benchmarks
 
-The benchmark compares Gemini and local Gemma4 head-to-head on the same test cases and logs everything to Langfuse.
+The text benchmark compares Gemini, Gemma-compatible, and ChatGPT-style providers on the same test cases and logs everything to Langfuse.
 
-> Teammates without Ollama installed can skip this entirely — it has no effect on the bot.
-
-**Prerequisites:**
 ```bash
-ollama pull gemma4:e4b
+node src/tests/runBenchmark.js
+node src/tests/Benchmark_Images.js
 ```
 
-**Run:**
-```bash
-node bot/src/tests/runBenchmark.js
-```
+These benchmarks are optional and have no effect on the production bot.
 
 Each run appends results to `bot/src/benchmark/benchmark-history.json` with:
 - Per-test scores (valid JSON, correct fields, correct price, correct category)
@@ -543,9 +542,9 @@ The `LocalAuth` session files are missing or corrupted. Delete `.wwebjs_auth/` a
 rm -rf .wwebjs_auth/
 ```
 
-**`CRITICAL ERROR: GEMINI_API_KEY is not set`**
+**LLM provider API key is not set**
 
-The `.env` file is missing or the key is empty. Verify the file exists in the `bot/` directory (not in `src/`). `dotenv` is configured to look two levels up from service files:
+The `.env` file is missing or the selected provider key is empty. Verify the file exists in the `bot/` directory (not in `src/`). `dotenv` is configured to look up from service files:
 ```js
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') })
 ```
@@ -557,7 +556,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../../.env') })
 
 **Listing classified as 'NO' for valid messages**
 
-The classification prompt uses examples to guide Gemini. If edge cases fail:
+The classification prompt uses examples to guide the active LLM provider. If edge cases fail:
 1. Add representative examples to the `classificationPrompt` in `Prompt-File.js`.
 2. Run `GeminiAPI-test-Mock.js` with the failing message text to iterate quickly.
 
