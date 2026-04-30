@@ -31,6 +31,7 @@ The bot also handles WhatsApp-based QR login, allowing users to authenticate on 
 |---|---|---|
 | [`whatsapp-web.js`](https://wwebjs.dev/) | ^1.34.6 | Core WhatsApp automation framework. Controls the WhatsApp Web client via Puppeteer. |
 | [`@google/generative-ai`](https://ai.google.dev/) | ^0.24.1 | Google Gemini SDK. Used for both classifying messages as listings and parsing unstructured text into structured JSON. |
+| [`openai`](https://www.npmjs.com/package/openai) | ^6.0.0 | OpenAI-compatible SDK used against LiteLLM/OpenAI-style endpoints. |
 | [`cloudinary`](https://cloudinary.com/documentation/node_integration) | ^2.9.0 | Cloud image hosting. Images sent in WhatsApp are uploaded here; the resulting CDN URLs are stored with the listing. |
 | [`express`](https://expressjs.com/) | ^5.1.0 | Minimal HTTP server for the webhook endpoint that Spring Boot calls after a user registers. |
 | [`axios`](https://axios-http.com/) | ^1.14.0 | HTTP client for all Spring Boot API calls. |
@@ -53,6 +54,11 @@ The bot also handles WhatsApp-based QR login, allowing users to authenticate on 
 bot/
 ├── src/
 │   ├── WhatsappBot.js              # Entry point — client lifecycle + message handler
+│   ├── services/llm/
+│   │   ├── modelRouter.js          # Multi-provider routing (primary + fallback chain)
+│   │   └── providers/
+│   │       ├── geminiProvider.js   # Gemini provider implementation
+│   │       └── openaiCompatibleProvider.js # LiteLLM/OpenAI-style provider implementation
 │   ├── services/
 │   │   ├── botGeminiService.js     # Gemini classification & parsing (production LLM)
 │   │   ├── Gemma4Service.js        # Gemma 4 via local Ollama (benchmark/testing only)
@@ -138,6 +144,19 @@ Takes the joined message text and asks Gemini to extract structured listing fiel
 **Model fallback chain:** `gemini-2.5-flash-lite` → `gemini-2.0-flash-lite` → `gemini-1.5-flash-8b` → `gemini-1.5-flash`
 
 If the primary model fails for any reason (403, quota exceeded, rate limit, network error), the next model in the chain automatically takes over. A warning is printed to the console on each fallback. If all models fail, a final error is logged and the function returns `null`/`'NO'` safely.
+
+### 4.2b `services/llm/modelRouter.js` — Multi-Model Routing (Production Path)
+
+The bot runtime now routes model calls through a provider router that supports:
+- Configurable primary provider (`LLM_PRIMARY_PROVIDER`)
+- Configurable fallback providers (`LLM_FALLBACK_PROVIDERS`, comma-separated)
+- Provider-specific implementations under `services/llm/providers/*`
+
+Current providers:
+- `gemini`
+- `openai-compatible` (for LiteLLM / OpenAI-style endpoints)
+
+This keeps runtime selection in environment config and makes adding a third provider a small, isolated provider-module addition plus registry entry.
 
 ---
 
@@ -414,10 +433,17 @@ cp .env.example .env
 | `SPRING_BASE_URL` | Yes | `http://localhost:8080` | Base URL of the Spring Boot backend. No trailing slash. |
 | `BOT_API_KEY` | Yes | — | Shared secret between the bot and Spring. Must match the value configured in the Spring app. Used in `X-Bot-Api-Key` headers. |
 | `BOT_WEBHOOK_PORT` | No | `3001` | Port the Express webhook server listens on. |
+| `TARGET_GROUP_JID` | No | `120363406751456779@g.us` | WhatsApp group JID monitored for seller listing capture. |
 | `CLOUDINARY_CLOUD_NAME` | Yes | — | Your Cloudinary cloud name (from the dashboard). |
 | `CLOUDINARY_API_KEY` | Yes | — | Cloudinary API key. |
 | `CLOUDINARY_API_SECRET` | Yes | — | Cloudinary API secret. |
 | `APP_BASE_URL` | No | `http://localhost:8080` | URL shown to unregistered users in DMs (e.g., `https://yourdomain.com`). |
+| `LLM_PRIMARY_PROVIDER` | No | `gemini` | Primary runtime provider (`gemini` or `openai-compatible`). |
+| `LLM_FALLBACK_PROVIDERS` | No | empty | Comma-separated provider fallback chain. |
+| `GEMINI_FALLBACK_MODELS` | No | internal defaults | Comma-separated Gemini model fallback list. |
+| `LITELLM_BASE_URL` | No | `https://ai.zachar3.duckdns.org/v1` | Base URL for OpenAI-compatible endpoint. |
+| `LITELLM_API_KEY` | Yes* | — | API key for OpenAI-compatible endpoint. Required when using `openai-compatible`. |
+| `LITELLM_MODEL` | No | `ollama/gemma4:e4b` | Model name passed to OpenAI-compatible chat completions API. |
 
 ### Target Group
 
@@ -425,13 +451,13 @@ The bot monitors exactly one WhatsApp group, identified by its JID:
 
 ```js
 // src/WhatsappBot.js:24
-const TARGET_GROUP = '120363406751456779@g.us'
+const TARGET_GROUP = process.env.TARGET_GROUP_JID || '120363406751456779@g.us'
 ```
 
 To change the target group:
 1. Start the bot and send a message in the desired group.
 2. Check the console output — each message logs `from: <group-jid>`.
-3. Copy that JID and replace the `TARGET_GROUP` constant.
+3. Copy that JID into `TARGET_GROUP_JID` in your local `.env`.
 
 ---
 

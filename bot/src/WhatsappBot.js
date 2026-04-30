@@ -2,9 +2,11 @@ const fs                                          = require('fs')
 const { Client, LocalAuth }                        = require('whatsapp-web.js')
 const qrcode                                       = require('qrcode-terminal')
 const { uploadImage }                              = require('./services/claudinary.js')
-const { createPost, getSellerByPhone, confirmWhatsAppLogin } = require('./services/springServices.js')
-const { GeminiMessageParser, GeminiContextClassifier } = require('./services/botGeminiService.js')
+const springServices                                = require('./services/springServices.js')
+const { createPost, getSellerByPhone, confirmWhatsAppLogin } = springServices
+const { MessageParser, ContextClassifier, getActiveProviderConfig } = require('./services/llm/modelRouter.js')
 const { startWebhookServer }                          = require('./services/webhookService.js')
+const WhatsAppShoppingChat                            = require('./shopping/WhatsAppShoppingChat.js')
 const langfuse                                        = require('./services/langfuseService')
 
 // ─── Persistent state ────────────────────────────────────────────────────────
@@ -48,8 +50,9 @@ function saveUserState() {
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-const TARGET_GROUP = '120363406751456779@g.us'
+const TARGET_GROUP = process.env.TARGET_GROUP_JID || '120363406751456779@g.us'
 const LISTING_EXPIRY_HOURS = 12
+const processedMessageIds = new Set()
 
 // ─── Helper function ───────────────────────────────────────────────────────────────────
 
@@ -71,15 +74,15 @@ async function processListing(contact, currentUserListing) {
     const cloudinaryUrls = uploadResults.filter(url => url !== null);
     cloudinarySpan.end({ output: { count: cloudinaryUrls.length } });
 
-    const parsedListing = await GeminiMessageParser(currentUserListing.messages.join('\n'), {
+    const parsedListing = await MessageParser(currentUserListing.messages.join('\n'), {
         sessionId: contact.number,
         userId: contact.number,
         parent: trace
     })
     
     if (!parsedListing) {
-        console.error('Failed to parse listing with Gemini')
-        trace.end({ level: "ERROR", statusMessage: "Gemini parsing failed" });
+        console.error('Failed to parse listing with configured LLM provider(s)')
+        trace.end({ level: "ERROR", statusMessage: "LLM parsing failed" });
         await langfuse.flush()
         return false
     }
@@ -106,98 +109,146 @@ async function processListing(contact, currentUserListing) {
 
 // ─── WhatsApp client ──────────────────────────────────────────────────────────
 const client = new Client({ authStrategy: new LocalAuth() })
+const shoppingChat = new WhatsAppShoppingChat(client, { postService: springServices })
 
-client.once('ready', () => console.log('Bot is ready!'))
+client.once('ready', () => {
+    const active = getActiveProviderConfig()
+    console.log(`Bot is ready! LLM primary provider: ${active.primary}${active.fallbacks.length ? ` | fallbacks: ${active.fallbacks.join(', ')}` : ''}`)
+})
 client.on('qr', qr => qrcode.generate(qr, { small: true }))
+client.on('message_reaction', reaction => {
+    shoppingChat.handleReaction(reaction).catch(error => console.error('Shopping reaction handler failed:', error))
+})
 
-// ─── Message handler ────────────────────────────────────────────────────────
-client.on('message', async msg => {
+function rememberProcessedMessage(messageId) {
+    if (!messageId) return
+    processedMessageIds.add(messageId)
+    if (processedMessageIds.size > 2000) {
+        const oldestId = processedMessageIds.values().next().value
+        processedMessageIds.delete(oldestId)
+    }
+}
+
+function isKnownBotCommand(rawBody) {
+    const body = (rawBody || '').trim()
+    if (!body) return false
+
+    if (/^login:[0-9a-f-]{36}$/i.test(body)) return true
+    if (/^(yes|no|registered)$/i.test(body)) return true
+
+    return shoppingChat.isKnownCommandText(body)
+}
+
+function ensureUserState(phoneNumber) {
+    if (userState.has(phoneNumber)) return userState.get(phoneNumber)
+
+    const state = {
+        listing: {
+            imageUrls: [],
+            messages: [],
+            createdAt: Date.now(),
+            isListing: false
+        },
+        consentPending: false,
+        registrationPending: false,
+        timer: null
+    }
+    userState.set(phoneNumber, state)
+    saveUserState()
+    return state
+}
+
+async function handleIncomingMessage(msg, source) {
+    const messageId = msg?.id?._serialized || msg?.id?.id || null
+    if (messageId && processedMessageIds.has(messageId)) {
+        return
+    }
+    rememberProcessedMessage(messageId)
+
     console.log('author:', msg.author, '| from:', msg.from)
 
     const contact = await msg.getContact()
+    const contactNumber = contact?.number
 
-    if (!userState.has(contact.number)) {
-        userState.set(contact.number, {
-            listing: {
-                imageUrls: [],
-                messages: [],
-                createdAt: Date.now(),
-                isListing: false
-            },
-            consentPending: false,
-            registrationPending: false,
-            timer: null
-        })
-        saveUserState()
+    // Ignore known bot commands in target group so we do not spend LLM tokens on them.
+    if (msg.from === TARGET_GROUP && isKnownBotCommand(msg.body)) {
+        console.log('Known command detected in target group — skipping LLM classification.')
+        return
     }
 
     // ── Group messages ────────────────────────────────────────────────────────
-    if (msg.from.endsWith('@g.us') && msg.from === TARGET_GROUP) {
+    if (!msg.fromMe && msg.from === TARGET_GROUP) {
+        if (!contactNumber) {
+            console.warn('Skipping target-group message because WhatsApp did not expose a contact number.')
+            return
+        }
 
-        // Reset the 5-minute classification timer on every new message
+        const stateForContact = ensureUserState(contactNumber)
+
+        // Reset the inactivity timer on every new message
         const classificationTimer = setTimeout(async () => {
-            console.log('5 min passed — sending to Gemini for classification')
+            console.log('Inactivity window elapsed — running LLM classification')
 
-            const state = userState.get(contact.number)
+            const state = userState.get(contactNumber)
             if (!state) return
 
             // Trace the classification decision for this user's messages
             const classificationTrace = langfuse.trace({
                 name: "ClassificationTimer",
-                sessionId: contact.number,
-                userId: contact.number
+                sessionId: contactNumber,
+                userId: contactNumber
             });
 
-            const geminiResponse = await GeminiContextClassifier(state.listing.messages, {
-                sessionId: contact.number,
-                userId: contact.number,
+            const modelDecision = await ContextClassifier(state.listing.messages, {
+                sessionId: contactNumber,
+                userId: contactNumber,
                 parent: classificationTrace
             });
 
-            classificationTrace.update({ output: geminiResponse });
+            classificationTrace.update({ output: modelDecision });
             await langfuse.flush()
 
-            if (geminiResponse === 'YES') {
-                if (!userState.has(contact.number)) return
-                userState.get(contact.number).listing.isListing = true
-                console.log('Gemini: valid listing detected — asking user for consent')
+            if (modelDecision === 'YES') {
+                if (!userState.has(contactNumber)) return
+                userState.get(contactNumber).listing.isListing = true
+                console.log('LLM: valid listing detected — asking user for consent')
 
-                if (NOT_CONSENTED_TO_MESSAGE_UPLOAD.has(contact.number)) {
+                if (NOT_CONSENTED_TO_MESSAGE_UPLOAD.has(contactNumber)) {
                     console.log('User previously declined consent — skipping')
                     return
                 }
 
-                if (!consentedUsers.has(contact.number) && !userState.get(contact.number).consentPending) {
+                if (!consentedUsers.has(contactNumber) && !userState.get(contactNumber).consentPending) {
                     try {
                         await client.sendMessage(
-                            contact.number + '@c.us',
+                            contactNumber + '@c.us',
                             'Hello! I am the StudentStoreFront bot. ' +
                             'I noticed you may be selling something. ' +
                             'Do you consent to adding your listing to our marketplace? Reply YES or NO.'
                         )
-                        userState.get(contact.number).consentPending = true
+                        userState.get(contactNumber).consentPending = true
                         saveUserState()
                     } catch (error) {
                         console.error('Failed to send consent message:', error)
                     }
-                } else if (consentedUsers.has(contact.number)) {
-                    const success = await processListing(contact, userState.get(contact.number).listing)
+                } else if (consentedUsers.has(contactNumber)) {
+                    const success = await processListing(contact, userState.get(contactNumber).listing)
 
                     try {
                         if (success === true) {
-                            await client.sendMessage(contact.number + '@c.us', 'Your listing has been uploaded successfully!')
-                            userState.delete(contact.number)
+                            await client.sendMessage(contactNumber + '@c.us', 'Your listing has been uploaded successfully!')
+                            userState.delete(contactNumber)
                             saveUserState()
                         } else if (success === null) {
                             const appBaseUrl = process.env.APP_BASE_URL || 'http://localhost:8080'
-                            await client.sendMessage(contact.number + '@c.us',
+                            await client.sendMessage(contactNumber + '@c.us',
                                 `You need to register first! Visit ${appBaseUrl} and click Sign Up. ` +
                                 'Reply "registered" when done and I will upload your listing automatically.')
-                            userState.get(contact.number).registrationPending = true
+                            userState.get(contactNumber).registrationPending = true
                             saveUserState()
                         } else {
-                            await client.sendMessage(contact.number + '@c.us', 'Something went wrong uploading your listing. Please try again later.')
-                            userState.delete(contact.number)
+                            await client.sendMessage(contactNumber + '@c.us', 'Something went wrong uploading your listing. Please try again later.')
+                            userState.delete(contactNumber)
                             saveUserState()
                         }
                     } catch (error) {
@@ -205,20 +256,20 @@ client.on('message', async msg => {
                     }
                 }
             } else {
-                userState.delete(contact.number)
+                userState.delete(contactNumber)
                 saveUserState()
-                console.log('Gemini: not a listing — discarding')
+                console.log('LLM: not a listing — discarding')
             }
 
         }, 30000)   //TODO:  change back to 300000 (5 min) for production
 
-        clearTimeout(userState.get(contact.number).timer)
-        userState.get(contact.number).timer = classificationTimer
+        clearTimeout(stateForContact.timer)
+        stateForContact.timer = classificationTimer
 
         // Collect media
         if (msg.hasMedia) {
             const picture = await msg.downloadMedia()
-            userState.get(contact.number).listing.imageUrls.push({
+            stateForContact.listing.imageUrls.push({
                 data     : picture.data,
                 mimetype : picture.mimetype
             })
@@ -226,7 +277,7 @@ client.on('message', async msg => {
 
         // Collect text
         if (msg.body !== '') {
-            userState.get(contact.number).listing.messages.push(msg.body)
+            stateForContact.listing.messages.push(msg.body)
         }
 
         saveUserState()
@@ -334,7 +385,22 @@ client.on('message', async msg => {
             }
         }
 
+        else if (await shoppingChat.handleMessage(msg, contact)) {
+            return
+        }
+
     }
+}
+
+// ─── Message handlers ───────────────────────────────────────────────────────
+client.on('message', async msg => {
+    await handleIncomingMessage(msg, 'message')
+})
+
+// Some self-sent outbound messages only appear on message_create.
+client.on('message_create', async msg => {
+    if (!msg?.fromMe) return
+    await handleIncomingMessage(msg, 'message_create')
 })
 
 // ─── Cleanup: remove stale listings every 3 hours (12-hour expiry) ────────────

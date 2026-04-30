@@ -6,3 +6,4 @@ node_modules/
 .junie/
 bot/LANGFUSE_DOCUMENTATION.md
 consentedUsersPersistence.json
+userStatePersistence.json

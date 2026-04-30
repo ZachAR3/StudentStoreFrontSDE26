@@ -21,6 +21,7 @@ kotlin-js-store/
 src/main/resources/application-local.properties
 .env
 .env.*
+!.env.example
 
 # OS Specific
 .DS_Store
@@ -36,10 +37,12 @@ bot/node_modules
 .wwebjs_cache/
 bot/LANGFUSE_DOCUMENTATION.md
 consentedUsersPersistence.json
+userStatePersistence.json
 .junie/
 .gemini/
 # VSCode
-.vscode
+.vscode/
 
-
+# Local Codex marker/state
+.codex
 

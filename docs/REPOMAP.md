@@ -51,22 +51,30 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 │   └── test/
 │       └── kotlin/com/studentstorefront/
 │           ├── service/       # Unit tests (WhatsAppQrLoginServiceTest — MockK)
-│           └── controller/    # Integration tests (WhatsAppQrLoginControllerTest — MockMvc + Testcontainers)
+│           └── controller/    # Integration tests (WhatsAppQrLoginControllerTest, PostSearchControllerTest — MockMvc + Testcontainers)
 ├── bot/                       # Node.js WhatsApp Bot integration
 │   ├── src/
-│   │   ├── WhatsappBot.js     # Main bot script: consent flow + QR login handler
+│   │   ├── WhatsappBot.js     # Main bot script: group listing capture, consent flow, QR login, shopping chat delegation
+│   │   ├── shopping/
+│   │   │   └── WhatsAppShoppingChat.js # DM shopping commands, listing pagination, reaction navigation, seller contact links
+│   │   ├── services/llm/
+│   │   │   ├── modelRouter.js # Provider router with primary+fallback chain for runtime LLM selection
+│   │   │   └── providers/
+│   │   │       ├── geminiProvider.js # Gemini provider adapter (prompt + parse/classify + model fallback)
+│   │   │       └── openaiCompatibleProvider.js # OpenAI-style adapter for LiteLLM/self-hosted endpoints
 │   │   ├── services/
-│   │   │   ├── botGeminiService.js   # Production LLM: Gemini with 4-model fallback chain
+│   │   │   ├── botGeminiService.js   # Legacy Gemini-only service (kept for compatibility/tests)
 │   │   │   ├── Gemma4Service.js      # Local LLM via Ollama (benchmark/testing only — not used by bot)
 │   │   │   ├── langfuseService.js    # Shared Langfuse client for LLM observability
-│   │   │   ├── springServices.js     # Spring Boot REST API calls
+│   │   │   ├── springServices.js     # Spring Boot REST API calls for listing creation, lookup, search, and WhatsApp login
 │   │   │   ├── webhookService.js     # Express webhook server (seller-registered)
 │   │   │   ├── claudinary.js         # Cloudinary image upload helper
 │   │   │   └── Prompt-File.js        # Gemini/Gemma prompt templates
 │   │   └── tests/
 │   │       ├── GeminiAPI-test-Mock.js  # Standalone test harness with mocked services
 │   │       └── runBenchmark.js         # Head-to-head Gemini vs Gemma benchmark (requires Ollama)
-│   └── package.json           # Bot dependencies
+│   ├── .env.example           # Bot environment template (provider routing, LiteLLM/OpenAI-compatible vars)
+│   └── package.json           # Bot dependencies (includes `openai` SDK for OpenAI-compatible provider)
 └── docker-compose.yaml        # Local PostgreSQL setup
 ```
 
@@ -100,6 +108,7 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 | `PATCH` | `/api/posts/{id}/mark-sold`| SELLER/ADMIN | Mark a post as sold (removes from active feed) |
 | `DELETE` | `/api/posts/{id}` | SELLER/ADMIN | Delete a post |
 | `GET` | `/api/posts/available` | Public | Get only unsold listings |
+| `GET` | `/api/posts/search?q={text}&category={name}` | Public | Search unsold listings by title/description with optional category filter; supports pageable `page`, `size`, and `sort` params |
 | `GET` | `/api/posts/category/{name}`| Public | Filter posts by category (e.g., ELECTRONICS, BOOKS) |
 | `GET` | `/api/posts/seller/{id}` | Public | Get all posts by a specific seller |
 
@@ -259,11 +268,16 @@ Created sites are local browser artifacts, not backend records. A created site s
 - **Email Service:** Used for sending password reset links and other notifications.
 
 ### **WhatsApp Bot Bridge**
-- **Bot Engine:** Built with `whatsapp-web.js`. Handles group message parsing and interactive commands.
-- **AI Analysis:** Uses **Google Gemini** (`gemini-2.5-flash-lite`, with automatic fallback to `gemini-2.0-flash-lite` → `gemini-1.5-flash-8b` → `gemini-1.5-flash`) for intent classification and data extraction from natural language.
+- **Bot Engine:** Built with `whatsapp-web.js`. Handles group message parsing, DM commands, QR login confirmations, and reaction events.
+- **Command Short-Circuiting:** Known bot commands are detected before listing classification in the target chat, so command messages skip LLM classification entirely (lower latency and token usage).
+- **Text-Chat Shopping:** `WhatsAppShoppingChat.js` lets buyers browse the store in WhatsApp DMs with commands like `shop`, `recent`, `search desk`, `category electronics`, `details 1`, and numeric replies for seller links. Results are sent in configurable pages (`SHOPPING_PAGE_SIZE`, default `5`) and support `⬅️` / `➡️` reaction pagination.
+- **Multi-Model LLM Routing:** Runtime classification/parsing now goes through `services/llm/modelRouter.js` with env-configured primary provider (`LLM_PRIMARY_PROVIDER`) and fallback providers (`LLM_FALLBACK_PROVIDERS`), designed for adding more providers later.
+- **Gemini Provider:** Includes model-level fallback chain (`gemini-2.5-flash-lite` → `gemini-2.0-flash-lite` → `gemini-1.5-flash-8b` → `gemini-1.5-flash`).
+- **OpenAI-Compatible Provider:** Uses the official `openai` JS SDK against OpenAI-style endpoints (for example LiteLLM on a self-hosted domain).
 - **Local Model (Benchmark only):** `Gemma4Service.js` calls a locally running **Gemma 4** model via [Ollama](https://ollama.com) for benchmarking against Gemini. It is not part of the production bot flow and requires no setup from teammates.
-- **LLM Observability:** [Langfuse](https://langfuse.com) traces every LLM call (latency, token usage, errors) across both Gemini and Gemma.
-- **Webhook Service:** Dispatches parsed data to the backend via secure endpoints.
+- **LLM Observability:** [Langfuse](https://langfuse.com) traces every LLM call (latency, token usage, errors) across configured providers.
+- **Spring Service Wrapper:** `springServices.js` dispatches parsed listings to secure bot endpoints and reads public listing/search APIs for shopping chat.
+- **Webhook Service:** Receives seller registration callbacks so pending bot-created listings can continue after signup.
 - **Cloudinary Integration:** Both bot and backend use Cloudinary for optimized image hosting.
 
 ### **WhatsApp QR Login**

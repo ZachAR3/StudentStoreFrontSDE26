@@ -9,6 +9,7 @@ if (!process.env.BOT_API_KEY) {
 }
 
 const POST_EXPIRY_HOURS = 48
+const DEFAULT_POST_SORT = 'createdAt,desc'
 
 async function createPost(geminiListing, cloudinaryUrls, sellerId) {
     try {
@@ -81,4 +82,45 @@ async function confirmWhatsAppLogin(loginToken, phoneNumber) {
     }
 }
 
-module.exports = { createPost, getSellerByPhone, confirmWhatsAppLogin }
+async function searchPosts({ query = '', category = '', page = 0, size = 5, sort = DEFAULT_POST_SORT } = {}) {
+    try {
+        const response = await axios.get(`${process.env.SPRING_BASE_URL}/api/posts/search`, {
+            params: {
+                q: query || undefined,
+                category: category || undefined,
+                page,
+                size,
+                sort
+            }
+        })
+        return response.data
+    } catch (error) {
+        console.error('Post search failed:', error.message)
+        return null
+    }
+}
+
+async function getRecentPosts({ page = 0, size = 5, sort = DEFAULT_POST_SORT } = {}) {
+    return searchPosts({ page, size, sort })
+}
+
+async function getPostById(postId) {
+    try {
+        const response = await axios.get(`${process.env.SPRING_BASE_URL}/api/posts/${postId}`)
+        return response.data
+    } catch (error) {
+        if (error.response?.status !== 404) {
+            console.error('Post lookup failed:', error.message)
+        }
+        return null
+    }
+}
+
+module.exports = {
+    createPost,
+    getSellerByPhone,
+    confirmWhatsAppLogin,
+    searchPosts,
+    getRecentPosts,
+    getPostById
+}
