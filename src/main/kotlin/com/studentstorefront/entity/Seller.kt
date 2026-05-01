@@ -17,6 +17,6 @@ data class Seller(
     val password: String = "",
     @Enumerated(EnumType.STRING)
     val role: Role = Role.SELLER,
-    val isEnabled: Boolean = false,
+    val isEnabled: Boolean = true,
     val createdAt: LocalDateTime = LocalDateTime.now()
 )

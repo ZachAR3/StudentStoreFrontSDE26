@@ -12,7 +12,6 @@ import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.authentication.AuthenticationManager
-import org.springframework.security.authentication.DisabledException
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.userdetails.UserDetailsService
 import org.springframework.web.bind.annotation.*
@@ -28,35 +27,57 @@ class AuthController(
     private val passwordResetService: PasswordResetService
 ) {
 
+    /**
+     * Self-service registration endpoint
+     * Creates a new seller account and returns JWT token immediately
+     */
     @PostMapping("/register")
-    fun register(@Valid @RequestBody registerRequest: SellerRequestDTO): ResponseEntity<Map<String, String>> {
-        sellerService.createSeller(registerRequest)
-        return ResponseEntity.status(HttpStatus.CREATED)
-            .body(mapOf("message" to "Registration successful. Check your email to verify your account."))
+    fun register(@Valid @RequestBody registerRequest: SellerRequestDTO): ResponseEntity<AuthResponseDTO> {
+        // Create the seller using existing service
+        val createdSeller = sellerService.createSeller(registerRequest)
+
+        // Load user details for JWT generation
+        val userDetails = userDetailsService.loadUserByUsername(createdSeller.email)
+
+        // Generate JWT token
+        val token = jwtService.generateToken(userDetails)
+
+        // Return token with seller info
+        val authResponse = AuthResponseDTO(
+            token = token,
+            seller = createdSeller
+        )
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(authResponse)
     }
 
+    /**
+     * Login endpoint for existing users
+     * Authenticates user and returns JWT token
+     */
     @PostMapping("/login")
-    fun login(@Valid @RequestBody loginRequest: LoginRequestDTO): ResponseEntity<*> {
-        val authentication = try {
-            authenticationManager.authenticate(
-                UsernamePasswordAuthenticationToken(loginRequest.email, loginRequest.password)
-            )
-        } catch (e: DisabledException) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(mapOf("message" to "Account not verified. Check your email for the verification link."))
-        }
+    fun login(@Valid @RequestBody loginRequest: LoginRequestDTO): ResponseEntity<AuthResponseDTO> {
+        // Authenticate user
+        val authentication = authenticationManager.authenticate(
+            UsernamePasswordAuthenticationToken(loginRequest.email, loginRequest.password)
+        )
 
+        // Get user details from authentication
         val userDetails = authentication.principal as org.springframework.security.core.userdetails.UserDetails
+
+        // Generate JWT token
         val token = jwtService.generateToken(userDetails)
+
+        // Get seller information
         val seller = sellerService.getSellerByEmail(loginRequest.email)
 
-        return ResponseEntity.ok(AuthResponseDTO(token = token, seller = seller))
-    }
+        // Return token with seller info
+        val authResponse = AuthResponseDTO(
+            token = token,
+            seller = seller
+        )
 
-    @GetMapping("/verify-email")
-    fun verifyEmail(@RequestParam token: String): ResponseEntity<Map<String, String>> {
-        sellerService.verifyEmail(token)
-        return ResponseEntity.ok(mapOf("message" to "Email verified. You can now log in."))
+        return ResponseEntity.ok(authResponse)
     }
 
     @PostMapping("/forgot-password")
