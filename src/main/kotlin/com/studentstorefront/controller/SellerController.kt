@@ -6,6 +6,7 @@ import com.studentstorefront.dto.response.SellerResponseDTO
 import com.studentstorefront.dto.update.SellerUpdateDTO
 import com.studentstorefront.service.SellerService
 import jakarta.validation.Valid
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.web.PageableDefault

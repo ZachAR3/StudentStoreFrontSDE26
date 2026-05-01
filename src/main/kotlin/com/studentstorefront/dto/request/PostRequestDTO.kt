@@ -19,6 +19,8 @@ data class PostRequestDTO(
     val imageUrlList: List<@NotBlank(message = "Url images must not be blank")
     @URL(message = "Image URL must be valid") String>? = emptyList(),
 
+    val imageHashList: List<String>? = emptyList(),
+
     @field:NotBlank(message = "Description is required")
     @field:Size(min = 10, max = 1000, message = "Description must be between 10 and 1000 characters")
     val description: String,

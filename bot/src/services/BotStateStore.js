@@ -178,15 +178,3 @@ class BotStateStore {
 }
 
 module.exports = BotStateStore
-   this.clearTimer(phoneNumber)
-                this.userState.delete(phoneNumber)
-                anyDeleted = true
-                console.log('Expired listing removed for:', phoneNumber)
-            }
-        })
-        if (anyDeleted) this.save()
-        return anyDeleted
-    }
-}
-
-module.exports = BotStateStore

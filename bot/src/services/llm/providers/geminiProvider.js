@@ -1,10 +1,12 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai")
 const { UserMessagePrompt, classificationPrompt, imageDescriptionPrompt } = require("../../Prompt-File.js")
+const { parseJsonFromLlmText } = require("../parseJsonFromLlmText")
 
 const DEFAULT_MODELS = [
     "gemini-2.5-flash-lite",
     "gemini-2.5-flash"
 ]
+const DEFAULT_LISTING_PARSE_MAX_TOKENS = 2000
 const DEPRECATED_MODEL_REPLACEMENTS = {
     "gemini-1.5-flash": "gemini-2.5-flash-lite",
     "gemini-1.5-flash-8b": "gemini-2.5-flash-lite",
@@ -90,7 +92,7 @@ function createGeminiProvider({ langfuse }) {
                     model: modelName,
                     generationConfig: {
                         temperature: 0,
-                        maxOutputTokens: Number(process.env.LISTING_PARSE_MAX_TOKENS || 180)
+                        maxOutputTokens: Number(process.env.LISTING_PARSE_MAX_TOKENS || DEFAULT_LISTING_PARSE_MAX_TOKENS)
                     }
                 })
                 const result = await model.generateContent(buildParts(prompt, images))
@@ -131,17 +133,7 @@ function createGeminiProvider({ langfuse }) {
             { ...tracingParams, input: { message, imageCount: images.length } },
             "GeminiMessageParser"
         )
-        
-        try {
-            const firstBrace = text.indexOf('{')
-            const lastBrace = text.lastIndexOf('}')
-            if (firstBrace === -1 || lastBrace === -1) throw new Error('No JSON object found in response')
-            const jsonString = text.slice(firstBrace, lastBrace + 1)
-            return JSON.parse(jsonString)
-        } catch (error) {
-            console.error('Gemini JSON parse failed. Raw text:', text)
-            throw new Error(`Failed to parse listing JSON: ${error.message}`)
-        }
+        return parseJsonFromLlmText(text)
     }
 
     async function imageProcessing(images, tracingParams = {}) {

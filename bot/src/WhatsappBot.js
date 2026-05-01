@@ -1,13 +1,22 @@
 const fs = require('fs')
 const path = require('path')
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') })
 const { Client, LocalAuth } = require('whatsapp-web.js')
 const qrcode = require('qrcode-terminal')
-const { downscaleImagesForLlm, cleanupTempImages, checkImageMagick } = require('./services/imagePreprocessor')
+const { cleanupTempImages, checkImageMagick } = require('./services/imagePreprocessor')
+const { uploadImage } = require('./services/claudinary')
+const springServices = require('./services/springServices')
+const { confirmWhatsAppLogin } = springServices
+const ListingSubmissionService = require('./services/ListingSubmissionService')
+const BotStateStore = require('./services/BotStateStore')
+const WhatsAppShoppingChat = require('./shopping/WhatsAppShoppingChat')
+const { MessageParser, ContextClassifier, getActiveProviderConfig } = require('./services/llm/modelRouter')
+const langfuse = require('./services/langfuseService')
+const { startWebhookServer } = require('./services/webhookService')
+const { isDirectMessage, getContactNumber, getDirectChatId, normalizePhoneNumber } = require('./services/chatIdentity')
 
 const NOT_CONSENTED_TO_MESSAGE_UPLOAD = new Set()
 const consentedUsers = new Set()
-
-// ... (rest of the file imports)
 
 cleanupTempImages()
 checkImageMagick()
@@ -21,7 +30,7 @@ try {
 } catch (_) {}
 
 const TARGET_GROUP = process.env.TARGET_GROUP_JID || '120363406751456779@g.us'
-const LISTING_EXPIRY_HOURS = 12
+const LISTING_EXPIRY_HOURS = 24
 const LISTING_INACTIVITY_MS = 30000   //TODO: change back to 300000 (5 min) for production
 const processedMessageIds = new Set()
 
@@ -50,6 +59,7 @@ const listingSubmissionService = new ListingSubmissionService({
     persistConsentedUsers,
     uploadImage,
     createPost: springServices.createPost,
+    resolveMediaUrlsByHash: springServices.resolveMediaUrlsByHash,
     getSellerByPhone: springServices.getSellerByPhone,
     messageParser: MessageParser,
     langfuse,
@@ -204,11 +214,18 @@ async function handleTargetGroupMessage(msg, contact, phoneNumber) {
     scheduleGroupClassification(contact, phoneNumber, replyChatId)
 }
 
-async function handleLoginCommand(msg, contact) {
-    const loginMatch = msg.body.match(/^login:([0-9a-f-]{36})$/i)
+async function handleLoginCommand(msg, contact, normalizedPhoneNumber) {
+    const body = String(msg.body || '').trim()
+    const loginMatch = body.match(/login:([0-9a-f-]{36})/i)
     if (!loginMatch) return false
 
-    const result = await confirmWhatsAppLogin(loginMatch[1], contact.number)
+    const senderPhone = String(contact?.number || normalizedPhoneNumber || '').replace(/\D/g, '')
+    if (!senderPhone) {
+        await client.sendMessage(msg.from, 'Could not read your phone number from WhatsApp. Please try again.')
+        return true
+    }
+
+    const result = await confirmWhatsAppLogin(loginMatch[1], senderPhone)
     if (result === 'OK') {
         await client.sendMessage(msg.from, 'Login successful! Go back to your browser.')
     } else if (result === 'EXPIRED') {
@@ -238,9 +255,24 @@ async function handleDmPostFlow(msg, contact, phoneNumber) {
         return true
     }
 
-    if (['stop', '/stop', 'cancel', '/cancel'].includes(response) && state?.mode === 'dm-post') {
+    if (['stop', '/stop', 'cancel', '/cancel'].includes(response) && ['dm-post', 'awaiting-price'].includes(state?.mode)) {
         stateStore.clear(phoneNumber)
         await client.sendMessage(msg.from, 'Post draft cancelled. Send "post" whenever you want to start again.')
+        return true
+    }
+
+    if (state?.mode === 'awaiting-price') {
+        if (shoppingChat.isKnownCommandText(msg.body)) return false
+
+        await collectListingInput(phoneNumber, msg)
+        await listingSubmissionService.submitListingDraft({
+            contact,
+            phoneNumber,
+            replyChatId: msg.from,
+            missingPriceMessage: 'I still could not find a valid price in your reply. Please send a clear numeric price only (for example: "15"). Your draft will expire after 24 hours.',
+            stageOnMissingPrice: true,
+            clearStateOnFailure: false
+        })
         return true
     }
 
@@ -293,7 +325,7 @@ async function handleConsentResponse(msg, contact, phoneNumber) {
 async function handleDirectMessage(msg, contact, phoneNumber) {
     if (msg.fromMe) return
 
-    if (await handleLoginCommand(msg, contact)) return
+    if (await handleLoginCommand(msg, contact, phoneNumber)) return
     if (await handleConsentResponse(msg, contact, phoneNumber)) return
     if (await handleDmPostFlow(msg, contact, phoneNumber)) return
     if (shoppingChat.isKnownCommandText(msg.body) && stateStore.get(phoneNumber)?.mode === 'dm-post') {

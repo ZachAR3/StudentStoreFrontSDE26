@@ -10,8 +10,9 @@ if (!process.env.BOT_API_KEY) {
 
 const POST_EXPIRY_HOURS = 48
 const DEFAULT_POST_SORT = 'createdAt,desc'
+const AXIOS_TIMEOUT = 10000
 
-async function createPost(geminiListing, cloudinaryUrls, sellerId) {
+async function createPost(geminiListing, cloudinaryUrls, sellerId, imageHashes = []) {
     try {
         const response = await axios.post(`${process.env.SPRING_BASE_URL}/api/posts/bot`, {
             title: geminiListing.title,
@@ -19,12 +20,17 @@ async function createPost(geminiListing, cloudinaryUrls, sellerId) {
             description: geminiListing.description,
             category: geminiListing.category?.toUpperCase(),
             imageUrlList: cloudinaryUrls,
+            imageHashList: imageHashes,
             sellerId: sellerId,
             isSold: false,
             expiresAt: new Date(Date.now() + POST_EXPIRY_HOURS * 60 * 60 * 1000).toISOString().slice(0, 19)
 
         }, { headers: { 'X-Bot-Api-Key': process.env.BOT_API_KEY } })
-        return response.data
+        return {
+            ok: true,
+            status: response.status,
+            data: response.data
+        }
     }
     catch(error) {
         const status = error.response?.status
@@ -34,8 +40,30 @@ async function createPost(geminiListing, cloudinaryUrls, sellerId) {
             message: responseData?.message || error.message,
             data: responseData
         })
-        return false;
+        return {
+            ok: false,
+            status,
+            message: responseData?.message || error.message,
+            data: responseData
+        };
 
+    }
+}
+
+async function resolveMediaUrlsByHash(imageHashes = []) {
+    const uniqueHashes = [...new Set(imageHashes.filter(Boolean))]
+    if (uniqueHashes.length === 0) return {}
+
+    try {
+        const response = await axios.post(
+            `${process.env.SPRING_BASE_URL}/api/posts/bot/media/resolve`,
+            uniqueHashes,
+            { headers: { 'X-Bot-Api-Key': process.env.BOT_API_KEY } }
+        )
+        return response.data || {}
+    } catch (error) {
+        console.error('Media hash lookup failed:', error.message)
+        return {}
     }
 }
 
@@ -48,6 +76,8 @@ async function getSellerByPhone(phoneNumber) {
     if (digitsOnly.length < 10 || digitsOnly.length > 15) {
         console.error('Invalid phone number format:', phoneNumber)
         return null
+    }
+
     try {
         // Try searching with '+' prefix first (matching your current DB/DataLoader format)
         let response = await axios.get(`${process.env.SPRING_BASE_URL}/api/sellers/by-phone`, {
@@ -138,11 +168,25 @@ async function getPostById(postId) {
     }
 }
 
+async function getPostsBySeller(sellerId, { page = 0, size = 50, sort = DEFAULT_POST_SORT } = {}) {
+    try {
+        const response = await axios.get(`${process.env.SPRING_BASE_URL}/api/posts/seller/${sellerId}`, {
+            params: { page, size, sort }
+        })
+        return response.data
+    } catch (error) {
+        console.error('Seller posts lookup failed:', error.message)
+        return null
+    }
+}
+
 module.exports = {
     createPost,
+    resolveMediaUrlsByHash,
     getSellerByPhone,
     confirmWhatsAppLogin,
     searchPosts,
     getRecentPosts,
-    getPostById
+    getPostById,
+    getPostsBySeller
 }

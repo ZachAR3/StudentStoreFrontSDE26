@@ -52,6 +52,15 @@ class PostController(
         return ResponseEntity.status(HttpStatus.CREATED).body(createdPost)
     }
 
+    @PostMapping("/bot/media/resolve")
+    fun resolveBotMediaUrls(
+        @RequestHeader("X-Bot-Api-Key") apiKey: String,
+        @RequestBody imageHashes: List<String>
+    ): ResponseEntity<Map<String, String>> {
+        if (apiKey != botApiKey) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+        return ResponseEntity.ok(postService.resolveMediaUrlsByHash(imageHashes))
+    }
+
     @GetMapping
     fun getAllPosts(
         @PageableDefault(size = 20) pageable: Pageable

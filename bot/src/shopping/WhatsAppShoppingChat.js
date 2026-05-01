@@ -450,16 +450,3 @@ class WhatsAppShoppingChat {
 }
 
 module.exports = WhatsAppShoppingChat
-sion.page + 1 < session.totalPages) controls.push('n')
-        return controls
-    }
-}
-
-module.exports = WhatsAppShoppingChat
-
-        if (session.totalPages && session.page + 1 < session.totalPages) controls.push('n')
-        return controls
-    }
-}
-
-module.exports = WhatsAppShoppingChat

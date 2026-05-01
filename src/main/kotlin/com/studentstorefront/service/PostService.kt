@@ -38,7 +38,7 @@ class PostService(
         val seller = findSellerById(sellerId)
         val post = createPostEntity(postRequestDTO, seller)
         val savedPost = postRepository.save(post)
-        postMediaRepository.saveAll((postRequestDTO.imageUrlList ?: emptyList()).map { PostMedia(post = savedPost, mediaUrl = it) })
+        savePostMedia(savedPost, postRequestDTO.imageUrlList, postRequestDTO.imageHashList)
         return mapToResponseDTO(savedPost)
     }
 
@@ -82,7 +82,7 @@ class PostService(
         val seller = findSellerById(sellerId)
         val post = createPostEntity(postRequestDTO, seller)
         val savedPost = postRepository.save(post)
-        postMediaRepository.saveAll((postRequestDTO.imageUrlList ?: emptyList()).map { PostMedia(post = savedPost, mediaUrl = it) })
+        savePostMedia(savedPost, postRequestDTO.imageUrlList, postRequestDTO.imageHashList)
         return mapToResponseDTO(savedPost)
     }
 
@@ -132,7 +132,7 @@ class PostService(
         val savedPost = postRepository.save(updatedPost)
         if (postUpdateDTO.imageUrlList != null) {
             postMediaRepository.deleteAll(postMediaRepository.findByPost_postId(postId))
-            postMediaRepository.saveAll(postUpdateDTO.imageUrlList.map { PostMedia(post = savedPost, mediaUrl = it) })
+            savePostMedia(savedPost, postUpdateDTO.imageUrlList, null)
 
         }
         return mapToResponseDTO(savedPost)
@@ -187,6 +187,31 @@ class PostService(
             isSold = postUpdateDTO.isSold ?: existingPost.isSold,
             expiresAt = postUpdateDTO.expiresAt ?: existingPost.expiresAt
         )
+    }
+
+    @Transactional(readOnly = true)
+    fun resolveMediaUrlsByHash(imageHashes: List<String>): Map<String, String> {
+        if (imageHashes.isEmpty()) return emptyMap()
+
+        return postMediaRepository.findByImageHashIn(imageHashes.distinct())
+            .filter { !it.imageHash.isNullOrBlank() }
+            .distinctBy { it.imageHash }
+            .associate { it.imageHash!! to it.mediaUrl }
+    }
+
+    private fun savePostMedia(post: Post, imageUrlList: List<String>?, imageHashList: List<String>?) {
+        postMediaRepository.saveAll((imageUrlList ?: emptyList()).mapIndexed { index, mediaUrl ->
+            val imageHash = imageHashList?.getOrNull(index)?.takeIf { it.isNotBlank() }
+            val existingUrl = imageHash?.let { resolveMediaUrlsByHash(listOf(it))[it] }
+
+            PostMedia(
+                post = post,
+                mediaUrl = existingUrl ?: mediaUrl,
+                imageHash = imageHash,
+                displayOrder = index,
+                isCover = index == 0
+            )
+        })
     }
 
     private fun mapToResponseDTO(post: Post): PostResponseDTO {

@@ -1,9 +1,11 @@
 const OpenAIImport = require("openai")
 const { UserMessagePrompt, classificationPrompt, imageDescriptionPrompt } = require("../../Prompt-File.js")
+const { parseJsonFromLlmText } = require("../parseJsonFromLlmText")
 
 const OpenAI = OpenAIImport.default || OpenAIImport
 const DEFAULT_BASE_URL = "https://api.openai.com/v1"
 const DEFAULT_MODEL = "gpt-5.4-nano"
+const DEFAULT_LISTING_PARSE_MAX_TOKENS = 2000
 
 function extractText(content) {
     if (typeof content === "string") return content
@@ -92,7 +94,7 @@ function createOpenAICompatibleProvider({ langfuse, baseURL: baseURLOverride, ap
                 model,
                 messages: [{ role: "user", content: buildContent(prompt, images) }],
                 temperature: 0,
-                max_tokens: Number(process.env.LISTING_PARSE_MAX_TOKENS || 180)
+                max_completion_tokens: Number(process.env.LISTING_PARSE_MAX_TOKENS || DEFAULT_LISTING_PARSE_MAX_TOKENS)
             })
 
             const text = extractText(response?.choices?.[0]?.message?.content)
@@ -128,17 +130,7 @@ function createOpenAICompatibleProvider({ langfuse, baseURL: baseURLOverride, ap
             { ...tracingParams, input: { message, imageCount: images.length } },
             "OpenAICompatibleMessageParser"
         )
-        
-        try {
-            const firstBrace = text.indexOf('{')
-            const lastBrace = text.lastIndexOf('}')
-            if (firstBrace === -1 || lastBrace === -1) throw new Error('No JSON object found in response')
-            const jsonString = text.slice(firstBrace, lastBrace + 1)
-            return JSON.parse(jsonString)
-        } catch (error) {
-            console.error('OpenAI-compatible JSON parse failed. Raw text:', text)
-            throw new Error(`Failed to parse listing JSON: ${error.message}`)
-        }
+        return parseJsonFromLlmText(text)
     }
 
     async function imageProcessing(images, tracingParams = {}) {
