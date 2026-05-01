@@ -9,7 +9,7 @@
         },
         editor: {
             icon: "user",
-            controls: [{ key: "mode", kind: "select", options: ["login", "register", "forgotPassword", "resetPassword", "whatsappLogin"] }]
+            controls: [{ key: "mode", kind: "select", options: ["login", "register", "forgotPassword", "resetPassword", "whatsappLogin", "emailVerification"] }]
         },
         component: "authPanel"
     });

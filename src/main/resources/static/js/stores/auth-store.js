@@ -11,6 +11,8 @@
             registerForm: { name: "", email: "", phoneNumber: "", password: "", confirmPassword: "" },
             forgotPasswordForm: { email: "" },
             resetPasswordForm: { token: "", newPassword: "", confirmPassword: "" },
+            verificationForm: { email: "", code: "" },
+            verificationResendCooldown: 0,
             whatsappLogin: { token: "", status: "PENDING", interval: null, sessionId: "", qrContent: "" },
 
             saveAuth(data) {

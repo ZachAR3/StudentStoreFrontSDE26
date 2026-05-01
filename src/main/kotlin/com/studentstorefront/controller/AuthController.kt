@@ -2,9 +2,14 @@ package com.studentstorefront.controller
 
 import com.studentstorefront.dto.request.ForgotPasswordRequestDTO
 import com.studentstorefront.dto.request.LoginRequestDTO
+import com.studentstorefront.dto.request.ResendVerificationRequestDTO
 import com.studentstorefront.dto.request.ResetPasswordRequestDTO
 import com.studentstorefront.dto.request.SellerRequestDTO
+import com.studentstorefront.dto.request.VerifyEmailRequestDTO
 import com.studentstorefront.dto.response.AuthResponseDTO
+import com.studentstorefront.dto.response.VerificationRequiredResponseDTO
+import com.studentstorefront.service.EmailService
+import com.studentstorefront.service.EmailVerificationService
 import com.studentstorefront.service.JwtService
 import com.studentstorefront.service.PasswordResetService
 import com.studentstorefront.service.SellerService
@@ -24,7 +29,9 @@ class AuthController(
     private val jwtService: JwtService,
     private val sellerService: SellerService,
     private val userDetailsService: UserDetailsService,
-    private val passwordResetService: PasswordResetService
+    private val passwordResetService: PasswordResetService,
+    private val emailVerificationService: EmailVerificationService,
+    private val emailService: EmailService
 ) {
 
     /**
@@ -32,23 +39,27 @@ class AuthController(
      * Creates a new seller account and returns JWT token immediately
      */
     @PostMapping("/register")
-    fun register(@Valid @RequestBody registerRequest: SellerRequestDTO): ResponseEntity<AuthResponseDTO> {
-        // Create the seller using existing service
-        val createdSeller = sellerService.createSeller(registerRequest)
-
-        // Load user details for JWT generation
-        val userDetails = userDetailsService.loadUserByUsername(createdSeller.email)
-
-        // Generate JWT token
-        val token = jwtService.generateToken(userDetails)
-
-        // Return token with seller info
-        val authResponse = AuthResponseDTO(
-            token = token,
-            seller = createdSeller
+    fun register(@Valid @RequestBody registerRequest: SellerRequestDTO): ResponseEntity<VerificationRequiredResponseDTO> {
+        val (createdSeller, code) = sellerService.createSellerWithToken(registerRequest)
+        emailService.sendVerificationEmail(createdSeller.email, code)
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+            VerificationRequiredResponseDTO(email = createdSeller.email)
         )
+    }
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(authResponse)
+    @PostMapping("/verify-email")
+    fun verifyEmail(@Valid @RequestBody request: VerifyEmailRequestDTO): ResponseEntity<AuthResponseDTO> {
+        emailVerificationService.verifyCode(request.email, request.code)
+        val userDetails = userDetailsService.loadUserByUsername(request.email)
+        val token = jwtService.generateToken(userDetails)
+        val seller = sellerService.getSellerByEmail(request.email)
+        return ResponseEntity.ok(AuthResponseDTO(token = token, seller = seller))
+    }
+
+    @PostMapping("/resend-verification")
+    fun resendVerification(@Valid @RequestBody request: ResendVerificationRequestDTO): ResponseEntity<Map<String, String>> {
+        emailVerificationService.resendCode(request.email)
+        return ResponseEntity.ok(mapOf("message" to "Verification code resent"))
     }
 
     /**

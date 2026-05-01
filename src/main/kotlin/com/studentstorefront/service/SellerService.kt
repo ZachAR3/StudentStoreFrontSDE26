@@ -3,8 +3,10 @@ package com.studentstorefront.service
 import com.studentstorefront.dto.request.SellerRequestDTO
 import com.studentstorefront.dto.response.SellerResponseDTO
 import com.studentstorefront.dto.update.SellerUpdateDTO
+import com.studentstorefront.entity.EmailVerificationToken
 import com.studentstorefront.entity.Seller
 import com.studentstorefront.enums.Role
+import com.studentstorefront.repository.EmailVerificationTokenRepository
 import com.studentstorefront.repository.FavouriteRepository
 import com.studentstorefront.repository.PostRepository
 import com.studentstorefront.repository.SellerRepository
@@ -22,8 +24,17 @@ class SellerService(
     private val sellerRepository: SellerRepository,
     private val postRepository: PostRepository,
     private val favouriteRepository: FavouriteRepository,
-    private val passwordEncoder: PasswordEncoder
+    private val passwordEncoder: PasswordEncoder,
+    private val emailVerificationTokenRepository: EmailVerificationTokenRepository
 ) {
+
+    fun createSellerWithToken(request: SellerRequestDTO): Pair<SellerResponseDTO, String> {
+        val sellerResponse = createSeller(request)
+        val seller = sellerRepository.findByEmail(sellerResponse.email)!!
+        val token = EmailVerificationToken(seller = seller)
+        emailVerificationTokenRepository.save(token)
+        return sellerResponse to token.code
+    }
 
     fun createSeller(sellerRequestDTO: SellerRequestDTO): SellerResponseDTO {
         // Check if email already exists

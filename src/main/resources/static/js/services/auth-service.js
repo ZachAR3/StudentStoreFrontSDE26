@@ -25,6 +25,18 @@
                 method: "POST",
                 body: JSON.stringify(payload)
             }, "", "Failed to reset password");
+        },
+        verifyEmail(payload) {
+            return api.json("/api/auth/verify-email", {
+                method: "POST",
+                body: JSON.stringify(payload)
+            }, "", "Verification failed");
+        },
+        resendVerification(payload) {
+            return api.empty("/api/auth/resend-verification", {
+                method: "POST",
+                body: JSON.stringify(payload)
+            }, "", "Failed to resend code");
         }
     };
 })();

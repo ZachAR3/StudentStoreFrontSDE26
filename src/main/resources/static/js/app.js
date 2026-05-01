@@ -239,9 +239,46 @@ document.addEventListener("alpine:init", () => {
                 try {
                     const { confirmPassword, ...registrationData } = this.auth.registerForm;
                     const data = await services.auth.register(registrationData);
-                    this.auth.saveAuth(data);
+                    this.auth.verificationForm.email = data.email;
+                    this.auth.verificationForm.code = "";
                     this.auth.registerForm = { name: "", email: "", phoneNumber: "", password: "", confirmPassword: "" };
+                    this.navigateTo("emailVerification");
+                } catch (error) {
+                    this.setError(error.message);
+                } finally {
+                    this.isLoading = false;
+                }
+            },
+
+            async handleVerifyEmail() {
+                this.isLoading = true;
+                this.clearMessages();
+                try {
+                    const data = await services.auth.verifyEmail(this.auth.verificationForm);
+                    this.auth.saveAuth(data);
+                    this.auth.verificationForm = { email: "", code: "" };
+                    await this.syncFavourites();
                     this.navigateTo("listings");
+                } catch (error) {
+                    this.setError(error.message);
+                } finally {
+                    this.isLoading = false;
+                }
+            },
+
+            async handleResendVerification() {
+                this.isLoading = true;
+                this.clearMessages();
+                try {
+                    await services.auth.resendVerification({ email: this.auth.verificationForm.email });
+                    this.setSuccess("A new code has been sent to your email.");
+                    this.auth.verificationResendCooldown = 60;
+                    const cooldownInterval = setInterval(() => {
+                        this.auth.verificationResendCooldown--;
+                        if (this.auth.verificationResendCooldown <= 0) {
+                            clearInterval(cooldownInterval);
+                        }
+                    }, 1000);
                 } catch (error) {
                     this.setError(error.message);
                 } finally {

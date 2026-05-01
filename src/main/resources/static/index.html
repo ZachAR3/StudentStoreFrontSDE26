@@ -603,6 +603,30 @@
             </article>
         </div>
 
+        <div class="view-container" x-show="currentView === 'emailVerification'">
+            <article class="auth-card">
+                <h2>Verify your email</h2>
+                <p>We sent a 6-digit code to <strong x-text="auth.verificationForm.email"></strong>. Enter it below to activate your account.</p>
+                <form @submit.prevent="handleVerifyEmail()" x-show="!successMessage">
+                    <label>Verification Code
+                        <input type="text" x-model="auth.verificationForm.code" placeholder="123456" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" required style="letter-spacing: 0.4em; font-size: 1.5rem; text-align: center;">
+                    </label>
+                    <button type="submit" style="width:100%;" :aria-busy="isLoading" :disabled="auth.verificationForm.code.length !== 6 || isLoading">Verify Email</button>
+                </form>
+                <div style="margin-top:1rem;">
+                    <button class="outline secondary" style="width:100%;"
+                        @click="handleResendVerification()"
+                        :disabled="isLoading || auth.verificationResendCooldown > 0">
+                        <span x-show="auth.verificationResendCooldown > 0">Resend in <span x-text="auth.verificationResendCooldown"></span>s</span>
+                        <span x-show="auth.verificationResendCooldown === 0">Resend Code</span>
+                    </button>
+                </div>
+                <div style="text-align:center;margin-top:1rem;">
+                    <small><a href="#" @click.prevent="navigateTo('login')">Back to Log In</a></small>
+                </div>
+            </article>
+        </div>
+
         <div class="view-container" x-show="currentView === 'createdSites'">
             <div class="created-sites-header">
                 <div>
