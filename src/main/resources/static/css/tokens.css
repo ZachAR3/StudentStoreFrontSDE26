@@ -1,5 +1,47 @@
-:root {
-    --header-height: 4.75rem;
+:root,
+html[data-theme="campus-editorial"] {
+    color-scheme: light;
+
+    --sf-font-body: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --sf-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+    --sf-color-background: #f6f8fb;
+    --sf-color-background-soft: #edf3f5;
+    --sf-color-surface: #ffffff;
+    --sf-color-surface-raised: #ffffff;
+    --sf-color-surface-muted: #eef3f6;
+    --sf-color-surface-accent: #e4f2ee;
+    --sf-color-text: #172026;
+    --sf-color-text-strong: #0d171c;
+    --sf-color-muted: #62707d;
+    --sf-color-subtle: #8b98a7;
+    --sf-color-border: #d7e0e8;
+    --sf-color-border-strong: #bdc9d5;
+    --sf-color-primary: #176b5c;
+    --sf-color-primary-strong: #0f4a40;
+    --sf-color-primary-soft: #e4f2ee;
+    --sf-color-accent: #b84d37;
+    --sf-color-accent-soft: #f8e6df;
+    --sf-color-info: #245c7a;
+    --sf-color-info-soft: #e1edf3;
+    --sf-color-success: #16794f;
+    --sf-color-success-soft: #e1f4eb;
+    --sf-color-warning: #a66300;
+    --sf-color-warning-soft: #fff1d6;
+    --sf-color-danger: #b42339;
+    --sf-color-danger-soft: #fae3e8;
+    --sf-color-whatsapp: #1fa855;
+    --sf-color-overlay: rgba(13, 23, 28, 0.62);
+    --sf-color-inverse: #ffffff;
+    --sf-color-scrim: rgba(13, 23, 28, 0.66);
+
+    --sf-avatar-1: #176b5c;
+    --sf-avatar-2: #245c7a;
+    --sf-avatar-3: #9a4d1f;
+    --sf-avatar-4: #8a4b77;
+    --sf-avatar-5: #5c6d2e;
+    --sf-avatar-6: #b84d37;
+
     --sf-space-2xs: 0.25rem;
     --sf-space-xs: 0.5rem;
     --sf-space-sm: 0.75rem;
@@ -7,35 +49,260 @@
     --sf-space-lg: 1.5rem;
     --sf-space-xl: 2rem;
     --sf-space-2xl: 3rem;
-    --sf-radius-xs: 0.375rem;
-    --sf-radius-sm: 0.625rem;
-    --sf-radius-md: 0.875rem;
-    --sf-radius-lg: 1rem;
-    --sf-shadow-sm: 0 6px 18px rgba(15, 23, 42, 0.08);
-    --sf-shadow-md: 0 18px 40px rgba(15, 23, 42, 0.14);
-    --sf-border-color: var(--pico-muted-border-color);
-    --sf-muted-bg: color-mix(in srgb, var(--pico-card-background-color) 82%, var(--pico-background-color));
-    --sf-danger: #ef4444;
-    --sf-danger-soft: rgba(239, 68, 68, 0.06);
-    --sf-success: #22c55e;
-    --sf-warning: #eab308;
-    --sf-whatsapp: #25d366;
+    --sf-space-3xl: 4rem;
+
+    --sf-radius-xs: 0.25rem;
+    --sf-radius-sm: 0.375rem;
+    --sf-radius-md: 0.5rem;
+    --sf-radius-lg: 0.5rem;
+    --sf-radius-pill: 999px;
+
+    --sf-shadow-xs: 0 1px 2px rgba(13, 23, 28, 0.06);
+    --sf-shadow-sm: 0 8px 18px rgba(13, 23, 28, 0.08);
+    --sf-shadow-md: 0 18px 38px rgba(13, 23, 28, 0.12);
+    --sf-shadow-focus: 0 0 0 3px rgba(23, 107, 92, 0.18);
+
     --sf-grid-min-sm: 14rem;
     --sf-grid-min-md: 18rem;
     --sf-grid-min-lg: 22rem;
     --sf-control-height: 2.5rem;
     --sf-icon-button-size: 2.25rem;
     --sf-content-max: 80rem;
+    --sf-header-height: 4.75rem;
+
+    --sf-border-color: var(--sf-color-border);
+    --sf-muted-bg: var(--sf-color-surface-muted);
+    --sf-danger: var(--sf-color-danger);
+    --sf-danger-soft: var(--sf-color-danger-soft);
+    --sf-success: var(--sf-color-success);
+    --sf-warning: var(--sf-color-warning);
+    --sf-whatsapp: var(--sf-color-whatsapp);
+    --header-height: var(--sf-header-height);
+
+    --pico-font-family: var(--sf-font-body);
+    --pico-background-color: var(--sf-color-background);
+    --pico-card-background-color: var(--sf-color-surface);
+    --pico-card-sectioning-background-color: var(--sf-color-surface-muted);
+    --pico-color: var(--sf-color-text);
+    --pico-muted-color: var(--sf-color-muted);
+    --pico-muted-border-color: var(--sf-color-border);
+    --pico-primary: var(--sf-color-primary);
+    --pico-primary-background: var(--sf-color-primary);
+    --pico-primary-border: var(--sf-color-primary);
+    --pico-primary-hover: var(--sf-color-primary-strong);
+    --pico-primary-hover-background: var(--sf-color-primary-strong);
+    --pico-primary-hover-border: var(--sf-color-primary-strong);
+    --pico-primary-focus: rgba(23, 107, 92, 0.18);
+    --pico-primary-inverse: var(--sf-color-inverse);
+    --pico-form-element-background-color: var(--sf-color-surface);
+    --pico-form-element-border-color: var(--sf-color-border-strong);
+    --pico-form-element-active-border-color: var(--sf-color-primary);
+    --pico-form-element-focus-color: rgba(23, 107, 92, 0.18);
+    --pico-border-radius: var(--sf-radius-sm);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    min-width: 320px;
+    background: var(--sf-color-background);
 }
 
 body {
     min-height: 100vh;
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--sf-color-background-soft) 72%, transparent), transparent 24rem),
+        var(--sf-color-background);
+    color: var(--sf-color-text);
+    font-family: var(--sf-font-body);
+    letter-spacing: 0;
 }
 
+img,
+svg {
+    display: block;
+}
+
+img {
+    max-width: 100%;
+}
+
+a {
+    color: var(--sf-color-primary);
+    text-underline-offset: 0.16em;
+}
+
+a:hover {
+    color: var(--sf-color-primary-strong);
+}
+
+button,
+[role="button"],
+input,
+select,
+textarea {
+    border-radius: var(--sf-radius-sm);
+    font: inherit;
+}
+
+button,
+[role="button"] {
+    font-weight: 750;
+    letter-spacing: 0;
+}
+
+button:not(:disabled),
+[role="button"]:not(:disabled) {
+    transition:
+        background-color 0.16s ease,
+        border-color 0.16s ease,
+        color 0.16s ease,
+        box-shadow 0.16s ease,
+        transform 0.16s ease;
+}
+
+button:focus-visible,
+[role="button"]:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 0;
+    box-shadow: var(--sf-shadow-focus);
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"],
+input:disabled,
+select:disabled,
+textarea:disabled {
+    cursor: not-allowed;
+    opacity: 0.62;
+}
+
+input,
+select,
+textarea {
+    min-height: var(--sf-control-height);
+    border-color: var(--pico-form-element-border-color);
+    background-color: var(--pico-form-element-background-color);
+    color: var(--sf-color-text);
+    box-shadow: none;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--pico-form-element-active-border-color);
+    box-shadow: var(--sf-shadow-focus);
+}
+
+select:not([multiple], [size]) {
+    background-color: var(--sf-color-surface);
+}
+
+main.container {
+    max-width: var(--sf-content-max);
+    padding-top: var(--sf-space-lg);
+}
+
+.view-container h1,
+.view-container h2,
+.view-container h3,
+.view-container h4 {
+    color: var(--sf-color-text-strong);
+    letter-spacing: 0;
+}
+
+.view-container h1 {
+    font-size: 2rem;
+    line-height: 1.08;
+}
+
+.view-container h2 {
+    font-size: 1.55rem;
+    line-height: 1.15;
+}
+
+.view-container h3 {
+    font-size: 1.15rem;
+    line-height: 1.2;
+}
+
+article,
+.auth-card,
+.form-card-wide,
+.profile-header,
+.profile-listing-card,
+.danger-zone,
+.selected-cart-row,
+.created-site-card,
+.builder-panel,
+.builder-preview-shell,
+.layout-surface,
+.empty-state {
+    border-color: var(--sf-color-border);
+    border-radius: var(--sf-radius-md);
+    background: var(--sf-color-surface);
+}
+
+article {
+    box-shadow: var(--sf-shadow-xs);
+}
+
+button.outline,
+[role="button"].outline {
+    border-color: var(--sf-color-border-strong);
+    background-color: var(--sf-color-surface);
+    color: var(--sf-color-primary);
+}
+
+button.outline:hover,
+[role="button"].outline:hover {
+    border-color: var(--sf-color-primary);
+    background-color: var(--sf-color-primary-soft);
+    color: var(--sf-color-primary-strong);
+}
+
+button.outline.secondary,
+[role="button"].outline.secondary {
+    color: var(--sf-color-muted);
+}
+
+button.outline.contrast,
+[role="button"].outline.contrast,
+.view-container .outline.contrast {
+    color: var(--sf-color-text);
+}
+
+button.is-whatsapp,
+[role="button"].is-whatsapp,
+.view-container .is-whatsapp {
+    border-color: var(--sf-color-whatsapp);
+    color: var(--sf-color-whatsapp);
+}
+
+button.is-whatsapp:not(.outline),
+[role="button"].is-whatsapp:not(.outline) {
+    background: var(--sf-color-whatsapp);
+    color: var(--sf-color-inverse);
+}
+
+.sf-u-full-width {
+    width: 100%;
+}
+
+.sf-u-text-center {
+    text-align: center;
+}
+
+.sf-u-marginless {
+    margin: 0;
+}
+
+.sf-hidden,
 [x-cloak] {
-    display: none !important;
-}
-
-.sf-hidden {
     display: none !important;
 }

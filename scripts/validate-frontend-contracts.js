@@ -38,6 +38,7 @@ function readJson(relativePath) {
     "js/elements/contact-actions.js",
     "js/elements/favourite-button.js",
     "js/elements/empty-state.js",
+    "js/elements/sales-sections.js",
     "js/elements/auth-panel.js",
     "js/elements/create-listing-form.js",
     "js/elements/profile-summary.js",

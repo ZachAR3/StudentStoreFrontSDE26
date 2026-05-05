@@ -1,9 +1,9 @@
 (function registerValidators() {
     const KNOWN_TOKENS = new Set([
-        "xs", "sm", "md", "lg", "xl",
+        "2xs", "xs", "sm", "md", "lg", "xl", "2xl", "3xl",
         "compact", "comfortable", "spacious",
         "1 / 1", "4 / 3", "16 / 9",
-        "campus", "success", "danger",
+        "campus", "campus-editorial", "success", "warning", "danger", "info",
         "2col", "3col", "card", "row", "stack", "responsive-grid"
     ]);
 

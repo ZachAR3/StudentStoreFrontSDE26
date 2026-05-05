@@ -1,4 +1,11 @@
 (function registerLayoutRuntime() {
+    const SPACE_TOKENS = new Set(["2xs", "xs", "sm", "md", "lg", "xl", "2xl", "3xl"]);
+
+    function resolveSpace(value, fallback = "md") {
+        const token = SPACE_TOKENS.has(value) ? value : fallback;
+        return `var(--sf-space-${token})`;
+    }
+
     function resolveDataSource(key, state, options = {}) {
         const useSampleData = Boolean(options.useSampleData);
         switch (key) {
@@ -64,7 +71,8 @@
             regions: (layout.regions || []).map((region) => ({
                 ...region,
                 runtimeStyle: {
-                    "--region-min-item-width": region.layout?.minItemWidth || "18rem"
+                    "--region-min-item-width": region.layout?.minItemWidth || "18rem",
+                    "--region-gap": resolveSpace(region.layout?.gap)
                 },
                 elements: (region.elements || []).map((element) => {
                     const definition = window.Storefront.core.elementRegistry.get(element.type);

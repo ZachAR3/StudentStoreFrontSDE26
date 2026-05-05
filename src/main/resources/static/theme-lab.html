@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="campus">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Campus Store Theme Lab</title>
+    <link rel="stylesheet" href="/css/theme-lab.css">
+    <script defer src="/js/theme-lab.js"></script>
+</head>
+<body>
+    <header class="lab-header">
+        <a class="brand" href="/">
+            <span class="brand-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" role="img">
+                    <path d="M6 3h12l3 4v13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7l3-4Z"></path>
+                    <path d="M3 7h18"></path>
+                    <path d="M16 11a4 4 0 0 1-8 0"></path>
+                </svg>
+            </span>
+            <span>Campus Store</span>
+        </a>
+        <nav class="top-nav" aria-label="Theme lab navigation">
+            <a href="#market">Market</a>
+            <a href="#seller">Seller</a>
+            <a href="#forms">Forms</a>
+        </nav>
+        <div class="header-actions">
+            <button class="ghost-button">Saved 3</button>
+            <button class="primary-button">Create Listing</button>
+        </div>
+    </header>
+
+    <main>
+        <section class="lab-toolbar" aria-label="Theme picker">
+            <div>
+                <p class="eyebrow">UI dial-in</p>
+                <h1>Theme Lab</h1>
+            </div>
+            <div class="theme-switcher" role="radiogroup" aria-label="Theme options">
+                <button class="theme-option is-active" type="button" data-theme-target="campus">Campus</button>
+                <button class="theme-option" type="button" data-theme-target="paper">Paper</button>
+                <button class="theme-option" type="button" data-theme-target="night">Night</button>
+                <button class="theme-option" type="button" data-theme-target="fresh">Fresh</button>
+                <button class="theme-option" type="button" data-theme-target="editorial">Editorial</button>
+            </div>
+        </section>
+
+        <section class="hero-panel" id="market">
+            <div class="hero-copy">
+                <p class="eyebrow">Verified campus marketplace</p>
+                <h2>Buy, sell, and reuse what students already have nearby.</h2>
+                <p>Previewing the main visual surfaces: navigation, listings, filters, profile cards, forms, buttons, badges, and empty states.</p>
+                <div class="hero-actions">
+                    <button class="primary-button">Browse Listings</button>
+                    <button class="ghost-button">WhatsApp Login</button>
+                </div>
+            </div>
+            <div class="hero-media" aria-label="Featured listing preview">
+                <img src="https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=900&q=80" alt="Laptop on a student desk">
+                <div class="floating-price">
+                    <span>Featured</span>
+                    <strong>EUR 680</strong>
+                </div>
+            </div>
+        </section>
+
+        <section class="filter-bar" aria-label="Listing filters">
+            <label>
+                <span>Search</span>
+                <input type="search" value="desk lamp">
+            </label>
+            <label>
+                <span>Category</span>
+                <select>
+                    <option>Electronics</option>
+                    <option>Books</option>
+                    <option>Furniture</option>
+                </select>
+            </label>
+            <label>
+                <span>Sort</span>
+                <select>
+                    <option>Newest first</option>
+                    <option>Price low to high</option>
+                </select>
+            </label>
+            <button class="ghost-button">Clear</button>
+        </section>
+
+        <section class="section-heading">
+            <div>
+                <p class="eyebrow">Latest nearby</p>
+                <h2>Marketplace Cards</h2>
+            </div>
+            <button class="ghost-button">View All</button>
+        </section>
+
+        <section class="listing-grid">
+            <article class="listing-card">
+                <div class="card-media">
+                    <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=700&q=80" alt="Running shoes">
+                    <button class="icon-button" aria-label="Save listing">
+                        <svg viewBox="0 0 24 24"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 12 5a5.5 5.5 0 0 0-10 3.5c0 2.3 1.5 4 3 5.5l7 7 7-7Z"></path></svg>
+                    </button>
+                    <span class="badge">Sports</span>
+                </div>
+                <div class="card-body">
+                    <p class="meta">North Hall · 12 min ago</p>
+                    <h3>Nearly new running shoes</h3>
+                    <p>Lightweight pair, EU 43, worn twice for indoor training.</p>
+                </div>
+                <footer class="card-footer">
+                    <strong>EUR 45</strong>
+                    <button class="small-button">Contact</button>
+                </footer>
+            </article>
+
+            <article class="listing-card">
+                <div class="card-media">
+                    <img src="https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=700&q=80" alt="Desk and chair">
+                    <button class="icon-button is-saved" aria-label="Saved listing">
+                        <svg viewBox="0 0 24 24"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 12 5a5.5 5.5 0 0 0-10 3.5c0 2.3 1.5 4 3 5.5l7 7 7-7Z"></path></svg>
+                    </button>
+                    <span class="badge">Furniture</span>
+                </div>
+                <div class="card-body">
+                    <p class="meta">Mercator · today</p>
+                    <h3>Compact study desk</h3>
+                    <p>Sturdy, clean, and easy to carry. Fits small dorm rooms.</p>
+                </div>
+                <footer class="card-footer">
+                    <strong>EUR 35</strong>
+                    <button class="small-button">Contact</button>
+                </footer>
+            </article>
+
+            <article class="listing-card">
+                <div class="card-media">
+                    <img src="https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=700&q=80" alt="Stack of books">
+                    <button class="icon-button" aria-label="Save listing">
+                        <svg viewBox="0 0 24 24"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 12 5a5.5 5.5 0 0 0-10 3.5c0 2.3 1.5 4 3 5.5l7 7 7-7Z"></path></svg>
+                    </button>
+                    <span class="badge">Books</span>
+                </div>
+                <div class="card-body">
+                    <p class="meta">Library steps · yesterday</p>
+                    <h3>Algorithms textbook bundle</h3>
+                    <p>Two course books plus highlighted lecture notes.</p>
+                </div>
+                <footer class="card-footer">
+                    <strong>EUR 28</strong>
+                    <button class="small-button">Contact</button>
+                </footer>
+            </article>
+        </section>
+
+        <section class="two-column">
+            <article class="seller-panel" id="seller">
+                <div class="avatar">AK</div>
+                <div>
+                    <p class="eyebrow">Seller profile</p>
+                    <h2>Amira Khan</h2>
+                    <p class="meta">amira@constructor.university · 14 active listings</p>
+                </div>
+                <div class="seller-stats">
+                    <span><strong>4.9</strong> rating</span>
+                    <span><strong>21</strong> sold</span>
+                    <span><strong>3</strong> saved</span>
+                </div>
+            </article>
+
+            <article class="form-panel" id="forms">
+                <p class="eyebrow">Create listing</p>
+                <h2>Form Surface</h2>
+                <label>
+                    <span>Title</span>
+                    <input type="text" value="Desk lamp with wireless charger">
+                </label>
+                <label>
+                    <span>Price</span>
+                    <input type="text" value="18">
+                </label>
+                <label>
+                    <span>Description</span>
+                    <textarea rows="3">Warm light, USB-C input, pickup near Krupp.</textarea>
+                </label>
+                <button class="primary-button full-button">Publish Listing</button>
+            </article>
+        </section>
+    </main>
+</body>
+</html>

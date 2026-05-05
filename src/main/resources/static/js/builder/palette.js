@@ -6,6 +6,10 @@
         "restaurant.menuGrid",
         "profile.summary",
         "profile.listingList",
+        "common.salesHero",
+        "common.featureStrip",
+        "common.contactPanel",
+        "common.announcementBar",
         "common.emptyState"
     ]);
 

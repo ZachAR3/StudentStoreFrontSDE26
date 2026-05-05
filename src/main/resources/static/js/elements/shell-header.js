@@ -5,16 +5,12 @@
         category: "Common",
         accepts: [],
         defaultProps: {
-            showSearch: true,
-            showBuilderShortcut: true,
-            showRestaurantShortcut: true
+            showSearch: true
         },
         editor: {
             icon: "layout",
             controls: [
-                { key: "showSearch", kind: "toggle" },
-                { key: "showBuilderShortcut", kind: "toggle" },
-                { key: "showRestaurantShortcut", kind: "toggle" }
+                { key: "showSearch", kind: "toggle" }
             ]
         },
         component: "shellHeader"

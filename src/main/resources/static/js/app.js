@@ -28,6 +28,9 @@ document.addEventListener("alpine:init", () => {
 
         const app = {
             currentView: "listings",
+            previousView: "listings",
+            selectedListingId: null,
+            selectedListingImageIndex: 0,
             isLoading: true,
             layoutsReady: false,
             errorMessage: "",
@@ -47,9 +50,13 @@ document.addEventListener("alpine:init", () => {
 
             async init() {
                 this.auth.onUnauthorized = () => this.handleLogout();
+                window.addEventListener("popstate", () => {
+                    this.applyBrowserRoute(this.readBrowserRoute());
+                });
                 try {
                     await window.Storefront.data.loadDefaultLayouts();
                     this.layoutsReady = true;
+                    this.loadCreatedSites();
                     await this.fetchPosts();
                     if (this.auth.isLoggedIn && !this.auth.user) {
                         this.handleLogout();
@@ -64,6 +71,11 @@ document.addEventListener("alpine:init", () => {
                         window.history.replaceState({}, document.title, "/");
                     }
                     this.initializeBuilder();
+                    if (window.location.hash) {
+                        this.applyBrowserRoute(this.readBrowserRoute(), { replaceMissing: true });
+                    } else {
+                        this.syncBrowserHistory(this.currentView, { replace: true });
+                    }
                 } catch (error) {
                     this.layoutsReady = false;
                     this.setError(error.message || "Unable to initialize the storefront.");
@@ -95,6 +107,11 @@ document.addEventListener("alpine:init", () => {
             },
             get profileCatalogItems() {
                 return this.profile.profilePosts.map(adapters.catalogItemFromPost);
+            },
+            get selectedListing() {
+                if (!this.selectedListingId) return null;
+                const post = this.marketplace.posts.find((item) => item.postId === this.selectedListingId);
+                return post ? adapters.catalogItemFromPost(post) : null;
             },
             get currentLayout() {
                 if (this.currentView === "createdSitePreview") {
@@ -151,10 +168,51 @@ document.addEventListener("alpine:init", () => {
                 this.errorMessage = "";
             },
 
-            navigateTo(view) {
+            readBrowserRoute() {
+                const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+                const view = params.get("view") || "listings";
+                const knownViews = new Set(Object.values(router.routes));
+                return {
+                    view: knownViews.has(view) ? view : "listings",
+                    siteId: params.get("site") || ""
+                };
+            },
+            syncBrowserHistory(view, options = {}) {
+                const params = new URLSearchParams();
+                if (view && view !== "listings") params.set("view", view);
+                if (view === "createdSitePreview" && this.builder.activeCreatedSiteId) {
+                    params.set("site", this.builder.activeCreatedSiteId);
+                }
+                const nextUrl = params.toString()
+                    ? `${window.location.pathname}${window.location.search}#${params.toString()}`
+                    : `${window.location.pathname}${window.location.search}`;
+                const state = { view, siteId: this.builder.activeCreatedSiteId || "" };
+                const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+                if (nextUrl === currentUrl) return;
+                if (options.replace) window.history.replaceState(state, "", nextUrl);
+                else window.history.pushState(state, "", nextUrl);
+            },
+            applyBrowserRoute(route, options = {}) {
+                if (route?.siteId) {
+                    this.builder.activeCreatedSiteId = route.siteId;
+                }
+                this.navigateTo(route?.view || "listings", { skipHistory: true });
+                if (options.replaceMissing) {
+                    this.syncBrowserHistory(this.currentView, { replace: true });
+                }
+            },
+
+            navigateTo(view, options = {}) {
+                if (view !== this.currentView) {
+                    this.previousView = this.currentView;
+                }
                 this.currentView = view;
                 this.clearMessages();
                 window.scrollTo(0, 0);
+                if (view !== "listingDetail") {
+                    this.selectedListingId = null;
+                    this.selectedListingImageIndex = 0;
+                }
                 if (view !== "whatsappLogin" && this.auth.whatsappLogin.interval) {
                     clearInterval(this.auth.whatsappLogin.interval);
                     this.auth.whatsappLogin.interval = null;
@@ -172,6 +230,9 @@ document.addEventListener("alpine:init", () => {
                 }
                 if (view === "createdSites") {
                     this.loadCreatedSites();
+                }
+                if (!options.skipHistory) {
+                    this.syncBrowserHistory(view, { replace: options.replaceHistory });
                 }
             },
 
@@ -202,6 +263,13 @@ document.addEventListener("alpine:init", () => {
                 if (/[@$!%*?&]/.test(password)) score++;
                 if ((password || "").length >= 8) score++;
                 return score;
+            },
+            passwordMeterBarClass(password, bar) {
+                const strength = this.passwordStrength(password);
+                if (strength < bar) return "";
+                if (strength >= 4) return "is-success";
+                if (strength >= 3) return "is-warning";
+                return "is-danger";
             },
             isRegisterFormValid() {
                 const f = this.auth.registerForm;
@@ -402,6 +470,37 @@ document.addEventListener("alpine:init", () => {
                 this.fetchPosts();
             },
 
+            openListing(postId) {
+                this.selectedListingId = postId;
+                this.selectedListingImageIndex = 0;
+                this.navigateTo("listingDetail");
+            },
+            canOpenListingDetail(element) {
+                return element?.props?.itemElement !== "restaurant.menuItemCard" &&
+                    ["listings", "favourites"].includes(this.currentView);
+            },
+            isFullWidthElement(type) {
+                return [
+                    "catalog.grid",
+                    "restaurant.menuGrid",
+                    "restaurant.menuHero",
+                    "profile.summary",
+                    "profile.listingList",
+                    "common.salesHero",
+                    "common.featureStrip",
+                    "common.contactPanel",
+                    "common.announcementBar",
+                    "common.emptyState"
+                ].includes(type);
+            },
+            salesFeatureItems(props = {}) {
+                return [
+                    { title: props.featureOneTitle, text: props.featureOneText },
+                    { title: props.featureTwoTitle, text: props.featureTwoText },
+                    { title: props.featureThreeTitle, text: props.featureThreeText }
+                ].filter((feature) => feature.title || feature.text);
+            },
+
             validatePostForm() {
                 const post = this.upload.newPost;
                 const errors = [];
@@ -552,7 +651,14 @@ document.addEventListener("alpine:init", () => {
                 return name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase();
             },
             getProfileAvatarColor(sellerId) {
-                const colors = ["#6366f1", "#8b5cf6", "#a855f7", "#d946ef", "#ef4444", "#f97316", "#22c55e", "#06b6d4"];
+                const colors = [
+                    "var(--sf-avatar-1)",
+                    "var(--sf-avatar-2)",
+                    "var(--sf-avatar-3)",
+                    "var(--sf-avatar-4)",
+                    "var(--sf-avatar-5)",
+                    "var(--sf-avatar-6)"
+                ];
                 return colors[(sellerId || 0) % colors.length];
             },
 
@@ -589,6 +695,10 @@ document.addEventListener("alpine:init", () => {
             },
             isFavourite(postId) {
                 return this.favourites.favouriteIds.has(postId);
+            },
+            siteInitial(site) {
+                const name = (site?.name || "Site").trim();
+                return name.charAt(0).toUpperCase();
             },
             toggleCartItem(item) {
                 if (this.cart.isSelected(item.id)) {
@@ -696,7 +806,7 @@ document.addEventListener("alpine:init", () => {
                         this.builder.selectedRegionId ||
                         regions[0]?.id;
                 }
-                if (type === "profile.summary") {
+                if (type === "profile.summary" || type === "restaurant.menuHero" || type.startsWith("common.")) {
                     return regions.find((region) => /summary|profile|hero|header/i.test(region.id))?.id ||
                         this.builder.selectedRegionId ||
                         regions[0]?.id;
@@ -891,8 +1001,8 @@ document.addEventListener("alpine:init", () => {
                 this.builder.activeCreatedSiteId = id;
                 this.builder.newSiteName = name;
                 this.builder.saveCreatedSites();
+                this.navigateTo("createdSitePreview");
                 this.setSuccess(`Created site "${name}".`);
-                this.navigateTo("createdSites");
             },
             openCreatedSite(siteId) {
                 this.builder.activeCreatedSiteId = siteId;
