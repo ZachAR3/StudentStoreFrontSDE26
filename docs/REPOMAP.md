@@ -21,6 +21,7 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 │   ├── frontend-modularity-implementation-plan.md # Frontend refactor/build plan
 │   ├── PROPOSAL.md            # Original project hypothesis
 │   ├── REPOMAP.md             # [This File] Repo map and API spec
+│   ├── THEMEMAP.md            # Frontend design system and theme reference
 │   └── FrameworksPresentation/ # Presentation assets
 ├── specs/                     # Requirement specifications
 ├── src/
@@ -42,10 +43,11 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 │   │       │   │   ├── core/  # Namespace, storage, router, API client, registries, validators, runtime, adapters
 │   │       │   │   ├── services/ # Thin REST contract modules around frontend/backend endpoints
 │   │       │   │   ├── stores/ # Domain state modules (auth, marketplace, favourites, profile, upload, builder)
-│   │       │   │   ├── elements/ # Element definitions for layout-driven rendering
+│   │       │   │   ├── elements/ # Element definitions for layout-driven rendering, including marketplace, restaurant, profile, and reusable sales-site sections
 │   │       │   │   ├── builder/ # Builder helpers (palette, drag-drop, inspector, preview)
 │   │       │   │   └── data/  # Categories, default layouts, sample data
 │   │       │   ├── index.html # SPA shell and Alpine templates
+│   │       │   ├── theme-lab.html # Static theme audit sandbox
 │   │       │   └── js/app.js  # Frontend composition entrypoint
 │   │       └── application.properties # Database, JWT & WhatsApp bot config
 │   └── test/
@@ -207,8 +209,8 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 
 The frontend is a **Progressive Web App (PWA)** built for speed and simplicity.
 
-- **`index.html`**: The SPA shell. It loads ordered browser scripts, hosts Alpine templates, and renders the live app plus the front-end-only layout builder.
-- **`js/app.js`**: The composition entrypoint. It wires domain stores together, exposes Alpine actions/getters, manages SPA navigation, and bridges the layout runtime to the rendered views.
+- **`index.html`**: The SPA shell. It loads ordered browser scripts, hosts Alpine templates, and renders the simplified title bar, persistent site sidebar, live app views, and the front-end-only layout builder.
+- **`js/app.js`**: The composition entrypoint. It wires domain stores together, exposes Alpine actions/getters, manages SPA navigation and browser history/hash state, and bridges the layout runtime to the rendered views.
 - **`js/core/*`**: The front-end framework layer.
   - `namespace.js` creates `window.Storefront`.
   - `storage.js` wraps localStorage reads/writes.
@@ -218,15 +220,15 @@ The frontend is a **Progressive Web App (PWA)** built for speed and simplicity.
   - `validators.js`, `element-registry.js`, `layout-registry.js`, and `layout-runtime.js` power the typed layout system.
 - **`js/stores/*`**: Domain-focused state modules for auth, marketplace, favourites, profile, uploads, and the layout builder.
 - **`js/services/*`**: Thin REST contract modules for auth, WhatsApp login, posts, sellers, and favourites. Endpoint strings live here instead of the root app controller.
-- **`js/elements/*`**: Registered element definitions such as `marketplace.filterBar`, `catalog.grid`, `marketplace.itemCard`, `profile.summary`, `profile.listingList`, `restaurant.menuHero`, and `restaurant.menuItemCard`.
+- **`js/elements/*`**: Registered element definitions such as `marketplace.filterBar`, `catalog.grid`, `marketplace.itemCard`, `profile.summary`, `profile.listingList`, `restaurant.menuHero`, `restaurant.menuItemCard`, and reusable sales-site sections (`common.salesHero`, `common.featureStrip`, `common.contactPanel`, `common.announcementBar`).
 - **`js/builder/*`**: Helper modules for the layout builder experience: palette grouping, drag/drop movement, inspector prop updates, and preview width presets.
 - **`js/data/*`**: Static categories, sample marketplace/menu data, and the default layout URL manifest/loader.
 - **`config/layouts/*.json`**: Versioned layout JSON files for marketplace home, favourites, profile, and the sample restaurant menu. These files are the runtime source of truth loaded by the layout registry.
 - **`css/custom.css`**: Aggregates the split stylesheet set.
-- **`css/tokens.css`**: Shared design tokens for spacing, radii, shadows, control sizing, and layout values.
-- **`css/shell.css`**: Header, shell, and top-level page spacing.
-- **`css/layout-system.css`**: Region/layout primitives, banners, empty/loading states.
-- **`css/elements.css`**: Card, carousel, contact-action, and restaurant-specific presentation styles.
+- **`css/tokens.css`**: Campus Editorial theme tokens, PicoCSS overrides, spacing, radii, shadows, control sizing, and layout values. See `docs/THEMEMAP.md`.
+- **`css/shell.css`**: Header, persistent left site navigation, responsive mobile shell, and top-level page spacing.
+- **`css/layout-system.css`**: Region/layout primitives, banners, empty/loading states, and listing-detail presentation.
+- **`css/elements.css`**: Marketplace listing cards, compact contact icon actions, carousels, selected-cart UI, restaurant-specific presentation styles, and reusable sales-site sections.
 - **`css/forms.css`**: Auth and create-listing form styling, password meters, upload UI.
 - **`css/profile.css`**: Profile header, listing rows, danger zone, and modal presentation.
 - **`css/layout-builder.css`**: Builder canvas, palette, preview, direct-manipulation affordances, and inspector styling.
@@ -237,8 +239,9 @@ The current frontend is no longer a single hard-coded listings page. Marketplace
 
 - **Element registry**: Each element declares a `type`, prop defaults, editor controls, and supported rendering metadata.
 - **Layout registry**: Stores default route layouts such as `marketplace.home` and `restaurant.menu.sample`.
-- **Layout runtime**: Resolves a route into regions/elements, validates layout safety, merges props with defaults, and binds allowed data sources.
+- **Layout runtime**: Resolves a route into regions/elements, validates layout safety, maps layout spacing tokens into CSS variables, merges props with defaults, and binds allowed data sources.
 - **Content adapters**: Keep the generic layout system independent from Spring DTO details by converting posts into reusable catalog items.
+- **Full-width element handling**: Large composed sections such as catalog grids, profile summaries, restaurant headers, sales heroes, feature strips, contact panels, announcement bars, and empty states span the full row in responsive regions so headers and banners do not collapse into narrow grid columns.
 
 ### Layout Builder
 
@@ -248,24 +251,31 @@ There is now a front-end-only `layoutBuilder` SPA view for editing layouts witho
 - Drafts persist in `localStorage` under `storefront.layoutBuilderDraft.v1`.
 - Created sites persist in `localStorage` under `storefront.createdSites.v1`.
 - The builder can validate layouts, import/export JSON, preview at multiple widths, create saved sites, and apply updated layouts in-browser.
-- Desktop preview mode uses a wide focused canvas; mobile/tablet/free-width modes constrain the preview frame to device-like widths.
-- Large composed elements such as `catalog.grid`, `restaurant.menuGrid`, `profile.summary`, and `profile.listingList` span the full row inside responsive regions so nested grids do not collapse into narrow side columns.
-- The restaurant sample exists to demonstrate how future subapps can reuse the same runtime without immediate backend changes.
+- Desktop preview mode keeps the palette and inspector visible while rendering the site in a wide scrollable preview frame; mobile/tablet/free-width modes constrain the preview frame to device-like widths.
+- The palette includes marketplace, profile, restaurant sample, and reusable sales-site sections (`Sales Hero`, `Feature Strip`, `Contact Panel`, `Announcement Bar`) for common sales pages.
+- The restaurant sample is treated as a preconfigured builder template rather than a global title-bar shortcut, demonstrating how future subapps can reuse the same runtime without immediate backend changes.
 
 ### Created Sites
 
-Created sites are local browser artifacts, not backend records. A created site stores a cloned layout with an id, name, context, timestamps, and route `createdSitePreview`. Users can create a site from the builder, view it from the Created Sites page, reopen it in the builder, duplicate it, or delete it. Viewing a created site uses the same layout runtime and sample data adapters as the builder preview.
+Created sites are local browser artifacts, not backend records. A created site stores a cloned layout with an id, name, context, timestamps, and route `createdSitePreview`. Users can create a site from the builder, open it from the persistent left site sidebar, reopen it in the builder, duplicate it, or delete it from the local library view. Viewing a created site uses the same layout runtime and sample data adapters as the builder preview.
+
+The left sidebar replaces the old title-bar Created Sites shortcut. It shows core destinations (Marketplace, Saved Items, Layout Builder) plus a YouTube-subscriptions-style list of locally created sites. The sidebar becomes a compact horizontal nav on mobile.
+
+### SPA Navigation
+
+The Alpine SPA stores view state in the URL hash (`#view=...`, plus `site=...` for created site previews). `navigateTo` pushes history entries, and `popstate` restores the previous view so browser back/forward works for listing detail, builder, saved items, and created-site preview navigation.
 
 **Views (SPA):**
-- **Listings** — Homepage grid of item cards with category/sort filters and search. Uses the layout runtime plus Alpine.js image carousel behavior for multi-photo listings. Each card features quick-contact links (Email & pre-filled WhatsApp `wa.me` links).
+- **Listings** — Homepage grid of compact item cards with category/sort filters and search. Uses the layout runtime plus Alpine.js image carousel behavior for multi-photo listings. Marketplace cards intentionally show only image, title, price, and square icon contact actions for Email and pre-filled WhatsApp `wa.me` links; opening the card shows full listing detail.
 - **Favourites** — Grid view of saved items, fully synced with the backend via `FavouriteController`. Accessible via the header icon.
 - **Profile** — Displays seller info (avatar, name, email, phone, listing count) and their posted listings. Own-profile includes listing management (mark sold, delete) and a "Danger Zone" for account deletion with password-verified confirmation modal.
 - **Login / Register / WhatsApp Login** — Authentication flows.
 - **Create Listing** — Authenticated form for posting new items. Features a drag-and-drop upload zone supporting up to 10 local images with live previews and drag-to-reorder functionality. Uploads are handled securely via the Spring Boot backend to Cloudinary.
 - **Layout Builder** — Front-end-only layout editing workspace with palette, responsive preview, validation, JSON import/export, and draft persistence.
 - **Created Sites** — Local site library for viewing, editing, duplicating, and deleting layouts created from the builder.
-- **Created Site Preview** — Runtime-rendered view of a selected locally created site.
-- **Restaurant Preview** — Sample restaurant/menu experience rendered through the same layout system using static sample data.
+- **Created Site Preview** — Runtime-rendered view of a selected locally created site. Created-site routes use sample/catalog adapters and responsive full-width handling for banners and grids.
+- **Restaurant Preview** — Sample restaurant/menu experience rendered through the same layout system using static sample data; primarily reached through the builder template flow.
+- **Listing Detail** — Full listing view with large image gallery, thumbnails, price, seller contact actions, seller profile link, and full description.
 
 ---
 
