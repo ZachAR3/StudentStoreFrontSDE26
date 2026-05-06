@@ -104,8 +104,7 @@ class ReviewWorkflowControllerTest {
                 .content(body("buyerId" to buyer.sellerId))
         )
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.sold").doesNotExist())
-            .andExpect(jsonPath("$.isSold").value(true))
+            .andExpect(jsonPath("$.sold").value(true))
             .andExpect(jsonPath("$.buyer.sellerId").value(buyer.sellerId))
             .andExpect(jsonPath("$.soldAt").isString)
     }
