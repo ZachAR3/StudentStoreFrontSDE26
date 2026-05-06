@@ -46,3 +46,4 @@ userStatePersistence.json
 # Local Codex marker/state
 .codex
 
+/.claude/settings.local.json

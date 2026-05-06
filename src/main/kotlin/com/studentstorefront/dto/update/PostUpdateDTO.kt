@@ -3,7 +3,6 @@ package com.studentstorefront.dto.update
 import com.studentstorefront.enums.Category
 import jakarta.validation.constraints.*
 import org.hibernate.validator.constraints.URL
-import java.time.LocalDateTime
 import java.math.BigDecimal
 
 data class PostUpdateDTO(
@@ -23,7 +22,5 @@ data class PostUpdateDTO(
 
     val category: Category? = null,
 
-    val isSold: Boolean? = null,
-
-    val expiresAt: LocalDateTime? = null
+    val isSold: Boolean? = null
 )

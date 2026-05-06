@@ -1,6 +1,7 @@
 package com.studentstorefront.entity
 
 import com.studentstorefront.enums.Category
+import com.studentstorefront.enums.PostStatus
 import jakarta.persistence.*
 import java.time.LocalDateTime
 import java.math.BigDecimal
@@ -17,6 +18,9 @@ data class Post (
     val isSold: Boolean = false,
     val createdAt: LocalDateTime = LocalDateTime.now(),
     val expiresAt: LocalDateTime? = null,
+    @Enumerated(EnumType.STRING)
+    val status: PostStatus = PostStatus.ACTIVE,
+    val reminderSentAt: LocalDateTime? = null,
     @ManyToOne
     @JoinColumn(name = "seller_id")
     val seller: Seller? = null,

@@ -3,7 +3,6 @@ package com.studentstorefront.dto.request
 import com.studentstorefront.enums.Category
 import jakarta.validation.constraints.*
 import org.hibernate.validator.constraints.URL
-import java.time.LocalDateTime
 import java.math.BigDecimal
 
 data class PostRequestDTO(
@@ -29,8 +28,6 @@ data class PostRequestDTO(
     val category: Category,
 
     val isSold: Boolean? = false,
-
-    val expiresAt: LocalDateTime? = null,
 
     @field:NotNull(message = "Seller ID is required")
     val sellerId: Long?

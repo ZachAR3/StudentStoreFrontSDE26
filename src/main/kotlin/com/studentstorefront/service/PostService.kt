@@ -5,6 +5,7 @@ import com.studentstorefront.dto.response.PostResponseDTO
 import com.studentstorefront.dto.response.SellerResponseDTO
 import com.studentstorefront.dto.update.PostUpdateDTO
 import com.studentstorefront.enums.Category
+import com.studentstorefront.enums.PostStatus
 import com.studentstorefront.enums.Role
 import com.studentstorefront.entity.Post
 import com.studentstorefront.entity.Seller
@@ -99,7 +100,7 @@ class PostService(
 
     @Transactional(readOnly = true)
     fun getPostsByCategory(category: Category, pageable: Pageable): Page<PostResponseDTO> {
-        return postRepository.findByCategory(category, pageable).map { mapToResponseDTO(it) }
+        return postRepository.findByCategoryAndStatus(category, PostStatus.ACTIVE, pageable).map { mapToResponseDTO(it) }
     }
 
     @Transactional(readOnly = true)
@@ -109,7 +110,7 @@ class PostService(
 
     @Transactional(readOnly = true)
     fun getAvailablePosts(pageable: Pageable): Page<PostResponseDTO> {
-        return postRepository.findByIsSoldFalse(pageable).map { mapToResponseDTO(it) }
+        return postRepository.findByIsSoldFalseAndStatus(PostStatus.ACTIVE, pageable).map { mapToResponseDTO(it) }
     }
 
     @Transactional(readOnly = true)
@@ -117,8 +118,8 @@ class PostService(
         val normalizedQuery = query?.trim()?.takeIf { it.isNotEmpty() }
 
         val posts = when {
-            normalizedQuery == null && category == null -> postRepository.findByIsSoldFalse(pageable)
-            normalizedQuery == null && category != null -> postRepository.findByCategoryAndIsSoldFalse(category, pageable)
+            normalizedQuery == null && category == null -> postRepository.findByIsSoldFalseAndStatus(PostStatus.ACTIVE, pageable)
+            normalizedQuery == null && category != null -> postRepository.findByCategoryAndIsSoldFalseAndStatus(category, PostStatus.ACTIVE, pageable)
             else -> postRepository.searchAvailablePosts(normalizedQuery, category, pageable)
         }
 
@@ -153,6 +154,16 @@ class PostService(
         return mapToResponseDTO(savedPost)
     }
 
+    fun renewPost(postId: Long): PostResponseDTO {
+        val post = findPostById(postId)
+        val renewed = post.copy(
+            status = PostStatus.ACTIVE,
+            expiresAt = LocalDateTime.now().plusDays(2),
+            reminderSentAt = null
+        )
+        return mapToResponseDTO(postRepository.save(renewed))
+    }
+
     // Private helper methods for cleaner code
 
     private fun findSellerById(sellerId: Long): Seller {
@@ -173,7 +184,7 @@ class PostService(
             category = postRequestDTO.category,
             isSold = postRequestDTO.isSold ?: false,
             createdAt = LocalDateTime.now(),
-            expiresAt = postRequestDTO.expiresAt,
+            expiresAt = LocalDateTime.now().plusDays(2),
             seller = seller
         )
     }
@@ -184,8 +195,7 @@ class PostService(
             price = postUpdateDTO.price ?: existingPost.price,
             description = postUpdateDTO.description ?: existingPost.description,
             category = postUpdateDTO.category ?: existingPost.category,
-            isSold = postUpdateDTO.isSold ?: existingPost.isSold,
-            expiresAt = postUpdateDTO.expiresAt ?: existingPost.expiresAt
+            isSold = postUpdateDTO.isSold ?: existingPost.isSold
         )
     }
 
@@ -225,6 +235,7 @@ class PostService(
             description = post.description,
             category = post.category,
             isSold = post.isSold,
+            status = post.status,
             createdAt = post.createdAt,
             expiresAt = post.expiresAt,
             seller = mapSellerToResponseDTO(post.seller!!)

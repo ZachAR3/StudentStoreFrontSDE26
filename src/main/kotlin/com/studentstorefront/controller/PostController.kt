@@ -61,6 +61,16 @@ class PostController(
         return ResponseEntity.ok(postService.resolveMediaUrlsByHash(imageHashes))
     }
 
+    @PostMapping("/bot/renew/{postId}")
+    fun renewPost(
+        @RequestHeader("X-Bot-Api-Key") apiKey: String,
+        @PathVariable postId: Long
+    ): ResponseEntity<PostResponseDTO> {
+        if (apiKey != botApiKey) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+        val renewed = postService.renewPost(postId)
+        return ResponseEntity.ok(renewed)
+    }
+
     @GetMapping
     fun getAllPosts(
         @PageableDefault(size = 20) pageable: Pageable
