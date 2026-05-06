@@ -21,9 +21,13 @@ data class Post (
     @Enumerated(EnumType.STRING)
     val status: PostStatus = PostStatus.ACTIVE,
     val reminderSentAt: LocalDateTime? = null,
+    val soldAt: LocalDateTime? = null,
     @ManyToOne
     @JoinColumn(name = "seller_id")
     val seller: Seller? = null,
+    @ManyToOne
+    @JoinColumn(name = "buyer_id")
+    val buyer: Seller? = null,
     @OneToMany(fetch = FetchType.LAZY ,mappedBy = "post", cascade = [CascadeType.ALL])
     val postMedia: List<PostMedia> = emptyList()
 )

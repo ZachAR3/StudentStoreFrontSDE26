@@ -373,4 +373,4 @@ setInterval(() => {
 }, 3 * 60 * 60 * 1000)
 
 client.initialize()
-startWebhookServer(stateStore, listingSubmissionService)
+startWebhookServer(stateStore, listingSubmissionService, client)

@@ -3,10 +3,20 @@
         return {
             profileSeller: null,
             profilePosts: [],
+            profileReviews: null,
+            pendingReviews: [],
             profileLoading: false,
             isOwnProfile: false,
             showDeleteAccountModal: false,
-            deleteAccountConfirmPassword: ""
+            deleteAccountConfirmPassword: "",
+            soldModalPostId: null,
+            buyerSearchQuery: "",
+            buyerSearchResults: [],
+            selectedBuyer: null,
+            buyerSearchLoading: false,
+            showReviewModal: false,
+            reviewContext: null,
+            reviewForm: { rating: 5, comment: "" }
         };
     };
 })();

@@ -9,6 +9,7 @@ import com.studentstorefront.enums.Role
 import com.studentstorefront.repository.EmailVerificationTokenRepository
 import com.studentstorefront.repository.FavouriteRepository
 import com.studentstorefront.repository.PostRepository
+import com.studentstorefront.repository.ReviewRepository
 import com.studentstorefront.repository.SellerRepository
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -24,6 +25,7 @@ class SellerService(
     private val sellerRepository: SellerRepository,
     private val postRepository: PostRepository,
     private val favouriteRepository: FavouriteRepository,
+    private val reviewRepository: ReviewRepository,
     private val passwordEncoder: PasswordEncoder,
     private val emailVerificationTokenRepository: EmailVerificationTokenRepository
 ) {
@@ -76,6 +78,20 @@ class SellerService(
         return mapToResponseDTO(seller)
     }
 
+    @Transactional(readOnly = true)
+    fun searchSellers(query: String, pageable: Pageable): Page<SellerResponseDTO> {
+        val normalizedQuery = query.trim()
+        if (normalizedQuery.length < 2) {
+            return Page.empty(pageable)
+        }
+        val current = getCurrentSeller()
+        return sellerRepository.searchEnabledSellers(
+            normalizedQuery,
+            current.sellerId!!,
+            pageable
+        ).map { mapToResponseDTO(it) }
+    }
+
     fun updateSeller(sellerId: Long, sellerUpdateDTO: SellerUpdateDTO): SellerResponseDTO {
         val existingSeller = findSellerById(sellerId)
         val current = getCurrentSeller()
@@ -100,6 +116,9 @@ class SellerService(
             throw IllegalArgumentException("Seller not found with id: $sellerId")
         }
         favouriteRepository.deleteBySellerSellerId(sellerId)
+        reviewRepository.deleteByReviewerSellerIdOrRevieweeSellerId(sellerId, sellerId)
+        postRepository.clearBuyerReferences(sellerId)
+        postRepository.deleteAll(postRepository.findBySellerSellerId(sellerId))
         sellerRepository.deleteById(sellerId)
     }
 
@@ -115,12 +134,11 @@ class SellerService(
             throw AccessDeniedException("Incorrect password")
         }
 
-        // Delete all posts owned by this seller (cascades to PostMedia)
-        val posts = postRepository.findBySellerSellerId(seller.sellerId!!)
-        postRepository.deleteAll(posts)
-
-        // Delete all favourites by this seller
+        // Delete dependent rows before removing posts/account.
         favouriteRepository.deleteBySellerSellerId(seller.sellerId!!)
+        reviewRepository.deleteByReviewerSellerIdOrRevieweeSellerId(seller.sellerId!!, seller.sellerId!!)
+        postRepository.clearBuyerReferences(seller.sellerId!!)
+        postRepository.deleteAll(postRepository.findBySellerSellerId(seller.sellerId!!))
 
         // Delete the seller
         sellerRepository.delete(seller)

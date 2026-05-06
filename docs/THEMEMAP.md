@@ -14,7 +14,7 @@ This file is the design-system reference for the Student-Store Front frontend. U
 
 - `src/main/resources/static/css/tokens.css` is the source of truth for theme tokens and PicoCSS variable overrides.
 - `src/main/resources/static/css/custom.css` imports the themed stylesheet set in order.
-- `src/main/resources/static/css/shell.css` handles the app header, persistent site sidebar, mobile shell navigation, and top-level spacing.
+- `src/main/resources/static/css/shell.css` handles the app header, persistent site sidebar, support page/footer, mobile shell navigation, and top-level spacing.
 - `src/main/resources/static/css/layout-system.css` handles layout regions, page primitives, loading, alerts, empty states, and listing detail.
 - `src/main/resources/static/css/elements.css` handles marketplace cards, compact listing contact actions, filters, restaurant preview, selected-cart UI, reusable sales-site sections, and common element surfaces.
 - `src/main/resources/static/css/forms.css` handles auth cards, form actions, upload UI, password meter, and QR login.
@@ -96,7 +96,8 @@ Layout JSON region gaps should use `xs`, `sm`, `md`, `lg`, or `xl`; the layout r
 - `.app-header` is sticky, translucent surface, with border and blur.
 - `.shell-brand`, `.shell-pill-button`, `.shell-auth-actions`, and `.shell-user-actions` are the reusable header primitives.
 - The title bar should stay simple: brand, global search, selected/auth/user actions. Do not add global shortcuts for restaurant sample or created sites.
-- `.site-sidebar` is the persistent left navigation surface for Marketplace, Saved Items, Layout Builder, and locally created sites. On mobile it becomes a compact horizontal navigation row.
+- The global search is layout-runtime-aware: it must filter marketplace grids, favourites, profile listing lists, restaurant menus, and created-site/sample catalog grids. Empty states should switch to search-specific copy when a query filters all items out.
+- `.site-sidebar` is the persistent left navigation surface for Marketplace, Saved Items, Layout Builder, Support, and locally created sites. On mobile it becomes a compact horizontal navigation row.
 - Mobile header uses brand/actions plus a full-width search row under `880px`, then stacks actions under `560px`.
 
 ### Buttons
@@ -123,6 +124,7 @@ Layout JSON region gaps should use `xs`, `sm`, `md`, `lg`, or `xl`; the layout r
 - Marketplace card footers use an internal grid lane for price plus `.listing-contact-actions`; keep the card clipped to itself and solve contact-button spacing with padding, not visible overflow. Marketplace contact actions use `.listing-contact-button` / `.listing-contact-button-whatsapp`, not Pico outline buttons.
 - Restaurant menu cards reuse `.item-card` but add `.restaurant-menu-card`; they are allowed richer description/seller/add-button content and have their own responsive container-query rules.
 - Sales-site sections use `.sales-hero-section`, `.feature-strip`, `.contact-panel`, and `.announcement-bar`. They are full-row layout elements and must collapse cleanly on mobile.
+- Support page sections use `.support-page`, `.support-hero`, `.support-grid`, and `.support-card`; these should stay quiet and utility-focused, using normal surfaces rather than marketing-style hero treatment.
 - Cards should not nest inside decorative parent cards. Use full-width sections or grids for grouping.
 - Profile rows use `.profile-listing-card`.
 - Builder panels use `.builder-panel`.
@@ -158,9 +160,15 @@ Layout JSON region gaps should use `xs`, `sm`, `md`, `lg`, or `xl`; the layout r
 
 - Header actions wrap instead of overflowing.
 - Created sites live in the left sidebar, not the title bar.
+- Support is available from both the sidebar and the footer.
 - The restaurant sample is a layout-builder template, not a global navigation shortcut.
 - Browser back/forward should work for SPA view changes through the hash/history integration.
 - Mobile nav should remain usable without hover.
+
+### Footer
+
+- `.app-footer` sits at the bottom of the main app column with a simple top border, compact copyright text, and a Support CTA.
+- Footer buttons follow normal outline button styling and become full-width on narrow mobile screens.
 
 ### Layout Builder
 
@@ -189,6 +197,7 @@ Layout JSON region gaps should use `xs`, `sm`, `md`, `lg`, or `xl`; the layout r
 
 - Header becomes brand/actions plus a full-width search row below `880px`, and stacks more tightly below `560px`.
 - The persistent site sidebar becomes a horizontal scrollable navigation strip below `880px`.
+- The footer stacks naturally on small screens and makes its Support button full-width below `560px`.
 - Listing detail switches from two columns to one below `760px`.
 - Restaurant and sales heroes reduce spacing/type and collapse to one column below `760px`.
 - Restaurant menu cards collapse through container queries when narrow. Keep those container-query selectors scoped to `.restaurant-menu-card`; broad `.item-footer` rules can break marketplace listing footers.
@@ -218,3 +227,5 @@ The frontend is a static Alpine/Pico PWA in `src/main/resources/static`, not a s
 - Title-bar shortcuts for restaurant sample and created sites were removed; created sites now appear in persistent sidebar navigation and restaurant sample is selected through the layout builder.
 - Builder-created sites and preview surfaces now treat hero/banner/sales elements as full-row sections so headers do not collapse inside responsive grids.
 - The builder palette now includes common sales-site sections: Sales Hero, Feature Strip, Contact Panel, and Announcement Bar.
+- Header search now filters all catalog-like layout data sources, including restaurant menus and created-site sample grids, not only the marketplace home route.
+- A Support page and app footer were added using shell-level theme primitives, with copyright text and a footer Support CTA.

@@ -41,6 +41,29 @@
     margin-top: var(--sf-space-sm);
 }
 
+.profile-rating-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sf-space-xs);
+    margin-top: var(--sf-space-md);
+}
+
+.profile-rating-pill {
+    display: inline-flex;
+    gap: var(--sf-space-xs);
+    align-items: center;
+    padding: 0.25rem 0.65rem;
+    border: 1px solid var(--sf-color-border);
+    border-radius: var(--sf-radius-pill);
+    background: var(--sf-color-surface);
+    color: var(--sf-color-muted);
+    font-size: 0.85rem;
+}
+
+.profile-rating-pill strong {
+    color: var(--sf-color-text-strong);
+}
+
 .profile-meta-item,
 .profile-badge {
     display: inline-flex;
@@ -98,6 +121,51 @@
     gap: var(--sf-space-xs);
 }
 
+.profile-review-panel {
+    display: grid;
+    gap: var(--sf-space-sm);
+    padding: var(--sf-space-lg);
+    border: 1px solid var(--sf-border-color);
+    border-radius: var(--sf-radius-md);
+    background: var(--sf-color-surface-muted);
+}
+
+.profile-review-card {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--sf-space-md);
+    align-items: center;
+    padding: var(--sf-space-md);
+    border: 1px solid var(--sf-color-border);
+    border-radius: var(--sf-radius-sm);
+    background: var(--sf-color-surface);
+}
+
+.profile-review-card p,
+.profile-review-card small {
+    margin: 0;
+    color: var(--sf-color-muted);
+}
+
+.buyer-search-results {
+    display: grid;
+    gap: var(--sf-space-xs);
+    margin-bottom: var(--sf-space-md);
+}
+
+.buyer-result-button {
+    display: grid;
+    justify-items: start;
+    gap: 0.1rem;
+    width: 100%;
+    text-align: left;
+}
+
+.buyer-result-button span {
+    color: var(--sf-color-muted);
+    font-size: 0.85rem;
+}
+
 .sold-badge {
     margin-left: var(--sf-space-xs);
     padding: 0.15rem 0.45rem;
@@ -143,6 +211,11 @@
 @media (max-width: 768px) {
     .profile-header,
     .profile-listing-card {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .profile-review-card {
         flex-direction: column;
         align-items: stretch;
     }

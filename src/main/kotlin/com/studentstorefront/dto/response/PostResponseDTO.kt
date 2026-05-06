@@ -16,5 +16,7 @@ data class PostResponseDTO(
     val status: PostStatus,
     val createdAt: LocalDateTime,
     val expiresAt: LocalDateTime?,
-    val seller: SellerResponseDTO
+    val soldAt: LocalDateTime?,
+    val seller: SellerResponseDTO,
+    val buyer: SellerResponseDTO? = null
 )

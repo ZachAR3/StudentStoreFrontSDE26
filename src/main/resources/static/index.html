@@ -35,6 +35,7 @@
     <script defer src="/js/services/whatsapp-login-service.js"></script>
     <script defer src="/js/services/post-service.js"></script>
     <script defer src="/js/services/seller-service.js"></script>
+    <script defer src="/js/services/review-service.js"></script>
     <script defer src="/js/services/favourite-service.js"></script>
     <script defer src="/js/builder/palette.js"></script>
     <script defer src="/js/builder/drag-drop.js"></script>
@@ -505,6 +506,16 @@
                                                     </span>
                                                     <span class="profile-meta-item" x-text="profile.profilePosts.length + ' listing' + (profile.profilePosts.length !== 1 ? 's' : '')"></span>
                                                 </div>
+                                                <div class="profile-rating-strip" x-show="profile.profileReviews">
+                                                    <span class="profile-rating-pill">
+                                                        Seller rating:
+                                                        <strong x-text="profile.profileReviews?.sellerRating.count ? `${profile.profileReviews.sellerRating.average} / 5` : 'No reviews yet'"></strong>
+                                                    </span>
+                                                    <span class="profile-rating-pill">
+                                                        Buyer rating:
+                                                        <strong x-text="profile.profileReviews?.buyerRating.count ? `${profile.profileReviews.buyerRating.average} / 5` : 'No reviews yet'"></strong>
+                                                    </span>
+                                                </div>
                                             </div>
                                         </div>
                                     </template>
@@ -518,6 +529,20 @@
                                                 <h3>No listings yet</h3>
                                                 <p x-text="profile.isOwnProfile ? `You haven't posted any listings yet.` : 'No listings yet.'"></p>
                                                 <button x-show="profile.isOwnProfile" @click="navigateTo('createListing')">Create Your First Listing</button>
+                                            </div>
+                                            <div class="profile-review-panel" x-show="profile.isOwnProfile && profile.pendingReviews.length > 0">
+                                                <div class="section-heading">
+                                                    <h3>Pending Reviews</h3>
+                                                </div>
+                                                <template x-for="review in profile.pendingReviews" :key="review.postId + review.direction">
+                                                    <article class="profile-review-card">
+                                                        <div>
+                                                            <strong x-text="review.direction === 'BUYER_TO_SELLER' ? 'Review the seller' : 'Review the buyer'"></strong>
+                                                            <p x-text="`${review.postTitle} · ${review.reviewee.name}`"></p>
+                                                        </div>
+                                                        <button class="outline" @click="openReviewModal(review.postId)">Leave Review</button>
+                                                    </article>
+                                                </template>
                                             </div>
                                             <template x-for="post in profile.profilePosts" :key="post.postId">
                                                 <article class="profile-listing-card">
@@ -535,11 +560,26 @@
                                                         <strong x-text="formatPrice(post.price)"></strong>
                                                     </div>
                                                     <div class="profile-listing-actions" x-show="profile.isOwnProfile">
-                                                        <button class="outline" @click="markProfilePostSold(post.postId)" x-show="!post.isSold">Sold</button>
+                                                        <button class="outline" @click="promptMarkSold(post.postId)" x-show="!post.isSold">Sold</button>
+                                                        <button class="outline" @click="openReviewModal(post.postId)" x-show="post.isSold && post.buyer">Review Buyer</button>
                                                         <button class="outline secondary" @click="promptDeletePost(post.postId)">Delete</button>
                                                     </div>
                                                 </article>
                                             </template>
+                                            <div class="profile-review-panel" x-show="profile.profileReviews && profile.profileReviews.recentReviews.length > 0">
+                                                <div class="section-heading">
+                                                    <h3>Recent Reviews</h3>
+                                                </div>
+                                                <template x-for="review in profile.profileReviews.recentReviews" :key="review.reviewId">
+                                                    <article class="profile-review-card">
+                                                        <div>
+                                                            <strong x-text="`${review.rating} / 5 · ${review.postTitle}`"></strong>
+                                                            <p x-text="review.comment || 'No written comment.'"></p>
+                                                            <small x-text="`From ${review.reviewer.name}`"></small>
+                                                        </div>
+                                                    </article>
+                                                </template>
+                                            </div>
                                             <div class="danger-zone" x-show="profile.isOwnProfile">
                                                 <h4>Danger Zone</h4>
                                                 <p>Once you delete your account, all of your listings will be removed and this action cannot be undone.</p>
@@ -1096,6 +1136,53 @@
             <div class="form-actions">
                 <button class="outline secondary" @click="cancelDeletePost()">Cancel</button>
                 <button @click="deleteProfilePost(confirmDeletePostId)">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" x-show="profile.soldModalPostId" x-transition @click.self="resetSoldModal()">
+        <div class="modal-card">
+            <h3>Mark Listing Sold</h3>
+            <p>Select the registered buyer who purchased this item. They will receive a quick review request.</p>
+            <label>Buyer name or email
+                <input type="search" x-model="profile.buyerSearchQuery" @input.debounce.300ms="searchBuyerCandidates()" placeholder="Search registered buyers">
+            </label>
+            <div class="buyer-search-results" x-show="profile.buyerSearchResults.length > 0">
+                <template x-for="buyer in profile.buyerSearchResults" :key="buyer.sellerId">
+                    <button type="button" class="buyer-result-button outline" @click="selectBuyerCandidate(buyer)">
+                        <strong x-text="buyer.name"></strong>
+                        <span x-text="buyer.email"></span>
+                    </button>
+                </template>
+            </div>
+            <p class="item-meta" x-show="profile.buyerSearchLoading">Searching buyers...</p>
+            <p class="item-meta" x-show="profile.selectedBuyer" x-text="`Selected buyer: ${profile.selectedBuyer?.name}`"></p>
+            <div class="form-actions">
+                <button class="outline secondary" @click="resetSoldModal()">Cancel</button>
+                <button :disabled="!profile.selectedBuyer" @click="markProfilePostSold()">Mark Sold</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" x-show="profile.showReviewModal" x-transition @click.self="closeReviewModal()">
+        <div class="modal-card">
+            <h3>Leave a Review</h3>
+            <p x-show="profile.reviewContext" x-text="`Review ${profile.reviewContext?.reviewee.name} for ${profile.reviewContext?.postTitle}.`"></p>
+            <label>Rating
+                <select x-model.number="profile.reviewForm.rating">
+                    <option :value="5">5 - Excellent</option>
+                    <option :value="4">4 - Good</option>
+                    <option :value="3">3 - Okay</option>
+                    <option :value="2">2 - Poor</option>
+                    <option :value="1">1 - Bad</option>
+                </select>
+            </label>
+            <label>Review
+                <textarea x-model="profile.reviewForm.comment" maxlength="500" placeholder="Optional, but helpful for future campus buyers and sellers."></textarea>
+            </label>
+            <div class="form-actions">
+                <button class="outline secondary" @click="closeReviewModal()">Cancel</button>
+                <button @click="submitReview()">Submit Review</button>
             </div>
         </div>
     </div>

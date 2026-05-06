@@ -197,6 +197,9 @@ document.addEventListener("alpine:init", () => {
                     this.builder.activeCreatedSiteId = route.siteId;
                 }
                 this.navigateTo(route?.view || "listings", { skipHistory: true });
+                if (route?.view === "profile" && this.isLoggedIn && this.user?.sellerId) {
+                    this.viewProfile(this.user.sellerId, { skipHistory: true });
+                }
                 if (options.replaceMissing) {
                     this.syncBrowserHistory(this.currentView, { replace: true });
                 }
@@ -220,9 +223,13 @@ document.addEventListener("alpine:init", () => {
                 if (view !== "profile") {
                     this.profile.profileSeller = null;
                     this.profile.profilePosts = [];
+                    this.profile.profileReviews = null;
+                    this.profile.pendingReviews = [];
                     this.profile.isOwnProfile = false;
                     this.profile.showDeleteAccountModal = false;
                     this.profile.deleteAccountConfirmPassword = "";
+                    this.resetSoldModal();
+                    this.closeReviewModal();
                     this.confirmDeletePostId = null;
                 }
                 if (view === "layoutBuilder") {
@@ -588,14 +595,18 @@ document.addEventListener("alpine:init", () => {
                 this.upload.dragStartIndex = null;
             },
 
-            async viewProfile(sellerId) {
-                this.navigateTo("profile");
+            async viewProfile(sellerId, options = {}) {
+                this.navigateTo("profile", { skipHistory: options.skipHistory });
                 this.profile.profileLoading = true;
                 this.profile.isOwnProfile = this.isLoggedIn && this.user?.sellerId === sellerId;
                 try {
                     this.profile.profileSeller = await services.sellers.get(sellerId, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
                     const postsData = await services.posts.bySeller(sellerId);
                     this.profile.profilePosts = postsData.content;
+                    this.profile.profileReviews = await services.reviews.byProfile(sellerId, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
+                    this.profile.pendingReviews = this.profile.isOwnProfile
+                        ? await services.reviews.pending(this.auth.token).catch((error) => this.rethrowUnauthorized(error))
+                        : [];
                 } catch (error) {
                     this.setError(error.message);
                 } finally {
@@ -620,12 +631,98 @@ document.addEventListener("alpine:init", () => {
                     this.setError(error.message);
                 }
             },
-            async markProfilePostSold(postId) {
+            promptMarkSold(postId) {
+                this.profile.soldModalPostId = postId;
+                this.profile.buyerSearchQuery = "";
+                this.profile.buyerSearchResults = [];
+                this.profile.selectedBuyer = null;
+            },
+            resetSoldModal() {
+                if (!this.profile) return;
+                this.profile.soldModalPostId = null;
+                this.profile.buyerSearchQuery = "";
+                this.profile.buyerSearchResults = [];
+                this.profile.selectedBuyer = null;
+                this.profile.buyerSearchLoading = false;
+            },
+            async searchBuyerCandidates() {
+                const query = this.profile.buyerSearchQuery.trim();
+                this.profile.selectedBuyer = null;
+                if (query.length < 2) {
+                    this.profile.buyerSearchResults = [];
+                    return;
+                }
+                this.profile.buyerSearchLoading = true;
                 try {
-                    const updated = await services.posts.markSold(postId, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
+                    const data = await services.sellers.search(query, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
+                    this.profile.buyerSearchResults = data.content;
+                } catch (error) {
+                    this.setError(error.message);
+                } finally {
+                    this.profile.buyerSearchLoading = false;
+                }
+            },
+            selectBuyerCandidate(buyer) {
+                this.profile.selectedBuyer = buyer;
+                this.profile.buyerSearchQuery = `${buyer.name} (${buyer.email})`;
+                this.profile.buyerSearchResults = [];
+            },
+            async markProfilePostSold() {
+                const postId = this.profile.soldModalPostId;
+                const buyerId = this.profile.selectedBuyer?.sellerId;
+                if (!postId || !buyerId) {
+                    this.setError("Choose the registered buyer before marking this listing as sold.");
+                    return;
+                }
+                try {
+                    const updated = await services.posts.markSold(postId, buyerId, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
                     this.profile.profilePosts = this.profile.profilePosts.map((post) => post.postId === postId ? updated : post);
                     this.marketplace.posts = this.marketplace.posts.map((post) => post.postId === postId ? updated : post);
-                    this.setSuccess("Listing marked as sold.");
+                    this.resetSoldModal();
+                    this.profile.pendingReviews = await services.reviews.pending(this.auth.token).catch((error) => this.rethrowUnauthorized(error));
+                    this.setSuccess("Listing marked as sold. The buyer has been asked for a quick review.");
+                } catch (error) {
+                    this.setError(error.message);
+                }
+            },
+            async openReviewModal(postId) {
+                try {
+                    const context = await services.reviews.context(postId, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
+                    if (context.alreadyReviewed) {
+                        this.setError("You already reviewed this transaction.");
+                        return;
+                    }
+                    this.profile.reviewContext = context;
+                    this.profile.reviewForm = { rating: 5, comment: "" };
+                    this.profile.showReviewModal = true;
+                } catch (error) {
+                    this.setError(error.message);
+                }
+            },
+            closeReviewModal() {
+                if (!this.profile) return;
+                this.profile.showReviewModal = false;
+                this.profile.reviewContext = null;
+                this.profile.reviewForm = { rating: 5, comment: "" };
+            },
+            async submitReview() {
+                const context = this.profile.reviewContext;
+                if (!context) return;
+                try {
+                    await services.reviews.create({
+                        postId: context.postId,
+                        rating: Number(this.profile.reviewForm.rating),
+                        comment: this.profile.reviewForm.comment
+                    }, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
+                    this.closeReviewModal();
+                    if (this.profile.profileSeller) {
+                        this.profile.profileReviews = await services.reviews.byProfile(this.profile.profileSeller.sellerId, this.auth.token)
+                            .catch((error) => this.rethrowUnauthorized(error));
+                    }
+                    this.profile.pendingReviews = this.profile.isOwnProfile
+                        ? await services.reviews.pending(this.auth.token).catch((error) => this.rethrowUnauthorized(error))
+                        : [];
+                    this.setSuccess("Review submitted. Thanks for helping keep the marketplace trustworthy.");
                 } catch (error) {
                     this.setError(error.message);
                 }

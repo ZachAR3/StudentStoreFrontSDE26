@@ -2,11 +2,32 @@ const express = require('express')
 require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') })
 const { normalizePhoneNumber } = require('./chatIdentity')
 
-function startWebhookServer(stateStore, listingSubmissionService) {
+function startWebhookServer(stateStore, listingSubmissionService, client) {
     const app  = express()
     const port = process.env.BOT_WEBHOOK_PORT || 3001
 
     app.use(express.json())
+
+    app.post('/send-message', async (req, res) => {
+        const apiKey = req.headers['x-bot-api-key']
+        if (!apiKey || apiKey !== process.env.BOT_API_KEY) {
+            return res.status(401).json({ error: 'Unauthorized' })
+        }
+
+        const phoneNumber = normalizePhoneNumber(req.body.phone || '')
+        const message = String(req.body.message || '').trim()
+        if (!phoneNumber || !message) {
+            return res.status(400).json({ error: 'phone and message are required' })
+        }
+
+        try {
+            await client.sendMessage(`${phoneNumber}@c.us`, message)
+            return res.status(200).json({ status: 'sent' })
+        } catch (error) {
+            console.error('Failed to send webhook message:', error.message)
+            return res.status(502).json({ error: 'Could not send WhatsApp message' })
+        }
+    })
 
     app.post('/webhook/seller-registered', async (req, res) => {
         const apiKey = req.headers['x-bot-api-key']

@@ -27,14 +27,15 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 ├── src/
 │   ├── main/
 │   │   ├── kotlin/com/studentstorefront/
-│   │   │   ├── config/        # Security (JWT, Spring Security), OpenApi, and DataLoader
+│   │   │   ├── config/        # Security (JWT, Spring Security), OpenApi, and DataLoader legacy repairs
 │   │   │   ├── controller/    # REST Endpoints (Auth, Favourite, Post, Seller, WhatsAppQrLogin)
 │   │   │   ├── dto/           # Data Transfer Objects (request, response, update)
 │   │   │   ├── entity/        # JPA Entities (Favourite, PasswordResetToken, Post, PostMedia, Seller, WhatsAppLoginSession)
-│   │   │   ├── enums/         # Enums (Category, Role, WhatsAppSessionStatus)
+│   │   │   ├── enums/         # Enums (Category, PostStatus, Role, WhatsAppSessionStatus)
 │   │   │   ├── exception/     # Global Exception Handling
 │   │   │   ├── repository/    # Database Access Layers (Favourite, PasswordResetToken, Post, PostMedia, Seller, WhatsAppLoginSession)
-│   │   │   └── service/       # Business Logic (CloudinaryService, EmailService, FavouriteService, JwtService, PasswordResetService, PostService, SellerService, WhatsAppQrLoginService)
+│   │   │   ├── scheduler/     # Listing expiration reminders and archival jobs
+│   │   │   └── service/       # Business Logic (BotNotificationService, CloudinaryService, EmailService, FavouriteService, JwtService, PasswordResetService, PostService, SellerService, WhatsAppQrLoginService)
 │   │   └── resources/
 │   │       ├── static/
 │   │       │   ├── config/layouts/ # Static layout JSON definitions used by the frontend runtime
@@ -113,6 +114,7 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 | `POST` | `/api/posts/upload` | SELLER/ADMIN | Create a new listing with multiple image file uploads (multipart/form-data) |
 | `POST` | `/api/posts/bot` | `X-Bot-Api-Key` | Bot-only: Create one marketplace listing from parsed WhatsApp output, including reusable image hashes |
 | `POST` | `/api/posts/bot/media/resolve` | `X-Bot-Api-Key` | Bot-only: Resolve known media URLs by SHA-256 image hash so duplicate image bytes can be reused |
+| `POST` | `/api/posts/bot/renew/{id}` | `X-Bot-Api-Key` | Bot-only: Renew an archived/expired post, set it `ACTIVE`, extend `expiresAt`, and clear reminder state |
 | `GET` | `/api/posts/{id}` | Public | Get details of a specific post |
 | `PUT` | `/api/posts/{id}` | SELLER/ADMIN | Update an existing post |
 | `PATCH` | `/api/posts/{id}/mark-sold`| SELLER/ADMIN | Mark a post as sold (removes from active feed) |
@@ -155,7 +157,9 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 - `category`: Classification Enum (ELECTRONICS, BOOKS, CLOTHING, FURNITURE, SPORTS, FOOD, SERVICES, OTHER)
 - `isSold`: Boolean status flag
 - `createdAt`: Timestamp
-- `expiresAt`: Optional expiration timestamp
+- `expiresAt`: Optional expiration timestamp; new posts default to two days from creation
+- `status`: Lifecycle Enum (`ACTIVE`, `ARCHIVED`). Public/search queries use `ACTIVE`; expired posts are archived, not hard-deleted.
+- `reminderSentAt`: Timestamp marking that the pre-expiration WhatsApp reminder was sent
 - `seller`: Reference to a `Seller`
 - `postMedia`: Collection of `PostMedia` objects
 
@@ -226,7 +230,7 @@ The frontend is a **Progressive Web App (PWA)** built for speed and simplicity.
 - **`config/layouts/*.json`**: Versioned layout JSON files for marketplace home, favourites, profile, and the sample restaurant menu. These files are the runtime source of truth loaded by the layout registry.
 - **`css/custom.css`**: Aggregates the split stylesheet set.
 - **`css/tokens.css`**: Campus Editorial theme tokens, PicoCSS overrides, spacing, radii, shadows, control sizing, and layout values. See `docs/THEMEMAP.md`.
-- **`css/shell.css`**: Header, persistent left site navigation, responsive mobile shell, and top-level page spacing.
+- **`css/shell.css`**: Header, persistent left site navigation, support page/footer styling, responsive mobile shell, and top-level page spacing.
 - **`css/layout-system.css`**: Region/layout primitives, banners, empty/loading states, and listing-detail presentation.
 - **`css/elements.css`**: Marketplace listing cards, compact contact icon actions, carousels, selected-cart UI, restaurant-specific presentation styles, and reusable sales-site sections.
 - **`css/forms.css`**: Auth and create-listing form styling, password meters, upload UI.
@@ -239,7 +243,7 @@ The current frontend is no longer a single hard-coded listings page. Marketplace
 
 - **Element registry**: Each element declares a `type`, prop defaults, editor controls, and supported rendering metadata.
 - **Layout registry**: Stores default route layouts such as `marketplace.home` and `restaurant.menu.sample`.
-- **Layout runtime**: Resolves a route into regions/elements, validates layout safety, maps layout spacing tokens into CSS variables, merges props with defaults, and binds allowed data sources.
+- **Layout runtime**: Resolves a route into regions/elements, validates layout safety, maps layout spacing tokens into CSS variables, merges props with defaults, binds allowed data sources, and applies the global header search to catalog-like data sources (marketplace, favourites, profile listings, restaurant menu, and created-site sample catalogs).
 - **Content adapters**: Keep the generic layout system independent from Spring DTO details by converting posts into reusable catalog items.
 - **Full-width element handling**: Large composed sections such as catalog grids, profile summaries, restaurant headers, sales heroes, feature strips, contact panels, announcement bars, and empty states span the full row in responsive regions so headers and banners do not collapse into narrow grid columns.
 
@@ -259,7 +263,7 @@ There is now a front-end-only `layoutBuilder` SPA view for editing layouts witho
 
 Created sites are local browser artifacts, not backend records. A created site stores a cloned layout with an id, name, context, timestamps, and route `createdSitePreview`. Users can create a site from the builder, open it from the persistent left site sidebar, reopen it in the builder, duplicate it, or delete it from the local library view. Viewing a created site uses the same layout runtime and sample data adapters as the builder preview.
 
-The left sidebar replaces the old title-bar Created Sites shortcut. It shows core destinations (Marketplace, Saved Items, Layout Builder) plus a YouTube-subscriptions-style list of locally created sites. The sidebar becomes a compact horizontal nav on mobile.
+The left sidebar replaces the old title-bar Created Sites shortcut. It shows core destinations (Marketplace, Saved Items, Layout Builder, Support) plus a YouTube-subscriptions-style list of locally created sites. The sidebar becomes a compact horizontal nav on mobile.
 
 ### SPA Navigation
 
@@ -275,6 +279,7 @@ The Alpine SPA stores view state in the URL hash (`#view=...`, plus `site=...` f
 - **Created Sites** — Local site library for viewing, editing, duplicating, and deleting layouts created from the builder.
 - **Created Site Preview** — Runtime-rendered view of a selected locally created site. Created-site routes use sample/catalog adapters and responsive full-width handling for banners and grids.
 - **Restaurant Preview** — Sample restaurant/menu experience rendered through the same layout system using static sample data; primarily reached through the builder template flow.
+- **Support** — Static help page reachable from the sidebar and footer, with account/listing/safety guidance and a support email action.
 - **Listing Detail** — Full listing view with large image gallery, thumbnails, price, seller contact actions, seller profile link, and full description.
 
 ---
@@ -284,7 +289,13 @@ The Alpine SPA stores view state in the URL hash (`#view=...`, plus `site=...` f
 ### **Security & University Verification**
 - Access and registrations enforce `@constructor.university` email domains.
 - Authentication relies on **JWT** Bearer tokens.
-- **Email Service:** Used for sending password reset links and other notifications.
+- **Email Service:** Used for verification codes and password reset links. SMTP credentials are environment-driven (`MAIL_HOST`, `MAIL_USERNAME`, `MAIL_PASSWORD`); Gmail requires an app password rather than a passkey or normal account password.
+
+### **Listing Expiration**
+- New posts receive a two-day `expiresAt`.
+- `PostExpirationScheduler` sends WhatsApp renewal reminders for active posts expiring within one hour, then archives expired active posts every 15 minutes.
+- Archived posts are hidden from public/search result endpoints but remain recoverable via the bot renew endpoint.
+- `DataLoader` backfills legacy `posts.status IS NULL` rows to `ACTIVE` on startup so older data does not break DTO serialization or expiration queries.
 
 ### **WhatsApp Bot Bridge**
 - **Bot Engine:** Built with `whatsapp-web.js`. Handles group message parsing, DM commands, QR login confirmations, and explicit DM posting flows.

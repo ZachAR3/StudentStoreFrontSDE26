@@ -1,6 +1,7 @@
 package com.studentstorefront.service
 
 import com.studentstorefront.dto.request.PostRequestDTO
+import com.studentstorefront.dto.request.MarkSoldRequestDTO
 import com.studentstorefront.dto.response.PostResponseDTO
 import com.studentstorefront.dto.response.SellerResponseDTO
 import com.studentstorefront.dto.update.PostUpdateDTO
@@ -13,6 +14,7 @@ import com.studentstorefront.entity.PostMedia
 import com.studentstorefront.repository.FavouriteRepository
 import com.studentstorefront.repository.PostMediaRepository
 import com.studentstorefront.repository.PostRepository
+import com.studentstorefront.repository.ReviewRepository
 import com.studentstorefront.repository.SellerRepository
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -30,7 +32,9 @@ class PostService(
     private val sellerRepository: SellerRepository,
     private val postMediaRepository: PostMediaRepository,
     private val favouriteRepository: FavouriteRepository,
-    private val cloudinaryService: CloudinaryService
+    private val reviewRepository: ReviewRepository,
+    private val cloudinaryService: CloudinaryService,
+    private val botNotificationService: BotNotificationService
 ) {
 
     fun createPost(postRequestDTO: PostRequestDTO): PostResponseDTO {
@@ -143,14 +147,25 @@ class PostService(
         val post = findPostById(postId)
         assertOwnerOrAdmin(post)
         favouriteRepository.deleteByPostPostId(postId)
+        reviewRepository.deleteByPostPostId(postId)
         postRepository.deleteById(postId)
     }
 
-    fun markAsSold(postId: Long): PostResponseDTO {
+    fun markAsSold(postId: Long, request: MarkSoldRequestDTO): PostResponseDTO {
         val post = findPostById(postId)
         assertOwnerOrAdmin(post)
-        val updatedPost = post.copy(isSold = true)
+        if (post.isSold) {
+            throw IllegalArgumentException("Listing is already marked as sold")
+        }
+        val buyerId = request.buyerId ?: throw IllegalArgumentException("Buyer ID is required")
+        val buyer = findSellerById(buyerId)
+        if (buyer.sellerId == post.seller?.sellerId) {
+            throw IllegalArgumentException("Seller cannot select themselves as the buyer")
+        }
+
+        val updatedPost = post.copy(isSold = true, buyer = buyer, soldAt = LocalDateTime.now())
         val savedPost = postRepository.save(updatedPost)
+        botNotificationService.sendSellerReviewRequest(savedPost)
         return mapToResponseDTO(savedPost)
     }
 
@@ -238,7 +253,9 @@ class PostService(
             status = post.status ?: PostStatus.ACTIVE,
             createdAt = post.createdAt,
             expiresAt = post.expiresAt,
-            seller = mapSellerToResponseDTO(post.seller!!)
+            soldAt = post.soldAt,
+            seller = mapSellerToResponseDTO(post.seller!!),
+            buyer = post.buyer?.let { mapSellerToResponseDTO(it) }
         )
     }
 

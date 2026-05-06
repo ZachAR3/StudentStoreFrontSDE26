@@ -25,6 +25,12 @@ interface PostRepository: JpaRepository<Post, Long> {
 
     fun findBySellerSellerId(sellerId: Long, pageable: Pageable): Page<Post>
     fun findBySellerSellerId(sellerId: Long): List<Post>
+    fun findBySellerSellerIdAndIsSoldTrue(sellerId: Long): List<Post>
+    fun findByBuyerSellerIdAndIsSoldTrue(sellerId: Long): List<Post>
+
+    @Modifying
+    @Query("UPDATE Post p SET p.buyer = NULL WHERE p.buyer.sellerId = :buyerId")
+    fun clearBuyerReferences(@Param("buyerId") buyerId: Long): Int
 
     @Query(
         """

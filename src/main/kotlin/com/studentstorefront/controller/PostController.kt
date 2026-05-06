@@ -1,6 +1,7 @@
 package com.studentstorefront.controller
 
 import com.studentstorefront.dto.request.PostRequestDTO
+import com.studentstorefront.dto.request.MarkSoldRequestDTO
 import com.studentstorefront.dto.response.PostResponseDTO
 import com.studentstorefront.dto.update.PostUpdateDTO
 import com.studentstorefront.enums.Category
@@ -146,8 +147,11 @@ class PostController(
 
     @PatchMapping("/{postId}/mark-sold")
     @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
-    fun markAsSold(@PathVariable postId: Long): ResponseEntity<PostResponseDTO> {
-        val updatedPost = postService.markAsSold(postId)
+    fun markAsSold(
+        @PathVariable postId: Long,
+        @Valid @RequestBody request: MarkSoldRequestDTO
+    ): ResponseEntity<PostResponseDTO> {
+        val updatedPost = postService.markAsSold(postId, request)
         return ResponseEntity.ok(updatedPost)
     }
 
