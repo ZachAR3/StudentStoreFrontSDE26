@@ -28,14 +28,14 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 │   ├── main/
 │   │   ├── kotlin/com/studentstorefront/
 │   │   │   ├── config/        # Security (JWT, Spring Security), OpenApi, and DataLoader legacy repairs
-│   │   │   ├── controller/    # REST Endpoints (Auth, Favourite, Post, Seller, WhatsAppQrLogin)
+│   │   │   ├── controller/    # REST Endpoints (Auth, Favourite, Post, Review, Seller, WhatsAppQrLogin)
 │   │   │   ├── dto/           # Data Transfer Objects (request, response, update)
-│   │   │   ├── entity/        # JPA Entities (Favourite, PasswordResetToken, Post, PostMedia, Seller, WhatsAppLoginSession)
-│   │   │   ├── enums/         # Enums (Category, PostStatus, Role, WhatsAppSessionStatus)
+│   │   │   ├── entity/        # JPA Entities (Favourite, PasswordResetToken, Post, PostMedia, Review, Seller, WhatsAppLoginSession)
+│   │   │   ├── enums/         # Enums (Category, PostStatus, ReviewDirection, Role, WhatsAppSessionStatus)
 │   │   │   ├── exception/     # Global Exception Handling
-│   │   │   ├── repository/    # Database Access Layers (Favourite, PasswordResetToken, Post, PostMedia, Seller, WhatsAppLoginSession)
+│   │   │   ├── repository/    # Database Access Layers (Favourite, PasswordResetToken, Post, PostMedia, Review, Seller, WhatsAppLoginSession)
 │   │   │   ├── scheduler/     # Listing expiration reminders and archival jobs
-│   │   │   └── service/       # Business Logic (BotNotificationService, CloudinaryService, EmailService, FavouriteService, JwtService, PasswordResetService, PostService, SellerService, WhatsAppQrLoginService)
+│   │   │   └── service/       # Business Logic (BotNotificationService, CloudinaryService, EmailService, FavouriteService, JwtService, PasswordResetService, PostService, ReviewService, SellerService, WhatsAppQrLoginService)
 │   │   └── resources/
 │   │       ├── static/
 │   │       │   ├── config/layouts/ # Static layout JSON definitions used by the frontend runtime
@@ -73,7 +73,7 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 │   │   │   ├── imagePreprocessor.js  # Downscales images before LLM parsing to reduce latency and payload size
 │   │   │   ├── langfuseService.js    # Shared Langfuse client for LLM observability
 │   │   │   ├── springServices.js     # Spring Boot REST API calls for listing creation, lookup, search, and WhatsApp login
-│   │   │   ├── webhookService.js     # Express webhook server (seller-registered)
+│   │   │   ├── webhookService.js     # Express webhook server (seller-registered and outbound send-message bridge)
 │   │   │   ├── claudinary.js         # Cloudinary image upload helper
 │   │   │   └── Prompt-File.js        # Prompt templates (classification, parsing, image description)
 │   │   └── tests/
@@ -117,7 +117,7 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 | `POST` | `/api/posts/bot/renew/{id}` | `X-Bot-Api-Key` | Bot-only: Renew an archived/expired post, set it `ACTIVE`, extend `expiresAt`, and clear reminder state |
 | `GET` | `/api/posts/{id}` | Public | Get details of a specific post |
 | `PUT` | `/api/posts/{id}` | SELLER/ADMIN | Update an existing post |
-| `PATCH` | `/api/posts/{id}/mark-sold`| SELLER/ADMIN | Mark a post as sold (removes from active feed) |
+| `PATCH` | `/api/posts/{id}/mark-sold`| SELLER/ADMIN | Mark a post as sold with a required registered `buyerId`, store sale metadata, and request a buyer review |
 | `DELETE` | `/api/posts/{id}` | SELLER/ADMIN | Delete a post |
 | `GET` | `/api/posts/available` | Public | Get only unsold listings |
 | `GET` | `/api/posts/search?q={text}&category={name}` | Public | Search unsold listings by title/description with optional category filter; supports pageable `page`, `size`, and `sort` params |
@@ -133,9 +133,19 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 | `GET` | `/api/sellers/{id}` | SELLER/ADMIN | Get details of a specific seller |
 | `GET` | `/api/sellers/email/{email}`| ADMIN | Get details of a specific seller by email |
 | `GET` | `/api/sellers/by-phone` | Public* | Bot-specific: Lookup seller by phone number (Vulnerable: leaks PII) |
+| `GET` | `/api/sellers/search?q={text}` | SELLER/ADMIN | Search enabled registered sellers by name/email for buyer selection when marking a listing sold |
 | `PUT` | `/api/sellers/{id}` | SELLER/ADMIN | Update an existing seller |
 | `DELETE` | `/api/sellers/me` | SELLER/ADMIN | Self-service account deletion (requires password re-entry) |
 | `DELETE` | `/api/sellers/{id}` | ADMIN | Delete a seller |
+
+### **Review Management** (`/api/reviews`)
+
+| Method | Endpoint | Auth | Description |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/reviews` | SELLER/ADMIN | Submit one transaction review for the authenticated user; backend derives buyer-to-seller or seller-to-buyer direction from the sold post |
+| `GET` | `/api/reviews/context/{postId}` | SELLER/ADMIN | Return review labels/context for a sold transaction, including whether the authenticated user already reviewed it |
+| `GET` | `/api/reviews/pending` | SELLER/ADMIN | Return sold transactions where the authenticated user can still leave a review |
+| `GET` | `/api/reviews/profile/{sellerId}` | SELLER/ADMIN | Return seller-rating summary, buyer-rating summary, and recent reviews for a profile |
 
 ### **Favourite Management** (`/api/favourites`)
 
@@ -160,7 +170,9 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 - `expiresAt`: Optional expiration timestamp; new posts default to two days from creation
 - `status`: Lifecycle Enum (`ACTIVE`, `ARCHIVED`). Public/search queries use `ACTIVE`; expired posts are archived, not hard-deleted.
 - `reminderSentAt`: Timestamp marking that the pre-expiration WhatsApp reminder was sent
+- `soldAt`: Timestamp when the seller recorded the sale
 - `seller`: Reference to a `Seller`
+- `buyer`: Optional reference to the registered `Seller` account that purchased the item
 - `postMedia`: Collection of `PostMedia` objects
 
 ### **PostMedia**
@@ -186,6 +198,17 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 - `seller`: Reference to the owning `Seller`
 - `post`: Reference to the favourited `Post`
 - Uniqueness is enforced per seller/post pair at the service layer and repository level
+
+### **Review**
+- `reviewId`: Primary Key (Long)
+- `post`: Reference to the sold `Post`
+- `reviewer`: Reference to the account submitting the review
+- `reviewee`: Reference to the account being reviewed
+- `direction`: Enum (`BUYER_TO_SELLER`, `SELLER_TO_BUYER`)
+- `rating`: Integer rating from 1 to 5
+- `comment`: Optional written review, capped at 500 characters
+- `createdAt`: Review creation timestamp
+- Uniqueness is enforced per post/direction so each transaction can have at most one buyer review and one seller review
 
 ### **PasswordResetToken**
 - `id`: Primary Key (Long)
@@ -222,8 +245,8 @@ The frontend is a **Progressive Web App (PWA)** built for speed and simplicity.
   - `api-client.js` centralizes fetch/auth header behavior.
   - `content-adapters.js` maps backend DTOs into generic catalog/menu items.
   - `validators.js`, `element-registry.js`, `layout-registry.js`, and `layout-runtime.js` power the typed layout system.
-- **`js/stores/*`**: Domain-focused state modules for auth, marketplace, favourites, profile, uploads, and the layout builder.
-- **`js/services/*`**: Thin REST contract modules for auth, WhatsApp login, posts, sellers, and favourites. Endpoint strings live here instead of the root app controller.
+- **`js/stores/*`**: Domain-focused state modules for auth, marketplace, favourites, profile, uploads, cart selection, and the layout builder.
+- **`js/services/*`**: Thin REST contract modules for auth, WhatsApp login, posts, sellers, reviews, and favourites. Endpoint strings live here instead of the root app controller.
 - **`js/elements/*`**: Registered element definitions such as `marketplace.filterBar`, `catalog.grid`, `marketplace.itemCard`, `profile.summary`, `profile.listingList`, `restaurant.menuHero`, `restaurant.menuItemCard`, and reusable sales-site sections (`common.salesHero`, `common.featureStrip`, `common.contactPanel`, `common.announcementBar`).
 - **`js/builder/*`**: Helper modules for the layout builder experience: palette grouping, drag/drop movement, inspector prop updates, and preview width presets.
 - **`js/data/*`**: Static categories, sample marketplace/menu data, and the default layout URL manifest/loader.
@@ -234,7 +257,7 @@ The frontend is a **Progressive Web App (PWA)** built for speed and simplicity.
 - **`css/layout-system.css`**: Region/layout primitives, banners, empty/loading states, and listing-detail presentation.
 - **`css/elements.css`**: Marketplace listing cards, compact contact icon actions, carousels, selected-cart UI, restaurant-specific presentation styles, and reusable sales-site sections.
 - **`css/forms.css`**: Auth and create-listing form styling, password meters, upload UI.
-- **`css/profile.css`**: Profile header, listing rows, danger zone, and modal presentation.
+- **`css/profile.css`**: Profile header, rating summary pills, pending/recent review cards, listing rows, danger zone, buyer-search controls, and modal presentation.
 - **`css/layout-builder.css`**: Builder canvas, palette, preview, direct-manipulation affordances, and inspector styling.
 
 ### Layout Runtime
@@ -272,7 +295,7 @@ The Alpine SPA stores view state in the URL hash (`#view=...`, plus `site=...` f
 **Views (SPA):**
 - **Listings** — Homepage grid of compact item cards with category/sort filters and search. Uses the layout runtime plus Alpine.js image carousel behavior for multi-photo listings. Marketplace cards intentionally show only image, title, price, and square icon contact actions for Email and pre-filled WhatsApp `wa.me` links; opening the card shows full listing detail.
 - **Favourites** — Grid view of saved items, fully synced with the backend via `FavouriteController`. Accessible via the header icon.
-- **Profile** — Displays seller info (avatar, name, email, phone, listing count) and their posted listings. Own-profile includes listing management (mark sold, delete) and a "Danger Zone" for account deletion with password-verified confirmation modal.
+- **Profile** — Displays seller info (avatar, name, email, phone, listing count), seller/buyer rating summaries, recent reviews, and posted listings. Own-profile includes listing management (mark sold with registered buyer selection, review buyer, delete), pending review prompts, and a "Danger Zone" for account deletion with password-verified confirmation modal.
 - **Login / Register / WhatsApp Login** — Authentication flows.
 - **Create Listing** — Authenticated form for posting new items. Features a drag-and-drop upload zone supporting up to 10 local images with live previews and drag-to-reorder functionality. Uploads are handled securely via the Spring Boot backend to Cloudinary.
 - **Layout Builder** — Front-end-only layout editing workspace with palette, responsive preview, validation, JSON import/export, and draft persistence.
@@ -297,6 +320,13 @@ The Alpine SPA stores view state in the URL hash (`#view=...`, plus `site=...` f
 - Archived posts are hidden from public/search result endpoints but remain recoverable via the bot renew endpoint.
 - `DataLoader` backfills legacy `posts.status IS NULL` rows to `ACTIVE` on startup so older data does not break DTO serialization or expiration queries.
 
+### **Sale Reviews & Ratings**
+- Sellers mark listings sold from their own profile by selecting an enabled registered buyer account.
+- `PostService.markAsSold` records `buyer`, `soldAt`, and `isSold`, rejects self-sales and already-sold listings, and triggers a WhatsApp review request to the buyer.
+- `ReviewService` derives the review direction from the sold post: selected buyer reviews the seller, listing owner reviews the buyer.
+- Each sold transaction supports at most two reviews: one `BUYER_TO_SELLER` and one `SELLER_TO_BUYER`.
+- Profiles expose separate seller-rating and buyer-rating summaries plus recent written reviews.
+
 ### **WhatsApp Bot Bridge**
 - **Bot Engine:** Built with `whatsapp-web.js`. Handles group message parsing, DM commands, QR login confirmations, and explicit DM posting flows.
 - **Command Short-Circuiting:** Known bot commands are detected before listing classification in the target chat, so command messages skip LLM classification entirely (lower latency and token usage).
@@ -312,7 +342,7 @@ The Alpine SPA stores view state in the URL hash (`#view=...`, plus `site=...` f
 - **Image Preprocessing:** Listing images are downscaled to fit inside `960x720` before LLM parsing, preserving aspect ratio while reducing latency and payload size.
 - **Image Hash Reuse:** Before uploading to Cloudinary, the bot hashes each WhatsApp image, asks the backend whether that exact image is already known, and reuses the existing stored media URL when possible. Only missing images are uploaded.
 - **Spring Service Wrapper:** `springServices.js` dispatches parsed listings to secure bot endpoints and reads public listing/search APIs for shopping chat.
-- **Webhook Service:** Receives seller registration callbacks so pending bot-created listings can continue after signup.
+- **Webhook Service:** Receives seller registration callbacks so pending bot-created listings can continue after signup, and exposes `/send-message` for backend-triggered WhatsApp notifications such as review requests.
 - **Cloudinary Integration:** Both bot and backend use Cloudinary for optimized image hosting.
 
 ### **WhatsApp QR Login**

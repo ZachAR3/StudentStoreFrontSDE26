@@ -18,7 +18,7 @@ This file is the design-system reference for the Student-Store Front frontend. U
 - `src/main/resources/static/css/layout-system.css` handles layout regions, page primitives, loading, alerts, empty states, and listing detail.
 - `src/main/resources/static/css/elements.css` handles marketplace cards, compact listing contact actions, filters, restaurant preview, selected-cart UI, reusable sales-site sections, and common element surfaces.
 - `src/main/resources/static/css/forms.css` handles auth cards, form actions, upload UI, password meter, and QR login.
-- `src/main/resources/static/css/profile.css` handles profile summary, profile listing rows, danger zone, and modals.
+- `src/main/resources/static/css/profile.css` handles profile summary, rating pills, profile review panels/cards, profile listing rows, buyer search controls, danger zone, and modals.
 - `src/main/resources/static/css/layout-builder.css` handles the layout builder, responsive preview frame, palette/inspector panels, and created-site library.
 
 ## Palette
@@ -127,6 +127,8 @@ Layout JSON region gaps should use `xs`, `sm`, `md`, `lg`, or `xl`; the layout r
 - Support page sections use `.support-page`, `.support-hero`, `.support-grid`, and `.support-card`; these should stay quiet and utility-focused, using normal surfaces rather than marketing-style hero treatment.
 - Cards should not nest inside decorative parent cards. Use full-width sections or grids for grouping.
 - Profile rows use `.profile-listing-card`.
+- Profile rating summaries use `.profile-rating-strip` and `.profile-rating-pill`; keep them compact, tokenized, and close to the profile identity block.
+- Pending and recent profile reviews use `.profile-review-panel` plus `.profile-review-card`, with quiet muted surfaces rather than marketplace-card styling.
 - Builder panels use `.builder-panel`.
 
 ### Tables And Lists
@@ -155,6 +157,7 @@ Layout JSON region gaps should use `xs`, `sm`, `md`, `lg`, or `xl`; the layout r
 - `.modal-overlay` uses `--sf-color-scrim` plus backdrop blur.
 - `.modal-card` uses white surface, `--sf-shadow-md`, and `--sf-radius-lg`.
 - Modal actions use `.form-actions`.
+- Buyer selection in the mark-sold modal uses `.buyer-search-results` and `.buyer-result-button`; results should be full-width, left-aligned, and text-forward rather than card-like.
 
 ### Navigation
 
@@ -184,9 +187,17 @@ Layout JSON region gaps should use `xs`, `sm`, `md`, `lg`, or `xl`; the layout r
 - `.fav-badge` uses danger because it represents saved/favourite count.
 - Category badges on cards use overlay color on media.
 
+### Ratings And Reviews
+
+- Profile ratings are informational, not primary CTAs; use pill surfaces and muted labels with strong text only for the numeric rating.
+- Review cards should remain compact and readable: rating/title first, optional comment second, reviewer metadata last.
+- Pending review prompts belong on the authenticated user's own profile only, inside a quiet `.profile-review-panel`.
+- Review and mark-sold flows use existing modal primitives and `.form-actions`; do not create a separate drawer/sheet pattern for this feature.
+
 ## Alpine.js Interaction Conventions
 
 - Preserve existing `x-model`, `@submit.prevent`, route names, API service calls, and state object names.
+- Keep profile review state under the existing profile store and review API calls in `js/services/review-service.js`; do not move review workflow logic into layout element definitions.
 - Prefer class bindings over inline style strings for theme states.
 - Inline style bindings are acceptable only for layout/runtime CSS variables, dynamic media ratios, builder preview dimensions, and generated avatar colors.
 - Keep click handlers on nested card controls using `.stop` so card-level open behavior does not swallow contact/favourite actions.
@@ -229,3 +240,4 @@ The frontend is a static Alpine/Pico PWA in `src/main/resources/static`, not a s
 - The builder palette now includes common sales-site sections: Sales Hero, Feature Strip, Contact Panel, and Announcement Bar.
 - Header search now filters all catalog-like layout data sources, including restaurant menus and created-site sample grids, not only the marketplace home route.
 - A Support page and app footer were added using shell-level theme primitives, with copyright text and a footer Support CTA.
+- Seller/buyer ratings were added to the profile surface with compact rating pills, pending review cards, recent review cards, and buyer-search/review modals that reuse existing profile/modal tokens.
