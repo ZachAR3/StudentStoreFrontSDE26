@@ -1,4 +1,4 @@
-# StudentStoreFront — WhatsApp Bot Documentation
+# Student-Store Front — WhatsApp Bot Documentation
 
 ## Table of Contents
 1. [Overview](#1-overview)
@@ -13,7 +13,7 @@
 
 ## 1. Overview
 
-The WhatsApp bot is an AI-powered bridge between a WhatsApp group chat and the Student Storefront Spring Boot backend. Its primary purpose is to allow students to list items for sale simply by chatting in a designated WhatsApp group — **no web form required**.
+The WhatsApp bot is an AI-powered bridge between a WhatsApp group chat and the Student-Store Front Spring Boot backend. Its primary purpose is to allow students to list items for sale simply by chatting in a designated WhatsApp group — **no web form required**.
 
 **How it works at a high level:**
 1. The bot monitors a specific WhatsApp group for messages.

@@ -2,7 +2,7 @@
 marp: true
 theme: gaia
 paginate: true
-header: "SDE Project: Student Store-front Implementation"
+header: "SDE Project: Student-Store Front Implementation"
 footer: "Teodor, Zachary, Chingis | Frameworks & Tools"
 style: |
   section {
@@ -13,7 +13,7 @@ style: |
   code { background: #f6f5f4; color: #c01c28; }
 ---
 
-# Student Store-front
+# Student-Store Front
 ### Engineering a Campus-Specific Bridge
 
 **The Goal:** Moving from chaotic WhatsApp groups to a clean, verified marketplace.

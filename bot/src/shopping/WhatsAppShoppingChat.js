@@ -144,7 +144,7 @@ class WhatsAppShoppingChat {
 
     async showHelp(chatId) {
         await this.client.sendMessage(chatId, [
-            'StudentStoreFront shopping',
+            'Student-Store Front shopping',
             '',
             'Commands:',
             'shop - view recent listings',
@@ -368,7 +368,7 @@ class WhatsAppShoppingChat {
         const digits = phoneNumber.replace(/\D/g, '')
         if (digits.length < 10) return null
 
-        const message = `Hi, I am interested in your StudentStoreFront listing: ${item.title} (#${item.postId})`
+        const message = `Hi, I am interested in your Student-Store Front listing: ${item.title} (#${item.postId})`
         return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`
     }
 

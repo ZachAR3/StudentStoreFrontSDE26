@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Student Storefront</title>
+    <title>Student-Store Front</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
     <link rel="stylesheet" href="/css/custom.css">
     <script defer src="/js/core/namespace.js"></script>
@@ -55,7 +55,7 @@
         <nav class="container">
             <a href="#" class="shell-brand" @click.prevent="navigateTo('listings')">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-                <strong>Campus Store</strong>
+                <strong>Student-Store Front</strong>
             </a>
 
             <div class="search-container" x-show="headerProps.showSearch">
@@ -109,6 +109,10 @@
                     <button class="site-nav-item" :class="{ 'is-active': currentView === 'layoutBuilder' }" @click="navigateTo('layoutBuilder')">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
                         <span>Layout Builder</span>
+                    </button>
+                    <button class="site-nav-item" :class="{ 'is-active': currentView === 'support' }" @click="navigateTo('support')">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 1 1 5.82 1c-.55 1.1-1.91 1.64-2.4 2.78"/><path d="M12 17h.01"/></svg>
+                        <span>Support</span>
                     </button>
                 </section>
 
@@ -791,6 +795,35 @@
             </div>
         </div>
 
+        <div class="view-container" x-show="currentView === 'support'">
+            <section class="support-page">
+                <div class="support-hero">
+                    <p class="item-meta">Help desk</p>
+                    <h1>Support</h1>
+                    <p>Get help with listings, seller accounts, saved items, WhatsApp login, or layout-builder pages for your campus sales.</p>
+                    <div class="support-actions">
+                        <a role="button" href="mailto:support@student-storefront.local">Email Support</a>
+                        <button class="outline" @click="navigateTo('listings')">Back to Marketplace</button>
+                    </div>
+                </div>
+
+                <div class="support-grid">
+                    <article class="support-card">
+                        <h3>Account Access</h3>
+                        <p>Use password reset for email login issues, or try WhatsApp login again if a QR session expires.</p>
+                    </article>
+                    <article class="support-card">
+                        <h3>Listings</h3>
+                        <p>Include clear photos, a fair price, condition notes, and pickup details so buyers can act quickly.</p>
+                    </article>
+                    <article class="support-card">
+                        <h3>Buyer Safety</h3>
+                        <p>Meet in public campus spaces, confirm item condition before paying, and keep conversations on trusted channels.</p>
+                    </article>
+                </div>
+            </section>
+        </div>
+
         <div class="view-container" x-show="currentView === 'layoutBuilder'">
             <div class="layout-builder" :class="{ 'is-desktop-preview': builder.previewMode === 'desktop' }">
                 <aside class="builder-panel">
@@ -1046,6 +1079,13 @@
                 </aside>
             </div>
         </div>
+        <footer class="app-footer">
+            <div>
+                <strong>Student-Store Front</strong>
+                <small>&copy; 2026 Student-Store Front. All rights reserved.</small>
+            </div>
+            <button class="outline shell-pill-button" @click="navigateTo('support')">Support</button>
+        </footer>
     </main>
     </div>
 

@@ -2,7 +2,7 @@
 
 **Team Members:** Teodor, Zachary, Chingis
 
-**Idea Name:** Student Store-front
+**Idea Name:** Student-Store Front
 
 ### 1. Product Hypothesis
 

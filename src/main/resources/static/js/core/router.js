@@ -13,7 +13,8 @@
         createdSites: "createdSites",
         createdSitePreview: "createdSitePreview",
         restaurantPreview: "restaurantPreview",
-        selected: "selected"
+        selected: "selected",
+        support: "support"
     };
 
     window.Storefront.core.router = {

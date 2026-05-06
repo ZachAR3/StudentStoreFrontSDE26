@@ -1,6 +1,6 @@
 # Theme Map
 
-This file is the design-system reference for the Student Storefront frontend. Use it with `docs/REPOMAP.md`: REPOMAP explains the application structure; THEMEMAP explains the visual contract.
+This file is the design-system reference for the Student-Store Front frontend. Use it with `docs/REPOMAP.md`: REPOMAP explains the application structure; THEMEMAP explains the visual contract.
 
 ## Theme
 

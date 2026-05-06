@@ -178,7 +178,7 @@ function scheduleGroupClassification(contact, phoneNumber, replyChatId) {
 
                     await client.sendMessage(
                         replyChatId,
-                        'Hello! I am the StudentStoreFront bot. ' +
+                        'Hello! I am the Student-Store Front bot. ' +
                         'I noticed you may be selling something. ' +
                         'Do you consent to adding your listing to our marketplace? Reply YES or NO.'
                     )

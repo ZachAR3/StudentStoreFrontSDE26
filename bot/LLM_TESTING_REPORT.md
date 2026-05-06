@@ -1,4 +1,4 @@
-# LLM Testing Report — StudentStoreFront Bot
+# LLM Testing Report — Student-Store Front Bot
 
 **Author:** Development session log  
 **Date:** 2026-04-29  

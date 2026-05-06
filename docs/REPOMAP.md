@@ -1,6 +1,6 @@
 # Repository Map & API Documentation
 
-This document provides a human-readable overview of the Student Storefront project, its file structure, and its technical interfaces.
+This document provides a human-readable overview of the Student-Store Front project, its file structure, and its technical interfaces.
 
 ## 1. Project Overview
 A campus-specific marketplace designed to move student sales from chaotic WhatsApp groups into a structured, verified web platform.

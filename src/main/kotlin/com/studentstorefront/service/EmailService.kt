@@ -17,7 +17,7 @@ class EmailService(private val mailSender: JavaMailSender) {
 
         helper.setFrom(fromEmail)
         helper.setTo(toEmail)
-        helper.setSubject("Verify your StudentStoreFront email")
+        helper.setSubject("Verify your Student-Store Front email")
         helper.setText(buildVerificationEmailBody(code), true)
 
         mailSender.send(message)
@@ -29,7 +29,7 @@ class EmailService(private val mailSender: JavaMailSender) {
 
         helper.setFrom(fromEmail)
         helper.setTo(toEmail)
-        helper.setSubject("Reset your StudentStoreFront password")
+        helper.setSubject("Reset your Student-Store Front password")
         helper.setText(buildEmailBody(resetLink), true)
 
         mailSender.send(message)
@@ -40,7 +40,7 @@ class EmailService(private val mailSender: JavaMailSender) {
         <body style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 32px;">
           <div style="max-width: 480px; margin: auto; background: white; border-radius: 8px; padding: 32px;">
             <h2 style="color: #1a1a1a;">Verify your email</h2>
-            <p style="color: #555;">Enter this code to complete your StudentStoreFront registration:</p>
+            <p style="color: #555;">Enter this code to complete your Student-Store Front registration:</p>
             <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; text-align: center; margin: 24px 0; color: #2563eb; background: #f0f4ff; border-radius: 8px; padding: 16px;">$code</div>
             <p style="color: #555;">This code expires in <strong>15 minutes</strong>.</p>
             <p style="color: #999; font-size: 13px;">If you didn't create an account, you can safely ignore this email.</p>
@@ -54,7 +54,7 @@ class EmailService(private val mailSender: JavaMailSender) {
         <body style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 32px;">
           <div style="max-width: 480px; margin: auto; background: white; border-radius: 8px; padding: 32px;">
             <h2 style="color: #1a1a1a;">Reset your password</h2>
-            <p style="color: #555;">We received a request to reset the password for your StudentStoreFront account.</p>
+            <p style="color: #555;">We received a request to reset the password for your Student-Store Front account.</p>
             <p style="color: #555;">Click the button below to choose a new password. This link expires in <strong>30 minutes</strong>.</p>
             <a href="$resetLink"
                style="display: inline-block; margin: 24px 0; padding: 12px 24px;

@@ -16,9 +16,9 @@ class OpenApiConfig {
         return OpenAPI()
             .info(
                 Info()
-                    .title("Student Store Front API")
+                    .title("Student-Store Front API")
                     .version("1.0")
-                    .description("API for Student Store Front application")
+                    .description("API for Student-Store Front application")
             )
             .addSecurityItem(SecurityRequirement().addList("Bearer Authentication"))
             .components(

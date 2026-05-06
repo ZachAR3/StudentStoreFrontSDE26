@@ -252,6 +252,88 @@
     animation: fade-in 0.25s ease;
 }
 
+.support-page {
+    display: grid;
+    gap: var(--sf-space-xl);
+}
+
+.support-hero {
+    display: grid;
+    gap: var(--sf-space-sm);
+    padding: var(--sf-space-xl);
+    border: 1px solid var(--sf-color-border);
+    border-radius: var(--sf-radius-md);
+    background: var(--sf-color-surface);
+    box-shadow: var(--sf-shadow-xs);
+}
+
+.support-hero h1,
+.support-hero p {
+    margin: 0;
+}
+
+.support-hero > p:not(.item-meta) {
+    max-width: 42rem;
+    color: var(--sf-color-muted);
+}
+
+.support-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--sf-space-sm);
+    margin-top: var(--sf-space-sm);
+}
+
+.support-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+    gap: var(--sf-space-md);
+}
+
+.support-card {
+    margin: 0;
+    padding: var(--sf-space-lg);
+    border: 1px solid var(--sf-color-border);
+    border-radius: var(--sf-radius-md);
+    background: var(--sf-color-surface);
+    box-shadow: var(--sf-shadow-xs);
+}
+
+.support-card h3 {
+    margin-bottom: var(--sf-space-xs);
+}
+
+.support-card p {
+    margin: 0;
+    color: var(--sf-color-muted);
+}
+
+.app-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--sf-space-md);
+    margin-top: var(--sf-space-xl);
+    padding-block: var(--sf-space-lg);
+    border-top: 1px solid var(--sf-color-border);
+    color: var(--sf-color-muted);
+}
+
+.app-footer div {
+    display: grid;
+    gap: var(--sf-space-2xs);
+}
+
+.app-footer strong {
+    color: var(--sf-color-text-strong);
+}
+
+.app-footer small {
+    color: var(--sf-color-muted);
+}
+
 @keyframes fade-in {
     from {
         opacity: 0;
@@ -383,5 +465,18 @@
         min-height: 2.25rem;
         padding: 0.3rem 0.55rem;
         font-size: 0.88rem;
+    }
+
+    .support-hero,
+    .support-card {
+        padding: var(--sf-space-md);
+    }
+
+    .app-footer {
+        align-items: stretch;
+    }
+
+    .app-footer button {
+        width: 100%;
     }
 }
