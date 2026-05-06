@@ -6,15 +6,46 @@
         return `var(--sf-space-${token})`;
     }
 
+    function searchableText(value) {
+        if (!value) return "";
+        return [
+            value.title,
+            value.description,
+            value.badge,
+            value.category,
+            value.kitchen,
+            value.seller?.name,
+            value.raw?.title,
+            value.raw?.description,
+            value.raw?.category,
+            value.raw?.kitchen
+        ].filter(Boolean).join(" ").toLowerCase();
+    }
+
+    function filterByHeaderSearch(items, state) {
+        const query = String(state?.marketplace?.searchQuery || "").trim().toLowerCase();
+        if (!query || !Array.isArray(items)) return items;
+        return items.filter((item) => searchableText(item).includes(query));
+    }
+
     function resolveDataSource(key, state, options = {}) {
         const useSampleData = Boolean(options.useSampleData);
         switch (key) {
             case "marketplace.posts":
-                return useSampleData ? window.Storefront.data.samplePosts : state.marketplace.posts;
+                return filterByHeaderSearch(
+                    useSampleData ? window.Storefront.data.samplePosts : state.marketplace.posts,
+                    state
+                );
             case "marketplace.filteredPosts":
-                return useSampleData ? window.Storefront.data.sampleCatalogItems : state.filteredCatalogItems;
+                return filterByHeaderSearch(
+                    useSampleData ? window.Storefront.data.sampleCatalogItems : state.filteredCatalogItems,
+                    state
+                );
             case "marketplace.favouritePosts":
-                return useSampleData ? window.Storefront.data.sampleCatalogItems : state.favouriteCatalogItems;
+                return filterByHeaderSearch(
+                    useSampleData ? window.Storefront.data.sampleCatalogItems : state.favouriteCatalogItems,
+                    state
+                );
             case "marketplace.filters":
                 return {
                     categories: window.Storefront.data.categories,
@@ -25,13 +56,16 @@
             case "profile.seller":
                 return useSampleData ? window.Storefront.data.sampleProfileSeller : state.profile.profileSeller;
             case "profile.posts":
-                return useSampleData ? window.Storefront.data.sampleProfileCatalogItems : state.profile.profileCatalogItems;
+                return filterByHeaderSearch(
+                    useSampleData ? window.Storefront.data.sampleProfileCatalogItems : state.profile.profileCatalogItems,
+                    state
+                );
             case "builder.sampleCatalog":
-                return window.Storefront.data.sampleCatalogItems;
+                return filterByHeaderSearch(window.Storefront.data.sampleCatalogItems, state);
             case "builder.sampleLayout":
                 return options.builderLayout || null;
             case "restaurant.sampleMenu":
-                return window.Storefront.data.restaurantCatalogItems;
+                return filterByHeaderSearch(window.Storefront.data.restaurantCatalogItems, state);
             default:
                 return null;
         }

@@ -235,7 +235,7 @@ class PostService(
             description = post.description,
             category = post.category,
             isSold = post.isSold,
-            status = post.status,
+            status = post.status ?: PostStatus.ACTIVE,
             createdAt = post.createdAt,
             expiresAt = post.expiresAt,
             seller = mapSellerToResponseDTO(post.seller!!)

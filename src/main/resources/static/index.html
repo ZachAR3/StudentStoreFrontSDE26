@@ -354,8 +354,8 @@
                                             </div>
                                             <div class="empty-state" x-show="(element.data || []).length === 0">
                                                 <svg class="empty-icon" xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-                                                <h3 x-text="element.props.emptyTitle"></h3>
-                                                <p x-text="element.props.emptyMessage"></p>
+                                                <h3 x-text="marketplace.searchQuery ? 'No matches found' : element.props.emptyTitle"></h3>
+                                                <p x-text="marketplace.searchQuery ? 'Try a different search term or clear the search field.' : element.props.emptyMessage"></p>
                                                 <button class="outline" x-show="currentView === 'listings'" @click="clearFilters()">Clear All Filters</button>
                                                 <button class="outline" x-show="currentView === 'favourites'" @click="navigateTo('listings')">Browse Items</button>
                                             </div>
