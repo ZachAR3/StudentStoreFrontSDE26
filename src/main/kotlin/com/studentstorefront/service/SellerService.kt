@@ -108,6 +108,13 @@ class SellerService(
             }
         }
 
+        sellerUpdateDTO.phoneNumber?.let { newPhone ->
+            val normalized = normalizePhone(newPhone)
+            if (normalized != existingSeller.phoneNumber && sellerRepository.findByPhoneNumber(normalized) != null) {
+                throw IllegalArgumentException("Phone number already registered: $newPhone")
+            }
+        }
+
         val updatedSeller = updateSellerEntity(existingSeller, sellerUpdateDTO)
         val savedSeller = sellerRepository.save(updatedSeller)
         return mapToResponseDTO(savedSeller)
