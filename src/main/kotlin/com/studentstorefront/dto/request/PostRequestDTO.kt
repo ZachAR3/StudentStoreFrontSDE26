@@ -29,6 +29,5 @@ data class PostRequestDTO(
 
     val isSold: Boolean? = false,
 
-    @field:NotNull(message = "Seller ID is required")
-    val sellerId: Long?
+    val sellerId: Long? = null
 )

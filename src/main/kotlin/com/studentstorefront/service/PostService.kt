@@ -39,7 +39,7 @@ class PostService(
 
     fun createPost(postRequestDTO: PostRequestDTO): PostResponseDTO {
         val current = getCurrentSeller()
-        val sellerId = if (current.role == Role.ADMIN) postRequestDTO.sellerId!! else current.sellerId!!
+        val sellerId = if (current.role == Role.ADMIN) postRequestDTO.sellerId ?: current.sellerId!! else current.sellerId!!
         val seller = findSellerById(sellerId)
         val post = createPostEntity(postRequestDTO, seller)
         val savedPost = postRepository.save(post)
@@ -53,7 +53,7 @@ class PostService(
         coverIndex: Int
     ): PostResponseDTO {
         val current = getCurrentSeller()
-        val sellerId = if (current.role == Role.ADMIN) postRequestDTO.sellerId!! else current.sellerId!!
+        val sellerId = if (current.role == Role.ADMIN) postRequestDTO.sellerId ?: current.sellerId!! else current.sellerId!!
         val seller = findSellerById(sellerId)
         val post = createPostEntity(postRequestDTO, seller)
         val savedPost = postRepository.save(post)
