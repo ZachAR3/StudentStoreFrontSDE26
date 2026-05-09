@@ -20,8 +20,8 @@ interface SellerRepository: JpaRepository<Seller, Long> {
         WHERE s.isEnabled = true
         AND s.sellerId <> :excludeSellerId
         AND (
-            LOWER(s.name) LIKE LOWER(CONCAT('%', :query, '%'))
-            OR LOWER(s.email) LIKE LOWER(CONCAT('%', :query, '%'))
+            LOWER(s.name) LIKE LOWER(CONCAT('%', :query, '%')) ESCAPE '!'
+            OR LOWER(s.email) LIKE LOWER(CONCAT('%', :query, '%')) ESCAPE '!'
         )
         """
     )

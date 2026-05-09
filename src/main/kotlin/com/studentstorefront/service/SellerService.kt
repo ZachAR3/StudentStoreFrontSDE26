@@ -88,7 +88,7 @@ class SellerService(
         }
         val current = getCurrentSeller()
         return sellerRepository.searchEnabledSellers(
-            normalizedQuery,
+            escapeLike(normalizedQuery),
             current.sellerId!!,
             pageable
         ).map { mapToResponseDTO(it) }
@@ -168,6 +168,9 @@ class SellerService(
         return sellerRepository.findById(sellerId)
             .orElseThrow { IllegalArgumentException("Seller not found with id: $sellerId") }
     }
+
+    private fun escapeLike(input: String): String =
+        input.replace("!", "!!").replace("%", "!%").replace("_", "!_")
 
     private fun normalizePhone(phone: String): String {
         val digits = phone.replace(Regex("\\D"), "")

@@ -40,8 +40,8 @@ interface PostRepository: JpaRepository<Post, Long> {
         AND (:category IS NULL OR p.category = :category)
         AND (
             :query IS NULL
-            OR LOWER(p.title) LIKE LOWER(CONCAT('%', :query, '%'))
-            OR LOWER(p.description) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(p.title) LIKE LOWER(CONCAT('%', :query, '%')) ESCAPE '!'
+            OR LOWER(p.description) LIKE LOWER(CONCAT('%', :query, '%')) ESCAPE '!'
         )
         """
     )

@@ -124,7 +124,7 @@ class PostService(
         val posts = when {
             normalizedQuery == null && category == null -> postRepository.findByIsSoldFalseAndStatus(PostStatus.ACTIVE, pageable)
             normalizedQuery == null && category != null -> postRepository.findByCategoryAndIsSoldFalseAndStatus(category, PostStatus.ACTIVE, pageable)
-            else -> postRepository.searchAvailablePosts(normalizedQuery, category, pageable)
+            else -> postRepository.searchAvailablePosts(escapeLike(normalizedQuery!!), category, pageable)
         }
 
         return posts.map { mapToResponseDTO(it) }
@@ -266,6 +266,9 @@ class PostService(
             phoneNumber = seller.phoneNumber
         )
     }
+
+    private fun escapeLike(input: String): String =
+        input.replace("!", "!!").replace("%", "!%").replace("_", "!_")
 
     private fun getCurrentSeller(): Seller {
         val email = SecurityContextHolder.getContext().authentication?.name
