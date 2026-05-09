@@ -34,10 +34,8 @@ class SellerController(
         return ResponseEntity.noContent().build()
     }
 
-    // TODO: SECURITY VULNERABILITY - This endpoint is currently publicly exposed in SecurityConfig.
-    // It should be restricted to ADMINs (e.g., via @PreAuthorize("hasRole('ADMIN')")) because public registration
-    // is properly handled by AuthController.
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     fun createSeller(@Valid @RequestBody sellerRequestDTO: SellerRequestDTO): ResponseEntity<SellerResponseDTO> {
         val createdSeller = sellerService.createSeller(sellerRequestDTO)
         return ResponseEntity.status(HttpStatus.CREATED).body(createdSeller)
@@ -75,10 +73,12 @@ class SellerController(
         return ResponseEntity.ok(seller)
     }
 
-    // TODO: SECURITY VULNERABILITY - This endpoint leaks user PII because it is completely unauthenticated.
-    // It is intended for the bot, so it MUST validate the 'X-Bot-Api-Key' header (like PostController.createPostAsBot).
     @GetMapping("/by-phone")
-    fun getSellerByPhone(@RequestParam phone: String): ResponseEntity<SellerResponseDTO> {
+    fun getSellerByPhone(
+        @RequestHeader("X-Bot-Api-Key") apiKey: String,
+        @RequestParam phone: String
+    ): ResponseEntity<SellerResponseDTO> {
+        if (apiKey != botApiKey) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         val seller = sellerService.getSellerByPhone(phone)
             ?: return ResponseEntity.notFound().build()
         return ResponseEntity.ok(seller)
