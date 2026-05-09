@@ -52,6 +52,10 @@ dependencies {
 	// Scheduling
 	implementation("org.springframework.boot:spring-boot-starter-quartz")
 
+	// Rate limiting
+	implementation("com.bucket4j:bucket4j-core:8.10.1")
+	implementation("com.github.ben-manes.caffeine:caffeine")
+
 	// Development tools
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
 
