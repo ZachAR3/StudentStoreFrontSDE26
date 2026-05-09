@@ -1,6 +1,7 @@
 package com.studentstorefront.entity
 
 import jakarta.persistence.*
+import java.security.SecureRandom
 import java.time.LocalDateTime
 
 @Entity
@@ -10,7 +11,7 @@ data class EmailVerificationToken(
     val id: Long? = null,
 
     @Column(nullable = false)
-    val code: String = (100000..999999).random().toString(),
+    val code: String = generateCode(),
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "seller_id", nullable = false)
@@ -24,4 +25,9 @@ data class EmailVerificationToken(
 
     @Column(nullable = false)
     val createdAt: LocalDateTime = LocalDateTime.now()
-)
+) {
+    companion object {
+        private val rng = SecureRandom()
+        fun generateCode(): String = (rng.nextInt(900000) + 100000).toString()
+    }
+}
