@@ -12,4 +12,6 @@ interface EmailVerificationTokenRepository : JpaRepository<EmailVerificationToke
     @Modifying
     @Query("DELETE FROM EmailVerificationToken t WHERE t.seller.email = :email")
     fun deleteAllBySellerEmail(email: String)
+
+    fun deleteBySellerSellerId(sellerId: Long)
 }

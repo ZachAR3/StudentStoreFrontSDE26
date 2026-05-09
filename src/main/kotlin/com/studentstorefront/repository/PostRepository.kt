@@ -74,6 +74,7 @@ interface PostRepository: JpaRepository<Post, Long> {
         UPDATE Post p
         SET p.status = com.studentstorefront.enums.PostStatus.ARCHIVED
         WHERE p.status = com.studentstorefront.enums.PostStatus.ACTIVE
+        AND p.isSold = false
         AND p.expiresAt IS NOT NULL
         AND p.expiresAt < :now
         """

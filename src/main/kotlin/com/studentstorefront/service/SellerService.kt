@@ -8,6 +8,7 @@ import com.studentstorefront.entity.Seller
 import com.studentstorefront.enums.Role
 import com.studentstorefront.repository.EmailVerificationTokenRepository
 import com.studentstorefront.repository.FavouriteRepository
+import com.studentstorefront.repository.PasswordResetTokenRepository
 import com.studentstorefront.repository.PostRepository
 import com.studentstorefront.repository.ReviewRepository
 import com.studentstorefront.repository.SellerRepository
@@ -27,7 +28,8 @@ class SellerService(
     private val favouriteRepository: FavouriteRepository,
     private val reviewRepository: ReviewRepository,
     private val passwordEncoder: PasswordEncoder,
-    private val emailVerificationTokenRepository: EmailVerificationTokenRepository
+    private val emailVerificationTokenRepository: EmailVerificationTokenRepository,
+    private val passwordResetTokenRepository: PasswordResetTokenRepository
 ) {
 
     fun createSellerWithToken(request: SellerRequestDTO): Pair<SellerResponseDTO, String> {
@@ -115,6 +117,8 @@ class SellerService(
         if (!sellerRepository.existsById(sellerId)) {
             throw IllegalArgumentException("Seller not found with id: $sellerId")
         }
+        emailVerificationTokenRepository.deleteBySellerSellerId(sellerId)
+        passwordResetTokenRepository.deleteBySellerSellerId(sellerId)
         favouriteRepository.deleteBySellerSellerId(sellerId)
         reviewRepository.deleteByReviewerSellerIdOrRevieweeSellerId(sellerId, sellerId)
         postRepository.clearBuyerReferences(sellerId)
@@ -135,6 +139,8 @@ class SellerService(
         }
 
         // Delete dependent rows before removing posts/account.
+        emailVerificationTokenRepository.deleteBySellerSellerId(seller.sellerId!!)
+        passwordResetTokenRepository.deleteBySellerSellerId(seller.sellerId!!)
         favouriteRepository.deleteBySellerSellerId(seller.sellerId!!)
         reviewRepository.deleteByReviewerSellerIdOrRevieweeSellerId(seller.sellerId!!, seller.sellerId!!)
         postRepository.clearBuyerReferences(seller.sellerId!!)

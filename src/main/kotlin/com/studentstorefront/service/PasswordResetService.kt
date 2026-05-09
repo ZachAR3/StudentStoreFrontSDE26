@@ -24,6 +24,7 @@ class PasswordResetService(
     fun requestReset(email: String) {
         val seller = sellerRepository.findByEmail(email) ?: return
 
+        tokenRepository.deleteBySellerSellerId(seller.sellerId!!)
         val resetToken = PasswordResetToken(seller = seller)
         tokenRepository.save(resetToken)
 
