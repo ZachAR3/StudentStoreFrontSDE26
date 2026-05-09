@@ -86,10 +86,12 @@ class SellerService(
         if (normalizedQuery.length < 2) {
             return Page.empty(pageable)
         }
-        val current = getCurrentSeller()
+        val currentSellerId = SecurityContextHolder.getContext().authentication
+            ?.name
+            ?.let { sellerRepository.findByEmail(it)?.sellerId }
         return sellerRepository.searchEnabledSellers(
             escapeLike(normalizedQuery),
-            current.sellerId!!,
+            currentSellerId,
             pageable
         ).map { mapToResponseDTO(it) }
     }
@@ -160,7 +162,8 @@ class SellerService(
     // Private helper methods
     private fun getCurrentSeller(): Seller {
         val email = SecurityContextHolder.getContext().authentication?.name
-        return sellerRepository.findByEmail(email.toString())
+            ?: throw IllegalArgumentException("Not authenticated")
+        return sellerRepository.findByEmail(email)
             ?: throw IllegalArgumentException("Authenticated seller not found")
     }
 

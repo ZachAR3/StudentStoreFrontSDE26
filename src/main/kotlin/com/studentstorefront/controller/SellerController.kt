@@ -51,7 +51,6 @@ class SellerController(
     }
 
     @GetMapping("/search")
-    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
     fun searchSellers(
         @RequestParam q: String,
         @PageableDefault(size = 10) pageable: Pageable
@@ -60,7 +59,6 @@ class SellerController(
     }
 
     @GetMapping("/{sellerId}")
-    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
     fun getSellerById(@PathVariable sellerId: Long): ResponseEntity<SellerResponseDTO> {
         val seller = sellerService.getSellerById(sellerId)
         return ResponseEntity.ok(seller)

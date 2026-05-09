@@ -272,7 +272,8 @@ class PostService(
 
     private fun getCurrentSeller(): Seller {
         val email = SecurityContextHolder.getContext().authentication?.name
-        return sellerRepository.findByEmail(email.toString())
+            ?: throw IllegalArgumentException("Not authenticated")
+        return sellerRepository.findByEmail(email)
             ?: throw IllegalArgumentException("Authenticated seller not found")
     }
 

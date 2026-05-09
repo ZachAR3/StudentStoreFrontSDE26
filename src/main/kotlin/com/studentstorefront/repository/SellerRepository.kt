@@ -18,7 +18,7 @@ interface SellerRepository: JpaRepository<Seller, Long> {
         """
         SELECT s FROM Seller s
         WHERE s.isEnabled = true
-        AND s.sellerId <> :excludeSellerId
+        AND (:excludeSellerId IS NULL OR s.sellerId <> :excludeSellerId)
         AND (
             LOWER(s.name) LIKE LOWER(CONCAT('%', :query, '%')) ESCAPE '!'
             OR LOWER(s.email) LIKE LOWER(CONCAT('%', :query, '%')) ESCAPE '!'
@@ -27,7 +27,7 @@ interface SellerRepository: JpaRepository<Seller, Long> {
     )
     fun searchEnabledSellers(
         @Param("query") query: String,
-        @Param("excludeSellerId") excludeSellerId: Long,
+        @Param("excludeSellerId") excludeSellerId: Long?,
         pageable: Pageable
     ): Page<Seller>
 }
