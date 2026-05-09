@@ -209,8 +209,7 @@ class PostService(
             title = postUpdateDTO.title ?: existingPost.title,
             price = postUpdateDTO.price ?: existingPost.price,
             description = postUpdateDTO.description ?: existingPost.description,
-            category = postUpdateDTO.category ?: existingPost.category,
-            isSold = postUpdateDTO.isSold ?: existingPost.isSold
+            category = postUpdateDTO.category ?: existingPost.category
         )
     }
 
