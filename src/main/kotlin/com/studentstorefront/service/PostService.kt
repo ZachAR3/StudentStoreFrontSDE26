@@ -44,7 +44,7 @@ class PostService(
         val post = createPostEntity(postRequestDTO, seller)
         val savedPost = postRepository.save(post)
         savePostMedia(savedPost, postRequestDTO.imageUrlList, postRequestDTO.imageHashList)
-        return mapToResponseDTO(savedPost)
+        return mapToResponseDTO(savedPost, current.sellerId)
     }
 
     fun createPostWithImages(
@@ -78,7 +78,7 @@ class PostService(
             throw RuntimeException("Failed to upload images")
         }
 
-        return mapToResponseDTO(savedPost)
+        return mapToResponseDTO(savedPost, current.sellerId)
     }
 
     fun createPostAsBot(postRequestDTO: PostRequestDTO): PostResponseDTO {
@@ -93,33 +93,38 @@ class PostService(
 
     @Transactional(readOnly = true)
     fun getAllPosts(pageable: Pageable): Page<PostResponseDTO> {
-        return postRepository.findAll(pageable).map { mapToResponseDTO(it) }
+        val currentSellerId = getCurrentSellerIdOrNull()
+        return postRepository.findAll(pageable).map { mapToResponseDTO(it, currentSellerId) }
     }
 
     @Transactional(readOnly = true)
     fun getPostById(postId: Long): PostResponseDTO {
         val post = findPostById(postId)
-        return mapToResponseDTO(post)
+        return mapToResponseDTO(post, getCurrentSellerIdOrNull())
     }
 
     @Transactional(readOnly = true)
     fun getPostsByCategory(category: Category, pageable: Pageable): Page<PostResponseDTO> {
-        return postRepository.findByCategoryAndStatus(category, PostStatus.ACTIVE, pageable).map { mapToResponseDTO(it) }
+        val currentSellerId = getCurrentSellerIdOrNull()
+        return postRepository.findByCategoryAndStatus(category, PostStatus.ACTIVE, pageable).map { mapToResponseDTO(it, currentSellerId) }
     }
 
     @Transactional(readOnly = true)
     fun getPostsBySeller(sellerId: Long, pageable: Pageable): Page<PostResponseDTO> {
-        return postRepository.findBySellerSellerId(sellerId, pageable).map { mapToResponseDTO(it) }
+        val currentSellerId = getCurrentSellerIdOrNull()
+        return postRepository.findBySellerSellerId(sellerId, pageable).map { mapToResponseDTO(it, currentSellerId) }
     }
 
     @Transactional(readOnly = true)
     fun getAvailablePosts(pageable: Pageable): Page<PostResponseDTO> {
-        return postRepository.findByIsSoldFalseAndStatus(PostStatus.ACTIVE, pageable).map { mapToResponseDTO(it) }
+        val currentSellerId = getCurrentSellerIdOrNull()
+        return postRepository.findByIsSoldFalseAndStatus(PostStatus.ACTIVE, pageable).map { mapToResponseDTO(it, currentSellerId) }
     }
 
     @Transactional(readOnly = true)
     fun searchAvailablePosts(query: String?, category: Category?, pageable: Pageable): Page<PostResponseDTO> {
         val normalizedQuery = query?.trim()?.takeIf { it.isNotEmpty() }
+        val currentSellerId = getCurrentSellerIdOrNull()
 
         val posts = when {
             normalizedQuery == null && category == null -> postRepository.findByIsSoldFalseAndStatus(PostStatus.ACTIVE, pageable)
@@ -127,7 +132,7 @@ class PostService(
             else -> postRepository.searchAvailablePosts(escapeLike(normalizedQuery!!), category, pageable)
         }
 
-        return posts.map { mapToResponseDTO(it) }
+        return posts.map { mapToResponseDTO(it, currentSellerId) }
     }
 
     fun updatePost(postId: Long, postUpdateDTO: PostUpdateDTO): PostResponseDTO {
@@ -140,7 +145,7 @@ class PostService(
             savePostMedia(savedPost, postUpdateDTO.imageUrlList, null)
 
         }
-        return mapToResponseDTO(savedPost)
+        return mapToResponseDTO(savedPost, getCurrentSellerIdOrNull())
     }
 
     fun deletePost(postId: Long) {
@@ -166,7 +171,7 @@ class PostService(
         val updatedPost = post.copy(isSold = true, buyer = buyer, soldAt = LocalDateTime.now())
         val savedPost = postRepository.save(updatedPost)
         botNotificationService.sendSellerReviewRequest(savedPost)
-        return mapToResponseDTO(savedPost)
+        return mapToResponseDTO(savedPost, getCurrentSellerIdOrNull())
     }
 
     fun renewPost(postId: Long): PostResponseDTO {
@@ -176,7 +181,7 @@ class PostService(
             expiresAt = LocalDateTime.now().plusDays(2),
             reminderSentAt = null
         )
-        return mapToResponseDTO(postRepository.save(renewed))
+        return mapToResponseDTO(postRepository.save(renewed), getCurrentSellerIdOrNull())
     }
 
     // Private helper methods for cleaner code
@@ -238,7 +243,7 @@ class PostService(
         })
     }
 
-    private fun mapToResponseDTO(post: Post): PostResponseDTO {
+    internal fun mapToResponseDTO(post: Post, currentSellerId: Long? = null): PostResponseDTO {
         return PostResponseDTO(
             postId = post.postId!!,
             title = post.title,
@@ -254,7 +259,9 @@ class PostService(
             expiresAt = post.expiresAt,
             soldAt = post.soldAt,
             seller = mapSellerToResponseDTO(post.seller!!),
-            buyer = post.buyer?.let { mapSellerToResponseDTO(it) }
+            buyer = post.buyer?.let { mapSellerToResponseDTO(it) },
+            isFavourited = currentSellerId != null &&
+                favouriteRepository.existsBySellerSellerIdAndPostPostId(currentSellerId, post.postId!!)
         )
     }
 
@@ -275,6 +282,11 @@ class PostService(
             ?: throw IllegalArgumentException("Not authenticated")
         return sellerRepository.findByEmail(email)
             ?: throw IllegalArgumentException("Authenticated seller not found")
+    }
+
+    private fun getCurrentSellerIdOrNull(): Long? {
+        val email = SecurityContextHolder.getContext().authentication?.name ?: return null
+        return sellerRepository.findByEmail(email)?.sellerId
     }
 
     private fun assertOwnerOrAdmin(post: Post) {

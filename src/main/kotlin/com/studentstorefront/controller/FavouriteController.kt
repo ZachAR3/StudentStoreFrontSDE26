@@ -1,5 +1,6 @@
 package com.studentstorefront.controller
 
+import com.studentstorefront.dto.response.PostResponseDTO
 import com.studentstorefront.service.FavouriteService
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
@@ -14,9 +15,8 @@ class FavouriteController(
 
     @GetMapping
     @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
-    fun getFavouritePostIds(): ResponseEntity<List<Long>> {
-        val postIds = favouriteService.getFavouritePostIds()
-        return ResponseEntity.ok(postIds)
+    fun getFavouritePosts(): ResponseEntity<List<PostResponseDTO>> {
+        return ResponseEntity.ok(favouriteService.getFavouritePosts())
     }
 
     @PostMapping("/{postId}")
