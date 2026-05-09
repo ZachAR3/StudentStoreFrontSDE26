@@ -7,6 +7,7 @@ import com.studentstorefront.dto.request.ResetPasswordRequestDTO
 import com.studentstorefront.dto.request.SellerRequestDTO
 import com.studentstorefront.dto.request.VerifyEmailRequestDTO
 import com.studentstorefront.dto.response.AuthResponseDTO
+import com.studentstorefront.dto.response.SellerResponseDTO
 import com.studentstorefront.dto.response.VerificationRequiredResponseDTO
 import com.studentstorefront.service.EmailService
 import com.studentstorefront.service.EmailVerificationService
@@ -90,6 +91,9 @@ class AuthController(
 
         return ResponseEntity.ok(authResponse)
     }
+
+    @GetMapping("/me")
+    fun getMe(): ResponseEntity<SellerResponseDTO> = ResponseEntity.ok(sellerService.getMe())
 
     @PostMapping("/forgot-password")
     fun forgotPassword(@Valid @RequestBody request: ForgotPasswordRequestDTO): ResponseEntity<Map<String, String>> {

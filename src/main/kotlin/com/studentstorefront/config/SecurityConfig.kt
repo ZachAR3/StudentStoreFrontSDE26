@@ -27,6 +27,7 @@ class SecurityConfig(
             .authorizeHttpRequests { auth ->
                 auth
                     // Public API endpoints
+                    .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
                     .requestMatchers("/api/auth/**").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/posts/**").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/sellers/*").permitAll() // profiles, search, by-phone (API Key checked in controller)

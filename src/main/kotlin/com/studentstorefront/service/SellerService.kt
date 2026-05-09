@@ -62,6 +62,9 @@ class SellerService(
     }
 
     @Transactional(readOnly = true)
+    fun getMe(): SellerResponseDTO = mapToResponseDTO(getCurrentSeller())
+
+    @Transactional(readOnly = true)
     fun getSellerById(sellerId: Long): SellerResponseDTO {
         val seller = findSellerById(sellerId)
         return mapToResponseDTO(seller)
