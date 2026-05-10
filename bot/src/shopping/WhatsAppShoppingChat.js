@@ -22,6 +22,7 @@ class WhatsAppShoppingChat {
         this.pageSize = Number(options.pageSize || process.env.SHOPPING_PAGE_SIZE || DEFAULT_PAGE_SIZE)
         this.appBaseUrl = options.appBaseUrl || process.env.APP_BASE_URL || 'http://localhost:8080'
         this.sessionTtlMs = Number(options.sessionTtlMs || DEFAULT_SESSION_TTL_MS)
+        this.sessions = new Map()
         this.messageToSession = new Map()
 
         setInterval(() => this.cleanupExpiredSessions(), Math.min(this.sessionTtlMs, 5 * 60 * 1000))
@@ -395,6 +396,7 @@ class WhatsAppShoppingChat {
 
     cleanupExpiredSessions() {
         const cutoff = Date.now() - this.sessionTtlMs
+        if (!this.sessions) return
         this.sessions.forEach((session, chatId) => {
             if (session.updatedAt < cutoff) this.clearSession(chatId)
         })

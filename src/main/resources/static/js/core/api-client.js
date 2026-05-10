@@ -1,11 +1,38 @@
 (function registerApiClient() {
     async function readJson(response) {
-        return response.json().catch(() => ({}));
+        const text = await response.text().catch(() => "");
+        if (!text) return {};
+        try {
+            return JSON.parse(text);
+        } catch (_error) {
+            return { message: text };
+        }
     }
 
     async function normalizeError(response, fallbackMessage) {
         const details = await readJson(response);
-        const error = new Error(details.message || fallbackMessage || "Request failed");
+        const messages = [];
+        if (details.message) messages.push(details.message);
+        if (details.error && details.error !== details.message) messages.push(details.error);
+        if (Array.isArray(details.errors)) {
+            details.errors.forEach((item) => {
+                if (typeof item === "string") messages.push(item);
+                else if (item?.message) messages.push(item.message);
+                else if (item?.defaultMessage) messages.push(item.defaultMessage);
+            });
+        } else if (details.errors && typeof details.errors === "object") {
+            Object.entries(details.errors).forEach(([field, value]) => {
+                const text = Array.isArray(value) ? value.join(", ") : String(value);
+                messages.push(`${field}: ${text}`);
+            });
+        }
+        if (details.detail) messages.push(`Detail: ${details.detail}`);
+        if (details.code) messages.push(`Code: ${details.code}`);
+
+        const message = messages.length > 0
+            ? messages.join(" ")
+            : `${fallbackMessage || "Request failed"} (${response.status} ${response.statusText || "HTTP error"})`;
+        const error = new Error(message);
         error.status = response.status;
         error.details = details;
         return error;
@@ -20,8 +47,11 @@
             if (token) {
                 headers.Authorization = `Bearer ${token}`;
             }
-            const response = await fetch(endpoint, { ...options, headers });
-            return response;
+            try {
+                return await fetch(endpoint, { ...options, headers });
+            } catch (error) {
+                throw new Error(`Network request failed for ${endpoint}: ${error.message}`);
+            }
         },
         readJson,
         async json(endpoint, options = {}, token = "", fallbackMessage = "Request failed") {

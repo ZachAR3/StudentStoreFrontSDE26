@@ -15,6 +15,17 @@ const langfuse = require('./services/langfuseService')
 const { startWebhookServer } = require('./services/webhookService')
 const { isDirectMessage, getContactNumber, getDirectChatId, normalizePhoneNumber } = require('./services/chatIdentity')
 
+console.log(`Starting WhatsApp bot process ${process.pid}`)
+process.on('unhandledRejection', error => {
+    console.error('Unhandled rejection:', error)
+})
+process.on('uncaughtException', error => {
+    console.error('Uncaught exception:', error)
+})
+process.on('exit', code => {
+    console.log(`WhatsApp bot process exiting with code ${code}`)
+})
+
 const NOT_CONSENTED_TO_MESSAGE_UPLOAD = new Set()
 const consentedUsers = new Set()
 
@@ -47,7 +58,23 @@ function persistConsentedUsers() {
     }
 }
 
-const client = new Client({ authStrategy: new LocalAuth() })
+const puppeteerOptions = {
+    args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu'
+    ]
+}
+
+if (process.env.WA_CHROME_EXECUTABLE_PATH) {
+    puppeteerOptions.executablePath = process.env.WA_CHROME_EXECUTABLE_PATH
+}
+
+const client = new Client({
+    authStrategy: new LocalAuth(),
+    puppeteer: puppeteerOptions
+})
 const shoppingChat = new WhatsAppShoppingChat(client, { 
     postService: springServices,
     stateStore: stateStore 

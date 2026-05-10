@@ -15,6 +15,7 @@ import com.studentstorefront.service.JwtService
 import com.studentstorefront.service.PasswordResetService
 import com.studentstorefront.service.SellerService
 import jakarta.validation.Valid
+import org.springframework.mail.MailException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.authentication.AuthenticationManager
@@ -24,7 +25,7 @@ import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = ["http://localhost:8080", "http://127.0.0.1:8080", "http://localhost:3000"])
+@CrossOrigin(originPatterns = ["http://localhost:*", "http://127.0.0.1:*", "http://free2:*", "https://*.duckdns.org"])
 class AuthController(
     private val authenticationManager: AuthenticationManager,
     private val jwtService: JwtService,
@@ -37,12 +38,22 @@ class AuthController(
 
     /**
      * Self-service registration endpoint
-     * Creates a new seller account and returns JWT token immediately
+     * Creates a new seller account and sends an email verification code.
      */
     @PostMapping("/register")
-    fun register(@Valid @RequestBody registerRequest: SellerRequestDTO): ResponseEntity<VerificationRequiredResponseDTO> {
+    fun register(@Valid @RequestBody registerRequest: SellerRequestDTO): ResponseEntity<Any> {
         val (createdSeller, code) = sellerService.createSellerWithToken(registerRequest)
-        emailService.sendVerificationEmail(createdSeller.email, code)
+        try {
+            emailService.sendVerificationEmail(createdSeller.email, code)
+        } catch (ex: MailException) {
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(
+                mapOf(
+                    "code" to "EMAIL_DELIVERY_FAILED",
+                    "message" to "Account was created, but the verification email could not be sent. Check MAIL_HOST, MAIL_USERNAME, MAIL_PASSWORD, and SMTP access.",
+                    "detail" to (ex.rootCause?.message ?: ex.message ?: "Mail sender rejected the message")
+                )
+            )
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(
             VerificationRequiredResponseDTO(email = createdSeller.email)
         )

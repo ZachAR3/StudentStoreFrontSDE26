@@ -74,7 +74,7 @@ tasks.withType<Test> {
 }
 
 tasks.bootRun {
-	environment("SPRING_PROFILES_ACTIVE", "local")
+	environment("SPRING_PROFILES_ACTIVE", System.getenv("SPRING_PROFILES_ACTIVE") ?: "local")
 }
 
 kotlin {
