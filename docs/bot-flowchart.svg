@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Bot Listing Flow</title>
+  <desc id="desc">Flow chart of the implemented WhatsApp bot listing flow using standard terminals, processes, and decisions.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#315a88"/>
+    </marker>
+    <style>
+      .title { font: 700 34px Inter, Segoe UI, Arial, sans-serif; fill: #12355b; }
+      .subtitle { font: 500 16px Inter, Segoe UI, Arial, sans-serif; fill: #4d6780; }
+      .node { fill: #ffffff; stroke: #b9cbe0; stroke-width: 2.4; }
+      .process { rx: 22; ry: 22; }
+      .terminal { fill: #f7fbff; }
+      .decision { fill: #fffaf0; stroke: #d8b56a; }
+      .label { font: 700 18px Inter, Segoe UI, Arial, sans-serif; fill: #12355b; }
+      .small { font: 500 14px Inter, Segoe UI, Arial, sans-serif; fill: #58708a; }
+      .yn { font: 600 14px Inter, Segoe UI, Arial, sans-serif; fill: #315a88; }
+      .arrow { fill: none; stroke: #315a88; stroke-width: 3.5; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <text x="80" y="72" class="title">Bot Listing Flow</text>
+  <text x="80" y="102" class="subtitle">Implemented listing path in the WhatsApp bot</text>
+
+  <rect x="220" y="140" width="340" height="82" rx="41" ry="41" class="node terminal"/>
+  <text x="390" y="173" text-anchor="middle" class="label">Target-group message</text>
+  <text x="390" y="198" text-anchor="middle" class="small">Incoming seller message</text>
+
+  <rect x="220" y="270" width="340" height="96" class="node process"/>
+  <text x="390" y="310" text-anchor="middle" class="label">Collect draft</text>
+  <text x="390" y="336" text-anchor="middle" class="small">Store text and images in state</text>
+
+  <rect x="220" y="414" width="340" height="96" class="node process"/>
+  <text x="390" y="454" text-anchor="middle" class="label">Inactivity timer</text>
+  <text x="390" y="480" text-anchor="middle" class="small">Wait, then trigger processing</text>
+
+  <rect x="220" y="558" width="340" height="96" class="node process"/>
+  <text x="390" y="598" text-anchor="middle" class="label">LLM classification</text>
+  <text x="390" y="624" text-anchor="middle" class="small">Detect whether the draft is a listing</text>
+
+  <polygon points="390,690 510,770 390,850 270,770" class="node decision"/>
+  <text x="390" y="764" text-anchor="middle" class="label">Listing?</text>
+
+  <rect x="70" y="730" width="160" height="78" rx="39" ry="39" class="node terminal"/>
+  <text x="150" y="763" text-anchor="middle" class="label">Discarded</text>
+  <text x="150" y="786" text-anchor="middle" class="small">Not a listing</text>
+
+  <polygon points="860,690 980,770 860,850 740,770" class="node decision"/>
+  <text x="860" y="764" text-anchor="middle" class="label">Consent on file?</text>
+
+  <rect x="700" y="220" width="320" height="96" class="node process"/>
+  <text x="860" y="260" text-anchor="middle" class="label">Consent request</text>
+  <text x="860" y="286" text-anchor="middle" class="small">Send YES/NO DM to the seller</text>
+
+  <polygon points="860,360 980,440 860,520 740,440" class="node decision"/>
+  <text x="860" y="434" text-anchor="middle" class="label">Consent granted?</text>
+
+  <rect x="1070" y="170" width="260" height="78" rx="39" ry="39" class="node terminal"/>
+  <text x="1200" y="203" text-anchor="middle" class="label">Processing stopped</text>
+  <text x="1200" y="226" text-anchor="middle" class="small">No consent</text>
+
+  <rect x="700" y="570" width="320" height="96" class="node process"/>
+  <text x="860" y="610" text-anchor="middle" class="label">Listing submission</text>
+  <text x="860" y="636" text-anchor="middle" class="small">Parse listing, resolve media, prepare post</text>
+
+  <polygon points="860,700 980,780 860,860 740,780" class="node decision" transform="translate(420,0)"/>
+  <text x="1280" y="774" text-anchor="middle" class="label">Seller registered?</text>
+
+  <rect x="1370" y="735" width="170" height="78" rx="39" ry="39" class="node terminal"/>
+  <text x="1455" y="768" text-anchor="middle" class="label">Post created</text>
+  <text x="1455" y="791" text-anchor="middle" class="small">Marketplace entry</text>
+
+  <rect x="1110" y="818" width="340" height="78" rx="39" ry="39" class="node terminal"/>
+  <text x="1280" y="850" text-anchor="middle" class="label">Registration pending</text>
+  <text x="1280" y="873" text-anchor="middle" class="small">Wait for signup, then retry</text>
+
+  <path class="arrow" d="M 390 222 L 390 262"/>
+  <path class="arrow" d="M 390 366 L 390 406"/>
+  <path class="arrow" d="M 390 510 L 390 550"/>
+  <path class="arrow" d="M 390 654 L 390 682"/>
+
+  <path class="arrow" d="M 270 770 L 238 770"/>
+  <text x="245" y="752" class="yn">No</text>
+
+  <path class="arrow" d="M 510 770 L 732 770"/>
+  <text x="610" y="752" class="yn">Yes</text>
+
+  <path class="arrow" d="M 860 690 L 860 528"/>
+  <text x="874" y="610" class="yn">No</text>
+
+  <path class="arrow" d="M 860 360 L 860 324"/>
+  <path class="arrow" d="M 980 440 L 1192 440 L 1192 256"/>
+  <text x="1000" y="422" class="yn">No</text>
+
+  <path class="arrow" d="M 860 520 L 860 562"/>
+  <text x="874" y="538" class="yn">Yes</text>
+
+  <path class="arrow" d="M 980 770 L 1112 770"/>
+  <text x="1036" y="752" class="yn">Yes</text>
+
+  <path class="arrow" d="M 1280 700 L 1280 674 L 860 674 L 860 666"/>
+  <text x="1120" y="656" class="yn">Yes</text>
+
+  <path class="arrow" d="M 1280 860 L 1280 810"/>
+  <text x="1294" y="842" class="yn">No</text>
+
+  <path class="arrow" d="M 1400 780 L 1362 780"/>
+  <text x="1362" y="762" class="yn">Yes</text>
+</svg>
