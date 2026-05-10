@@ -34,8 +34,15 @@
     display: grid;
     gap: var(--sf-space-sm);
     grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--grid-min-item-width, 18rem)), 1fr));
+    justify-items: stretch;
     width: 100%;
     min-width: 0;
+}
+
+.layout-card-grid > .item-card:not(.restaurant-menu-card) {
+    width: 100%;
+    max-width: var(--grid-max-item-width, 22rem);
+    justify-self: start;
 }
 
 .layout-surface {
@@ -245,6 +252,14 @@
 }
 
 @media (max-width: 760px) {
+    .layout-page {
+        gap: var(--sf-space-md);
+    }
+
+    .layout-card-grid > .item-card:not(.restaurant-menu-card) {
+        max-width: none;
+    }
+
     .listing-detail {
         height: auto;
         min-height: 0;
@@ -255,6 +270,21 @@
     }
 
     .listing-detail-gallery {
-        min-height: 20rem;
+        min-height: 16rem;
+    }
+}
+
+@media (max-width: 560px) {
+    .layout-card-grid {
+        gap: var(--sf-space-xs);
+    }
+
+    .status-card,
+    .empty-state {
+        padding: var(--sf-space-lg) var(--sf-space-md);
+    }
+
+    .listing-detail-panel {
+        padding: var(--sf-space-sm);
     }
 }

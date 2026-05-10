@@ -98,7 +98,7 @@ Layout JSON region gaps should use `xs`, `sm`, `md`, `lg`, or `xl`; the layout r
 - The title bar should stay simple: brand, global search, selected/auth/user actions. Do not add global shortcuts for restaurant sample or created sites.
 - The global search is layout-runtime-aware: it must filter marketplace grids, favourites, profile listing lists, restaurant menus, and created-site/sample catalog grids. Empty states should switch to search-specific copy when a query filters all items out.
 - `.site-sidebar` is the persistent left navigation surface for Marketplace, Saved Items, Layout Builder, Support, and locally created sites. On mobile it becomes a compact horizontal navigation row.
-- Mobile header uses brand/actions plus a full-width search row under `880px`, then stacks actions under `560px`.
+- Mobile header uses brand/actions in a compact first row plus a full-width search row under `880px`. Under `560px`, action groups stay single-line and horizontally scrollable; do not stack auth/user actions into tall rows that consume the viewport.
 
 ### Buttons
 
@@ -122,6 +122,8 @@ Layout JSON region gaps should use `xs`, `sm`, `md`, `lg`, or `xl`; the layout r
 - Marketplace items use `.item-card` with a themed border, white surface, subtle elevation, and `--item-media-ratio`.
 - Marketplace listing cards are intentionally compact: image, one-line title, price, and square icon-only contact actions. Do not add date, seller name, description, or status text back into the card footer; those belong in listing detail/profile views.
 - Marketplace card footers use an internal grid lane for price plus `.listing-contact-actions`; keep the card clipped to itself and solve contact-button spacing with padding, not visible overflow. Marketplace contact actions use `.listing-contact-button` / `.listing-contact-button-whatsapp`, not Pico outline buttons.
+- Marketplace cards in `.layout-card-grid` must have a desktop max width (`--grid-max-item-width`, default `22rem`) so one item never scales into a massive card. Remove that cap on mobile so the card naturally fills the narrow viewport.
+- The listing favourite overlay `.fav-btn` is authenticated-only in the marketplace card template. Logged-out users should not see or interact with an invisible favourite hit area.
 - Restaurant menu cards reuse `.item-card` but add `.restaurant-menu-card`; they are allowed richer description/seller/add-button content and have their own responsive container-query rules.
 - Sales-site sections use `.sales-hero-section`, `.feature-strip`, `.contact-panel`, and `.announcement-bar`. They are full-row layout elements and must collapse cleanly on mobile.
 - Support page sections use `.support-page`, `.support-hero`, `.support-grid`, and `.support-card`; these should stay quiet and utility-focused, using normal surfaces rather than marketing-style hero treatment.
@@ -161,7 +163,7 @@ Layout JSON region gaps should use `xs`, `sm`, `md`, `lg`, or `xl`; the layout r
 
 ### Navigation
 
-- Header actions wrap instead of overflowing.
+- Header actions use no-wrap scrolling on mobile instead of overflowing or expanding the header vertically.
 - Created sites live in the left sidebar, not the title bar.
 - Support is available from both the sidebar and the footer.
 - The restaurant sample is a layout-builder template, not a global navigation shortcut.
@@ -208,15 +210,16 @@ Layout JSON region gaps should use `xs`, `sm`, `md`, `lg`, or `xl`; the layout r
 
 ## Responsive Rules
 
-- Header becomes brand/actions plus a full-width search row below `880px`, and stacks more tightly below `560px`.
+- Header becomes brand/actions plus a full-width search row below `880px`; below `560px`, actions remain compact no-wrap controls with horizontal overflow rather than stacked rows.
 - The persistent site sidebar becomes a horizontal scrollable navigation strip below `880px`.
-- The top header action cluster must not wrap into overlapping text on portrait phones; use explicit mobile stacking or grid groupings for auth/user controls.
+- The top header action cluster must not wrap into overlapping text or tall blocks on portrait phones; use no-wrap scrolling for auth/user controls and hide low-priority identity text when necessary.
 - The footer stacks naturally on small screens and makes its Support button full-width below `560px`.
 - Listing detail switches from two columns to one below `760px`.
 - Restaurant and sales heroes reduce spacing/type and collapse to one column below `760px`.
 - Builder preview and overlay controls should stay legible at narrow widths. Region labels and element toolbars may ellipsis or hide labels rather than overflowing the preview.
 - Restaurant menu cards collapse through container queries when narrow. Keep those container-query selectors scoped to `.restaurant-menu-card`; broad `.item-footer` rules can break marketplace listing footers.
 - Grids should use `repeat(auto-fit, minmax(min(100%, var(--grid-min-item-width)), 1fr))`.
+- Marketplace grid cards should pair the flexible grid with `justify-self: start` and a max-width cap on desktop to prevent one-item layouts from stretching; clear the cap below `760px`.
 - Avoid viewport-scaled fonts. Use media queries for intentional size changes.
 
 ## CSS Variable Naming
@@ -226,7 +229,7 @@ Layout JSON region gaps should use `xs`, `sm`, `md`, `lg`, or `xl`; the layout r
 - Spacing uses `--sf-space-*`.
 - Radius uses `--sf-radius-*`.
 - Shadows use `--sf-shadow-*`.
-- Component-specific variables are allowed only when they describe a true runtime input, for example `--item-media-ratio`, `--grid-min-item-width`, `--region-gap`, and `--profile-avatar-bg`.
+- Component-specific variables are allowed only when they describe a true runtime input, for example `--item-media-ratio`, `--grid-min-item-width`, `--grid-max-item-width`, `--region-gap`, and `--profile-avatar-bg`.
 
 ## Audit Notes
 

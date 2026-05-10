@@ -156,3 +156,23 @@
     font-size: 0.65rem;
     font-weight: 700;
 }
+
+@media (max-width: 560px) {
+    .auth-card {
+        padding: var(--sf-space-md);
+    }
+
+    .form-actions {
+        display: grid;
+        gap: var(--sf-space-xs);
+        margin-top: var(--sf-space-lg);
+    }
+
+    .form-actions button {
+        width: 100%;
+    }
+
+    .upload-dropzone {
+        padding: var(--sf-space-lg) var(--sf-space-md);
+    }
+}

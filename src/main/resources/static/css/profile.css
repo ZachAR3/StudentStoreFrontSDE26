@@ -233,3 +233,49 @@
         height: 12rem;
     }
 }
+
+@media (max-width: 560px) {
+    .profile-header,
+    .profile-review-panel,
+    .danger-zone,
+    .modal-card {
+        padding: var(--sf-space-md);
+    }
+
+    .profile-header {
+        gap: var(--sf-space-md);
+    }
+
+    .profile-avatar {
+        width: 4.5rem;
+        height: 4.5rem;
+        font-size: 1.45rem;
+    }
+
+    .profile-meta,
+    .profile-rating-strip {
+        justify-content: flex-start;
+        gap: var(--sf-space-xs);
+    }
+
+    .profile-meta-item,
+    .profile-rating-pill {
+        max-width: 100%;
+        overflow-wrap: anywhere;
+    }
+
+    .profile-listing-image {
+        height: 10rem;
+    }
+
+    .profile-listing-actions button,
+    .profile-review-card button {
+        width: 100%;
+    }
+
+    .modal-overlay {
+        align-items: flex-start;
+        padding: var(--sf-space-md);
+        overflow: auto;
+    }
+}

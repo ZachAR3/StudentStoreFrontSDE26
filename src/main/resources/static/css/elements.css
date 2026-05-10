@@ -756,6 +756,109 @@ button.is-whatsapp {
     font-size: 1.1rem;
 }
 
+@media (max-width: 760px) {
+    .restaurant-menu-hero,
+    .contact-panel {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+        gap: var(--sf-space-md);
+    }
+
+    .restaurant-menu-hero {
+        padding: var(--sf-space-lg);
+    }
+
+    .restaurant-menu-hero h1,
+    .sales-hero-section h1 {
+        font-size: 1.8rem;
+    }
+
+    .feature-strip {
+        grid-template-columns: 1fr;
+    }
+
+    .cart-summary,
+    .selected-cart-row {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .selected-cart-price {
+        justify-content: space-between;
+    }
+}
+
+@media (max-width: 560px) {
+    .filter-bar {
+        display: grid;
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+
+    .filter-group {
+        display: grid;
+        grid-template-columns: 4.5rem minmax(0, 1fr);
+        align-items: center;
+        width: 100%;
+    }
+
+    .filter-group select,
+    .filter-group input {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .filter-bar > button {
+        width: 100%;
+        margin-bottom: 0;
+    }
+
+    .item-card:not(.restaurant-menu-card) .item-content {
+        padding-inline: var(--sf-space-sm);
+    }
+
+    .item-card:not(.restaurant-menu-card) .item-footer {
+        min-height: 3rem;
+        gap: var(--sf-space-sm);
+        padding: 0.25rem var(--sf-space-sm) var(--sf-space-sm);
+    }
+
+    .listing-contact-button {
+        flex-basis: 2rem;
+        width: 2rem;
+        height: 2rem;
+    }
+
+    .fav-btn {
+        top: var(--sf-space-xs);
+        left: var(--sf-space-xs);
+        width: 2rem;
+        height: 2rem;
+    }
+
+    .section-heading,
+    .cart-summary {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .cart-summary span {
+        display: block;
+        margin-left: 0;
+    }
+
+    .cart-summary-actions {
+        justify-content: stretch;
+    }
+
+    .cart-summary-actions button,
+    .cart-summary-actions a,
+    .sales-hero-actions button,
+    .contact-panel-actions a {
+        width: 100%;
+    }
+}
+
 @container (max-width: 26rem) {
     .restaurant-menu-card {
         grid-template-columns: 1fr;

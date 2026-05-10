@@ -254,10 +254,10 @@ The frontend is a **Progressive Web App (PWA)** built for speed and simplicity.
 - **`css/custom.css`**: Aggregates the split stylesheet set.
 - **`css/tokens.css`**: Campus Editorial theme tokens, PicoCSS overrides, spacing, radii, shadows, control sizing, and layout values. See `docs/THEMEMAP.md`.
 - **`css/shell.css`**: Header, persistent left site navigation, support page/footer styling, responsive mobile shell, and top-level page spacing.
-- **`css/layout-system.css`**: Region/layout primitives, banners, empty/loading states, and listing-detail presentation.
-- **`css/elements.css`**: Marketplace listing cards, compact contact icon actions, carousels, selected-cart UI, restaurant-specific presentation styles, and reusable sales-site sections.
-- **`css/forms.css`**: Auth and create-listing form styling, password meters, upload UI.
-- **`css/profile.css`**: Profile header, rating summary pills, pending/recent review cards, listing rows, danger zone, buyer-search controls, and modal presentation.
+- **`css/layout-system.css`**: Region/layout primitives, responsive card-grid constraints, banners, empty/loading states, and listing-detail presentation.
+- **`css/elements.css`**: Marketplace listing cards, compact contact icon actions, carousels, mobile filter/card behavior, selected-cart UI, restaurant-specific presentation styles, and reusable sales-site sections.
+- **`css/forms.css`**: Auth and create-listing form styling, mobile form action stacking, password meters, upload UI.
+- **`css/profile.css`**: Profile header, rating summary pills, pending/recent review cards, listing rows, danger zone, buyer-search controls, and responsive modal presentation.
 - **`css/layout-builder.css`**: Builder canvas, palette, preview shell, mobile-safe toolbars, direct-manipulation affordances, and inspector styling.
 
 ### Layout Runtime
@@ -269,6 +269,8 @@ The current frontend is no longer a single hard-coded listings page. Marketplace
 - **Layout runtime**: Resolves a route into regions/elements, validates layout safety, maps layout spacing tokens into CSS variables, merges props with defaults, binds allowed data sources, and applies the global header search to catalog-like data sources (marketplace, favourites, profile listings, restaurant menu, and created-site sample catalogs).
 - **Content adapters**: Keep the generic layout system independent from Spring DTO details by converting posts into reusable catalog items.
 - **Full-width element handling**: Large composed sections such as catalog grids, profile summaries, restaurant headers, sales heroes, feature strips, contact panels, announcement bars, and empty states span the full row in responsive regions so headers and banners do not collapse into narrow grid columns.
+- **Card width constraints**: Marketplace cards keep the flexible `auto-fit` grid but cap individual card width on desktop (`--grid-max-item-width`, default `22rem`) so a single listing or favourite does not stretch across the entire content column. The cap is removed on narrow mobile screens so cards use the available phone width.
+- **Mobile shell rendering**: Under `880px`, the shell keeps brand/actions in a compact top row and search in a second full-width row. Under `560px`, action groups remain single-line horizontally scrollable controls instead of expanding the header into tall wrapped rows.
 
 ### Layout Builder
 
@@ -286,15 +288,15 @@ There is now a front-end-only `layoutBuilder` SPA view for editing layouts witho
 
 Created sites are local browser artifacts, not backend records. A created site stores a cloned layout with an id, name, context, timestamps, and route `createdSitePreview`. Users can create a site from the builder, open it from the persistent left site sidebar, reopen it in the builder, duplicate it, or delete it from the local library view. Viewing a created site uses the same layout runtime and sample data adapters as the builder preview.
 
-The left sidebar replaces the old title-bar Created Sites shortcut. It shows core destinations (Marketplace, Saved Items, Layout Builder, Support) plus a YouTube-subscriptions-style list of locally created sites. The sidebar becomes a compact horizontal nav on mobile, with horizontal scrolling preserved for long site names instead of wrapping into broken chips.
+The left sidebar replaces the old title-bar Created Sites shortcut. It shows core destinations (Marketplace, Saved Items, Layout Builder, Support) plus a YouTube-subscriptions-style list of locally created sites. The sidebar becomes a compact horizontal nav on mobile, with horizontal scrolling preserved for long site names instead of wrapping into broken chips. Header action groups use the same no-wrap mobile behavior so authenticated actions can scroll horizontally without increasing header height.
 
 ### SPA Navigation
 
 The Alpine SPA stores view state in the URL hash (`#view=...`, plus `site=...` for created site previews). `navigateTo` pushes history entries, and `popstate` restores the previous view so browser back/forward works for listing detail, builder, saved items, and created-site preview navigation.
 
 **Views (SPA):**
-- **Listings** — Homepage grid of compact item cards with category/sort filters and search. Uses the layout runtime plus Alpine.js image carousel behavior for multi-photo listings. Marketplace cards intentionally show only image, title, price, and square icon contact actions for Email and pre-filled WhatsApp `wa.me` links; opening the card shows full listing detail.
-- **Favourites** — Grid view of saved items, fully synced with the backend via `FavouriteController`. Accessible via the header icon.
+- **Listings** — Homepage grid of compact item cards with category/sort filters and search. Uses the layout runtime plus Alpine.js image carousel behavior for multi-photo listings. Marketplace cards intentionally show only image, title, price, and square icon contact actions for Email and pre-filled WhatsApp `wa.me` links; opening the card shows full listing detail. The favourite overlay is rendered only for authenticated users so logged-out cards do not reserve or expose a dead control area.
+- **Favourites** — Grid view of saved items, fully synced with the backend via `FavouriteController`. Accessible via the header icon. Single-item favourite grids use the same desktop max-card constraint as the main listings grid.
 - **Profile** — Displays seller info (avatar, name, email, phone, listing count), seller/buyer rating summaries, recent reviews, and posted listings. Own-profile includes listing management (mark sold with registered buyer selection, review buyer, delete), pending review prompts, and a "Danger Zone" for account deletion with password-verified confirmation modal.
 - **Login / Register / WhatsApp Login** — Authentication flows.
 - **Create Listing** — Authenticated form for posting new items. Features a drag-and-drop upload zone supporting up to 10 local images with live previews and drag-to-reorder functionality. Uploads are handled securely via the Spring Boot backend to Cloudinary.
