@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1832" height="360" viewBox="0 0 1832 360">
+  <text x="0" y="42" font-size="40" font-weight="700" fill="#ffffff">Remaining failure modes</text>
+  
+  <rect x="0" y="86" width="12" height="224" rx="6" fill="#66d9ff" />
+  <line x1="28" y1="150" x2="510" y2="150" stroke="rgba(255,255,255,0.22)" stroke-width="2" />
+  <text x="28" y="132" font-size="34" font-weight="700" fill="#ffffff">Image-only gating</text>
+  <text x="28" y="184" font-size="28" fill="#e6ecff" font-weight="600">Parsers recover images</text><text x="28" y="220" font-size="28" fill="#e6ecff" font-weight="600">well.</text>
+  <text x="28" y="262" font-size="23" fill="#b8c3e6" font-weight="400">Classifier hits: 0/8 and 0/8.</text>
+  
+  <rect x="646" y="86" width="12" height="224" rx="6" fill="#ff9f43" />
+  <line x1="674" y1="150" x2="1156" y2="150" stroke="rgba(255,255,255,0.22)" stroke-width="2" />
+  <text x="674" y="132" font-size="34" font-weight="700" fill="#ffffff">Troll listings</text>
+  <text x="674" y="184" font-size="28" fill="#e6ecff" font-weight="600">Some joke posts still</text><text x="674" y="220" font-size="28" fill="#e6ecff" font-weight="600">pass.</text>
+  <text x="674" y="262" font-size="23" fill="#b8c3e6" font-weight="400">Accepted: 6 Gemini, 3 GPT.</text>
+  
+  <rect x="1292" y="86" width="12" height="224" rx="6" fill="#8bffb0" />
+  <line x1="1320" y1="150" x2="1802" y2="150" stroke="rgba(255,255,255,0.22)" stroke-width="2" />
+  <text x="1320" y="132" font-size="34" font-weight="700" fill="#ffffff">Short slang posts</text>
+  <text x="1320" y="184" font-size="28" fill="#e6ecff" font-weight="600">Very short pricing slang</text><text x="1320" y="220" font-size="28" fill="#e6ecff" font-weight="600">still fails.</text>
+  <text x="1320" y="262" font-size="23" fill="#b8c3e6" font-weight="400">amb-040-jbl-speaker,</text><text x="1320" y="292" font-size="23" fill="#b8c3e6" font-weight="400">amb-041-printer-low-ink,</text>
+</svg>

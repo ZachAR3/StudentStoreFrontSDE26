@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="580" viewBox="0 0 1100 580">
+  <rect width="1100" height="580" fill="#ffffff" />
+  <text x="30" y="48" font-size="30" font-weight="700" fill="#14202b">Failure Counts</text>
+
+  <rect x="240" y="28" width="24" height="24" rx="5" fill="#1f6feb" />
+  <text x="274" y="47" font-size="22" fill="#23313f">Gemini</text>
+
+  <rect x="460" y="28" width="24" height="24" rx="5" fill="#d97706" />
+  <text x="494" y="47" font-size="22" fill="#23313f">GPT</text>
+
+  <text x="30" y="96" font-size="24" fill="#23313f">False positives</text>
+  <rect x="240" y="80" width="760" height="22" rx="6" fill="#e9eef3" />
+  <rect x="240" y="118" width="760" height="22" rx="6" fill="#e9eef3" />
+
+    <rect x="240" y="80" width="217.14285714285714" height="22" rx="6" fill="#1f6feb" />
+    <text x="467.1428571428571" y="96" font-size="22" fill="#23313f">6</text>
+    <rect x="240" y="118" width="108.57142857142857" height="22" rx="6" fill="#d97706" />
+    <text x="358.57142857142856" y="134" font-size="22" fill="#23313f">3</text>
+
+  <text x="30" y="210" font-size="24" fill="#23313f">False negatives</text>
+  <rect x="240" y="194" width="760" height="22" rx="6" fill="#e9eef3" />
+  <rect x="240" y="232" width="760" height="22" rx="6" fill="#e9eef3" />
+
+    <rect x="240" y="194" width="434.2857142857143" height="22" rx="6" fill="#1f6feb" />
+    <text x="684.2857142857142" y="210" font-size="22" fill="#23313f">12</text>
+    <rect x="240" y="232" width="760" height="22" rx="6" fill="#d97706" />
+    <text x="1010" y="248" font-size="22" fill="#23313f">21</text>
+
+  <text x="30" y="324" font-size="24" fill="#23313f">Invalid JSON</text>
+  <rect x="240" y="308" width="760" height="22" rx="6" fill="#e9eef3" />
+  <rect x="240" y="346" width="760" height="22" rx="6" fill="#e9eef3" />
+
+    <rect x="240" y="308" width="72.38095238095238" height="22" rx="6" fill="#1f6feb" />
+    <text x="322.3809523809524" y="324" font-size="22" fill="#23313f">2</text>
+    <rect x="240" y="346" width="0" height="22" rx="6" fill="#d97706" />
+    <text x="250" y="362" font-size="22" fill="#23313f">0</text>
+
+  <text x="30" y="438" font-size="24" fill="#23313f">Parse failures</text>
+  <rect x="240" y="422" width="760" height="22" rx="6" fill="#e9eef3" />
+  <rect x="240" y="460" width="760" height="22" rx="6" fill="#e9eef3" />
+
+    <rect x="240" y="422" width="108.57142857142857" height="22" rx="6" fill="#1f6feb" />
+    <text x="358.57142857142856" y="438" font-size="22" fill="#23313f">3</text>
+    <rect x="240" y="460" width="217.14285714285714" height="22" rx="6" fill="#d97706" />
+    <text x="467.1428571428571" y="476" font-size="22" fill="#23313f">6</text>
+</svg>

@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1832" height="930" viewBox="0 0 1832 930">
+  
+  <text x="42" y="62" font-size="42" font-weight="700" fill="#ffffff">Marketplace AI Evaluation</text>
+  <text x="42" y="118" font-size="32" font-weight="700" fill="#ffffff">Gemini leads overall</text>
+  <text x="42" y="164" font-size="30" fill="#e6ecff" font-weight="400">Better recall on weak listings and</text><text x="42" y="204" font-size="30" fill="#e6ecff" font-weight="400">stronger field recovery.</text>
+  <text x="42" y="304" font-size="96" font-weight="800" fill="#66d9ff">79.3%</text>
+  <text x="42" y="346" font-size="30" fill="#cdd6f4">Gemini robustness</text>
+  <text x="42" y="394" font-size="34" font-weight="700" fill="#f5f7ff">GPT: 76.0%</text>
+  <line x1="0" y1="430" x2="980" y2="430" stroke="rgba(255,255,255,0.22)" stroke-width="2" />
+
+  <text x="1080" y="62" font-size="40" font-weight="700" fill="#ffffff">Comparison</text>
+  <rect x="1080" y="98" width="18" height="18" rx="9" fill="#66d9ff" />
+  <text x="1110" y="113" font-size="24" fill="#f5f7ff" font-weight="700">Gemini</text>
+  <rect x="1238" y="98" width="18" height="18" rx="9" fill="#ff9f43" />
+  <text x="1268" y="113" font-size="24" fill="#f5f7ff" font-weight="700">GPT</text>
+  <line x1="1040" y1="136" x2="1780" y2="136" stroke="rgba(255,255,255,0.22)" stroke-width="2" />
+  
+  <text x="1088" y="174" font-size="26" fill="#f5f7ff" font-weight="700">Overall</text><text x="1088" y="202" font-size="26" fill="#f5f7ff" font-weight="700">robustness</text>
+  <rect x="1368" y="170" width="220" height="18" rx="9" fill="rgba(255,255,255,0.16)" />
+  <rect x="1368" y="170" width="175" height="18" rx="9" fill="#66d9ff" />
+  <text x="1602" y="186" font-size="24" fill="#f5f7ff" font-weight="700">79.3%</text>
+  <rect x="1368" y="206" width="220" height="18" rx="9" fill="rgba(255,255,255,0.16)" />
+  <rect x="1368" y="206" width="167" height="18" rx="9" fill="#ff9f43" />
+  <text x="1602" y="222" font-size="24" fill="#f5f7ff" font-weight="700">76.0%</text>
+
+  <text x="1088" y="292" font-size="26" fill="#f5f7ff" font-weight="700">Classification</text><text x="1088" y="320" font-size="26" fill="#f5f7ff" font-weight="700">accuracy</text>
+  <rect x="1368" y="288" width="220" height="18" rx="9" fill="rgba(255,255,255,0.16)" />
+  <rect x="1368" y="288" width="176" height="18" rx="9" fill="#66d9ff" />
+  <text x="1602" y="304" font-size="24" fill="#f5f7ff" font-weight="700">80.0%</text>
+  <rect x="1368" y="324" width="220" height="18" rx="9" fill="rgba(255,255,255,0.16)" />
+  <rect x="1368" y="324" width="154" height="18" rx="9" fill="#ff9f43" />
+  <text x="1602" y="340" font-size="24" fill="#f5f7ff" font-weight="700">70.0%</text>
+
+  <text x="1088" y="410" font-size="26" fill="#f5f7ff" font-weight="700">Missing-field</text><text x="1088" y="438" font-size="26" fill="#f5f7ff" font-weight="700">recovery</text>
+  <rect x="1368" y="406" width="220" height="18" rx="9" fill="rgba(255,255,255,0.16)" />
+  <rect x="1368" y="406" width="206" height="18" rx="9" fill="#66d9ff" />
+  <text x="1602" y="422" font-size="24" fill="#f5f7ff" font-weight="700">93.5%</text>
+  <rect x="1368" y="442" width="220" height="18" rx="9" fill="rgba(255,255,255,0.16)" />
+  <rect x="1368" y="442" width="191" height="18" rx="9" fill="#ff9f43" />
+  <text x="1602" y="458" font-size="24" fill="#f5f7ff" font-weight="700">87.0%</text>
+
+  <g transform="translate(0,548)">
+    
+  <text x="0" y="42" font-size="40" font-weight="700" fill="#ffffff">Remaining failure modes</text>
+  
+  <rect x="0" y="86" width="12" height="224" rx="6" fill="#66d9ff" />
+  <line x1="28" y1="150" x2="510" y2="150" stroke="rgba(255,255,255,0.22)" stroke-width="2" />
+  <text x="28" y="132" font-size="34" font-weight="700" fill="#ffffff">Image-only gating</text>
+  <text x="28" y="184" font-size="28" fill="#e6ecff" font-weight="600">Parsers recover images</text><text x="28" y="220" font-size="28" fill="#e6ecff" font-weight="600">well.</text>
+  <text x="28" y="262" font-size="23" fill="#b8c3e6" font-weight="400">Classifier hits: 0/8 and 0/8.</text>
+  
+  <rect x="646" y="86" width="12" height="224" rx="6" fill="#ff9f43" />
+  <line x1="674" y1="150" x2="1156" y2="150" stroke="rgba(255,255,255,0.22)" stroke-width="2" />
+  <text x="674" y="132" font-size="34" font-weight="700" fill="#ffffff">Troll listings</text>
+  <text x="674" y="184" font-size="28" fill="#e6ecff" font-weight="600">Some joke posts still</text><text x="674" y="220" font-size="28" fill="#e6ecff" font-weight="600">pass.</text>
+  <text x="674" y="262" font-size="23" fill="#b8c3e6" font-weight="400">Accepted: 6 Gemini, 3 GPT.</text>
+  
+  <rect x="1292" y="86" width="12" height="224" rx="6" fill="#8bffb0" />
+  <line x1="1320" y1="150" x2="1802" y2="150" stroke="rgba(255,255,255,0.22)" stroke-width="2" />
+  <text x="1320" y="132" font-size="34" font-weight="700" fill="#ffffff">Short slang posts</text>
+  <text x="1320" y="184" font-size="28" fill="#e6ecff" font-weight="600">Very short pricing slang</text><text x="1320" y="220" font-size="28" fill="#e6ecff" font-weight="600">still fails.</text>
+  <text x="1320" y="262" font-size="23" fill="#b8c3e6" font-weight="400">amb-040-jbl-speaker,</text><text x="1320" y="292" font-size="23" fill="#b8c3e6" font-weight="400">amb-041-printer-low-ink,</text>
+
+  </g>
+  <text x="0" y="912" font-size="24" fill="#b8c3e6">Parsers are stronger on images than the current text-only classifier score suggests.</text>
+</svg>

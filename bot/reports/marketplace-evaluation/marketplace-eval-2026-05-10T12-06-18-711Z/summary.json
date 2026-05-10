@@ -1,0 +1,46 @@
+{
+  "runId": "marketplace-eval-2026-05-10T12-06-18-711Z",
+  "startedAt": "2026-05-10T12:06:18.711Z",
+  "finishedAt": "2026-05-10T12:19:07.746Z",
+  "durationMs": 769035,
+  "datasetVersion": "student-marketplace-synthetic-v1",
+  "datasetHash": "7602226f109e52f3cb6b8c8babfa71856791ffc82c5f2711d5c0d5906af7a73f",
+  "summaries": {
+    "gemini": {
+      "classificationAccuracy": 0.8,
+      "parsingSuccessRate": 0.9615384615384616,
+      "jsonValidity": 0.98,
+      "missingFieldRecovery": 0.9347826086956522,
+      "imageOnlyHandling": 0.125,
+      "trollHandling": 0.6,
+      "acceptanceAccuracy": 0.82,
+      "overallRobustness": 0.7933628762541807,
+      "falsePositives": 6,
+      "falseNegatives": 12,
+      "invalidJsonCount": 2,
+      "parseFailureCount": 3,
+      "classificationErrorCount": 0,
+      "parseErrorCount": 2,
+      "avgClassificationLatencyMs": 2185,
+      "avgParseLatencyMs": 3070
+    },
+    "gpt": {
+      "classificationAccuracy": 0.7,
+      "parsingSuccessRate": 0.9230769230769231,
+      "jsonValidity": 1,
+      "missingFieldRecovery": 0.8695652173913043,
+      "imageOnlyHandling": 0.125,
+      "trollHandling": 0.7,
+      "acceptanceAccuracy": 0.76,
+      "overallRobustness": 0.7602257525083612,
+      "falsePositives": 3,
+      "falseNegatives": 21,
+      "invalidJsonCount": 0,
+      "parseFailureCount": 6,
+      "classificationErrorCount": 0,
+      "parseErrorCount": 0,
+      "avgClassificationLatencyMs": 631,
+      "avgParseLatencyMs": 1804
+    }
+  }
+}

@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="700" viewBox="0 0 1100 700">
+  <rect width="1100" height="700" fill="#ffffff" />
+  <text x="30" y="48" font-size="30" font-weight="700" fill="#14202b">Core Metrics</text>
+
+  <rect x="240" y="28" width="24" height="24" rx="5" fill="#1f6feb" />
+  <text x="274" y="47" font-size="22" fill="#23313f">Gemini</text>
+
+  <rect x="460" y="28" width="24" height="24" rx="5" fill="#d97706" />
+  <text x="494" y="47" font-size="22" fill="#23313f">GPT</text>
+
+  <text x="30" y="96" font-size="24" fill="#23313f">Classification accuracy</text>
+  <rect x="240" y="80" width="760" height="22" rx="6" fill="#e9eef3" />
+  <rect x="240" y="118" width="760" height="22" rx="6" fill="#e9eef3" />
+
+    <rect x="240" y="80" width="167.2" height="22" rx="6" fill="#1f6feb" />
+    <text x="417.2" y="96" font-size="22" fill="#23313f">22%</text>
+    <rect x="240" y="118" width="167.2" height="22" rx="6" fill="#d97706" />
+    <text x="417.2" y="134" font-size="22" fill="#23313f">22%</text>
+
+  <text x="30" y="210" font-size="24" fill="#23313f">Parsing success rate</text>
+  <rect x="240" y="194" width="760" height="22" rx="6" fill="#e9eef3" />
+  <rect x="240" y="232" width="760" height="22" rx="6" fill="#e9eef3" />
+
+    <rect x="240" y="194" width="0" height="22" rx="6" fill="#1f6feb" />
+    <text x="250" y="210" font-size="22" fill="#23313f">0%</text>
+    <rect x="240" y="232" width="0" height="22" rx="6" fill="#d97706" />
+    <text x="250" y="248" font-size="22" fill="#23313f">0%</text>
+
+  <text x="30" y="324" font-size="24" fill="#23313f">JSON validity</text>
+  <rect x="240" y="308" width="760" height="22" rx="6" fill="#e9eef3" />
+  <rect x="240" y="346" width="760" height="22" rx="6" fill="#e9eef3" />
+
+    <rect x="240" y="308" width="0" height="22" rx="6" fill="#1f6feb" />
+    <text x="250" y="324" font-size="22" fill="#23313f">0%</text>
+    <rect x="240" y="346" width="0" height="22" rx="6" fill="#d97706" />
+    <text x="250" y="362" font-size="22" fill="#23313f">0%</text>
+
+  <text x="30" y="438" font-size="24" fill="#23313f">Missing-field recovery</text>
+  <rect x="240" y="422" width="760" height="22" rx="6" fill="#e9eef3" />
+  <rect x="240" y="460" width="760" height="22" rx="6" fill="#e9eef3" />
+
+    <rect x="240" y="422" width="0" height="22" rx="6" fill="#1f6feb" />
+    <text x="250" y="438" font-size="22" fill="#23313f">0%</text>
+    <rect x="240" y="460" width="0" height="22" rx="6" fill="#d97706" />
+    <text x="250" y="476" font-size="22" fill="#23313f">0%</text>
+
+  <text x="30" y="552" font-size="24" fill="#23313f">Overall robustness</text>
+  <rect x="240" y="536" width="760" height="22" rx="6" fill="#e9eef3" />
+  <rect x="240" y="574" width="760" height="22" rx="6" fill="#e9eef3" />
+
+    <rect x="240" y="536" width="135.66000000000003" height="22" rx="6" fill="#1f6feb" />
+    <text x="385.66" y="552" font-size="22" fill="#23313f">18%</text>
+    <rect x="240" y="574" width="135.66000000000003" height="22" rx="6" fill="#d97706" />
+    <text x="385.66" y="590" font-size="22" fill="#23313f">18%</text>
+</svg>
