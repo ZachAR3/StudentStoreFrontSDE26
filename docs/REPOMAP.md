@@ -258,7 +258,7 @@ The frontend is a **Progressive Web App (PWA)** built for speed and simplicity.
 - **`css/elements.css`**: Marketplace listing cards, compact contact icon actions, carousels, selected-cart UI, restaurant-specific presentation styles, and reusable sales-site sections.
 - **`css/forms.css`**: Auth and create-listing form styling, password meters, upload UI.
 - **`css/profile.css`**: Profile header, rating summary pills, pending/recent review cards, listing rows, danger zone, buyer-search controls, and modal presentation.
-- **`css/layout-builder.css`**: Builder canvas, palette, preview, direct-manipulation affordances, and inspector styling.
+- **`css/layout-builder.css`**: Builder canvas, palette, preview shell, mobile-safe toolbars, direct-manipulation affordances, and inspector styling.
 
 ### Layout Runtime
 
@@ -278,7 +278,7 @@ There is now a front-end-only `layoutBuilder` SPA view for editing layouts witho
 - Drafts persist in `localStorage` under `storefront.layoutBuilderDraft.v1`.
 - Created sites persist in `localStorage` under `storefront.createdSites.v1`.
 - The builder can validate layouts, import/export JSON, preview at multiple widths, create saved sites, and apply updated layouts in-browser.
-- Desktop preview mode keeps the palette and inspector visible while rendering the site in a wide scrollable preview frame; mobile/tablet/free-width modes constrain the preview frame to device-like widths.
+- Desktop preview mode keeps the palette and inspector visible while fitting the site preview to the available canvas; mobile/tablet/free-width modes use device-like target widths that shrink natively when space is tighter. The preview frame uses layout-aware sizing so zoomed content does not get cropped or force horizontal scrolling, and the builder toolbars collapse into mobile-safe groupings in portrait layouts.
 - The palette includes marketplace, profile, restaurant sample, and reusable sales-site sections (`Sales Hero`, `Feature Strip`, `Contact Panel`, `Announcement Bar`) for common sales pages.
 - The restaurant sample is treated as a preconfigured builder template rather than a global title-bar shortcut, demonstrating how future subapps can reuse the same runtime without immediate backend changes.
 
@@ -286,7 +286,7 @@ There is now a front-end-only `layoutBuilder` SPA view for editing layouts witho
 
 Created sites are local browser artifacts, not backend records. A created site stores a cloned layout with an id, name, context, timestamps, and route `createdSitePreview`. Users can create a site from the builder, open it from the persistent left site sidebar, reopen it in the builder, duplicate it, or delete it from the local library view. Viewing a created site uses the same layout runtime and sample data adapters as the builder preview.
 
-The left sidebar replaces the old title-bar Created Sites shortcut. It shows core destinations (Marketplace, Saved Items, Layout Builder, Support) plus a YouTube-subscriptions-style list of locally created sites. The sidebar becomes a compact horizontal nav on mobile.
+The left sidebar replaces the old title-bar Created Sites shortcut. It shows core destinations (Marketplace, Saved Items, Layout Builder, Support) plus a YouTube-subscriptions-style list of locally created sites. The sidebar becomes a compact horizontal nav on mobile, with horizontal scrolling preserved for long site names instead of wrapping into broken chips.
 
 ### SPA Navigation
 
@@ -300,7 +300,7 @@ The Alpine SPA stores view state in the URL hash (`#view=...`, plus `site=...` f
 - **Create Listing** — Authenticated form for posting new items. Features a drag-and-drop upload zone supporting up to 10 local images with live previews and drag-to-reorder functionality. Uploads are handled securely via the Spring Boot backend to Cloudinary.
 - **Layout Builder** — Front-end-only layout editing workspace with palette, responsive preview, validation, JSON import/export, and draft persistence.
 - **Created Sites** — Local site library for viewing, editing, duplicating, and deleting layouts created from the builder.
-- **Created Site Preview** — Runtime-rendered view of a selected locally created site. Created-site routes use sample/catalog adapters and responsive full-width handling for banners and grids.
+- **Created Site Preview** — Runtime-rendered view of a selected locally created site. Created-site routes use sample/catalog adapters and responsive full-width handling for banners and grids, including the same mobile-safe builder preview sizing rules used in the editor.
 - **Restaurant Preview** — Sample restaurant/menu experience rendered through the same layout system using static sample data; primarily reached through the builder template flow.
 - **Support** — Static help page reachable from the sidebar and footer, with account/listing/safety guidance and a support email action.
 - **Listing Detail** — Full listing view with large image gallery, thumbnails, price, seller contact actions, seller profile link, and full description.

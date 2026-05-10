@@ -16,6 +16,7 @@
     align-items: center;
     flex-wrap: wrap;
     gap: var(--sf-space-xs);
+    min-width: 0;
     color: var(--sf-color-muted);
     font-size: 0.84rem;
 }
@@ -475,6 +476,7 @@
 .sales-hero-actions button,
 .contact-panel-actions a {
     margin-bottom: 0;
+    min-width: 0;
 }
 
 .feature-strip {
@@ -522,6 +524,7 @@
 .announcement-bar {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: var(--sf-space-sm);
     padding: var(--sf-space-sm) var(--sf-space-md);
     border: 1px solid color-mix(in srgb, var(--sf-color-accent) 28%, var(--sf-color-border));
@@ -536,21 +539,40 @@
 
 .restaurant-menu-card {
     display: grid;
-    grid-template-columns: 7rem minmax(0, 1fr);
+    grid-template-columns: 7.5rem minmax(0, 1fr);
     grid-template-areas:
         "media content"
         "media footer";
-    gap: var(--sf-space-md);
+    gap: var(--sf-space-sm) var(--sf-space-md);
     min-height: auto;
     padding: var(--sf-space-md);
     border-radius: var(--sf-radius-md);
+    background:
+        linear-gradient(135deg, color-mix(in srgb, var(--sf-color-surface) 92%, var(--sf-color-primary-soft)), var(--sf-color-surface) 52%),
+        var(--sf-color-surface);
     box-shadow: var(--sf-shadow-xs);
+    cursor: default;
+}
+
+.restaurant-menu-card:hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--sf-color-primary) 34%, var(--sf-color-border));
+}
+
+.restaurant-menu-card:has(.restaurant-add-button.is-selected) {
+    border-color: color-mix(in srgb, var(--sf-color-primary) 52%, var(--sf-color-border));
+    box-shadow: var(--sf-shadow-sm);
 }
 
 .restaurant-menu-card .item-card-media {
     grid-area: media;
     align-self: stretch;
     border-radius: var(--sf-radius-sm);
+    background: color-mix(in srgb, var(--sf-color-primary-soft) 45%, var(--sf-color-surface-muted));
+}
+
+.restaurant-menu-card .item-image {
+    object-fit: cover;
 }
 
 .restaurant-menu-card .item-content {
@@ -561,6 +583,8 @@
 
 .restaurant-menu-card .item-title {
     font-size: 1rem;
+    min-height: 0;
+    -webkit-line-clamp: 1;
 }
 
 .restaurant-menu-card .item-description {
@@ -570,13 +594,38 @@
 
 .restaurant-menu-card .item-footer {
     grid-area: footer;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--sf-space-sm);
     padding: 0;
+    align-items: end;
+    background: transparent;
+}
+
+.restaurant-menu-card .item-price-block,
+.restaurant-menu-card .item-footer > div:first-child {
+    min-width: 0;
+    display: grid;
+    gap: 0.1rem;
+}
+
+.restaurant-menu-card .item-actions-block {
+    display: flex;
     align-items: center;
+    justify-content: flex-end;
+    min-width: max-content;
 }
 
 .restaurant-menu-card .item-price {
     color: var(--sf-color-primary);
-    font-size: 1.05rem;
+    font-size: 1.12rem;
+    line-height: 1;
+}
+
+.restaurant-menu-card .item-meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .restaurant-menu-card .item-badge {
@@ -588,19 +637,30 @@
 }
 
 .restaurant-add-button {
-    min-width: 4rem;
-    min-height: 2.1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    justify-self: end;
+    min-width: 4.8rem;
+    min-height: 2.25rem;
     margin-bottom: 0;
-    padding: 0.3rem 0.8rem;
+    padding: 0.35rem 0.95rem;
     border-radius: 999px;
     background: var(--sf-color-primary);
     border-color: var(--sf-color-primary);
     color: var(--sf-color-inverse);
+    font-weight: 800;
+    box-shadow: 0 8px 18px color-mix(in srgb, var(--sf-color-primary) 20%, transparent);
 }
 
 .restaurant-add-button.is-selected {
     background: var(--sf-color-primary-strong);
     border-color: var(--sf-color-primary-strong);
+    box-shadow: 0 8px 18px color-mix(in srgb, var(--sf-color-primary-strong) 24%, transparent);
+}
+
+.restaurant-add-button:hover {
+    filter: brightness(0.97);
 }
 
 .cart-summary {
@@ -697,21 +757,25 @@ button.is-whatsapp {
 }
 
 @container (max-width: 26rem) {
-    .restaurant-menu-card .item-footer {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .restaurant-menu-card .item-actions-block {
-        justify-content: flex-start;
-    }
-
     .restaurant-menu-card {
         grid-template-columns: 1fr;
         grid-template-areas:
             "media"
             "content"
             "footer";
+    }
+
+    .restaurant-menu-card .item-card-media {
+        aspect-ratio: 4 / 3;
+    }
+
+    .restaurant-menu-card .item-footer {
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+    }
+
+    .restaurant-menu-card .item-actions-block {
+        justify-content: flex-end;
     }
 }
 
@@ -729,6 +793,22 @@ button.is-whatsapp {
 }
 
 @media (max-width: 760px) {
+    .filter-bar {
+        display: grid;
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+
+    .filter-group {
+        align-items: stretch;
+    }
+
+    .filter-group select,
+    .filter-group input {
+        width: 100%;
+        min-width: 0;
+    }
+
     .restaurant-menu-hero {
         grid-template-columns: 1fr;
         gap: var(--sf-space-md);
@@ -757,6 +837,17 @@ button.is-whatsapp {
     .sales-hero-section,
     .contact-panel {
         padding: var(--sf-space-lg);
+    }
+
+    .sales-hero-actions,
+    .contact-panel-actions {
+        align-items: stretch;
+    }
+
+    .sales-hero-actions button,
+    .contact-panel-actions a {
+        width: 100%;
+        text-align: center;
     }
 
     .announcement-bar {

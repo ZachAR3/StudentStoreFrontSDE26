@@ -1180,9 +1180,12 @@ document.addEventListener("alpine:init", () => {
                 this.builder.previewWidth = window.Storefront.builder.previewWidths[mode] || this.builder.previewWidth;
             },
             builderPreviewStyle() {
+                const zoom = Number(this.builder.previewZoom) || 1;
+                const safeZoom = Math.max(zoom, 0.01);
                 return {
                     "--builder-preview-width": this.builder.previewWidth,
-                    "--builder-preview-zoom": this.builder.previewZoom
+                    "--builder-preview-zoom": zoom,
+                    "--builder-preview-zoom-fit-width": `${100 / safeZoom}%`
                 };
             },
 

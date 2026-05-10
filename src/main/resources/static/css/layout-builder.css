@@ -22,6 +22,47 @@
     flex-wrap: wrap;
     gap: var(--sf-space-sm);
     align-items: center;
+    min-width: 0;
+}
+
+.builder-toolbar > select,
+.builder-toolbar > input[type="text"] {
+    width: auto;
+    min-width: min(100%, 12rem);
+    margin-bottom: 0;
+}
+
+.builder-toolbar > select {
+    flex: 1 1 15rem;
+}
+
+.builder-toolbar > input[type="text"] {
+    flex: 1 1 10rem;
+}
+
+.builder-toolbar > button {
+    flex: 0 0 auto;
+    margin-bottom: 0;
+    white-space: nowrap;
+}
+
+.builder-toolbar-preview {
+    align-items: stretch;
+}
+
+.builder-toolbar-regions {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 0.15rem;
+    scrollbar-width: thin;
+}
+
+.builder-toolbar-regions > button {
+    min-width: max-content;
+}
+
+.builder-primary-action {
+    min-width: 8.5rem;
 }
 
 .builder-create-site-bar {
@@ -43,6 +84,20 @@
 
 .builder-inline-label {
     margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sf-space-xs);
+    min-height: var(--sf-control-height);
+    white-space: nowrap;
+}
+
+.builder-inline-label input {
+    margin: 0;
+}
+
+.builder-inline-label input[type="range"] {
+    width: min(10rem, 32vw);
+    min-height: auto;
 }
 
 .builder-palette-group {
@@ -84,30 +139,29 @@
     border-radius: var(--sf-radius-md);
     padding: var(--sf-space-lg);
     background: color-mix(in srgb, var(--sf-color-background) 72%, var(--sf-color-border) 28%);
-    overflow: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
     min-height: 30rem;
+    min-width: 0;
 }
 
 .builder-preview-frame {
     width: var(--builder-preview-width, 100%);
-    max-width: 72rem;
+    max-width: min(var(--builder-preview-zoom-fit-width, 100%), 72rem);
+    min-width: 0;
     margin-inline: auto;
     padding: var(--sf-space-md);
     border-radius: var(--sf-radius-md);
     background: var(--sf-color-surface);
     container-type: inline-size;
-    transform-origin: top center;
-    transform: scale(var(--builder-preview-zoom, 1));
+    zoom: var(--builder-preview-zoom, 1);
     min-height: 24rem;
-}
-
-.layout-builder.is-desktop-preview .builder-preview-frame {
-    width: 72rem;
-    max-width: none;
 }
 
 .builder-editable-preview {
     gap: var(--sf-space-xl);
+    min-width: 0;
 }
 
 .builder-preview-region {
@@ -117,6 +171,7 @@
     border: 1px dashed color-mix(in srgb, var(--sf-border-color) 70%, var(--sf-color-primary));
     border-radius: var(--sf-radius-md);
     min-width: 0;
+    overflow: visible;
 }
 
 .builder-preview-region[data-layout-kind="responsive-grid"] > .builder-preview-element.is-full-width {
@@ -138,16 +193,28 @@
     color: var(--sf-color-muted);
     font-size: 0.72rem;
     transform: translateY(-50%);
+    max-width: calc(100% - (var(--sf-space-md) * 2));
+    min-width: 0;
 }
 
 .builder-region-label strong {
     color: var(--sf-color-text);
 }
 
+.builder-region-label strong,
+.builder-region-label span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .builder-preview-element {
     position: relative;
+    min-width: 0;
     border: 2px solid transparent;
     border-radius: var(--sf-radius-md);
+    container-type: inline-size;
     cursor: grab;
 }
 
@@ -169,7 +236,8 @@
     display: none;
     align-items: center;
     gap: var(--sf-space-xs);
-    max-width: calc(100% - 1rem);
+    max-width: min(calc(100% - 1rem), 24rem);
+    min-width: 0;
     padding: 0.25rem;
     border: 1px solid var(--sf-border-color);
     border-radius: 999px;
@@ -183,6 +251,8 @@
 }
 
 .builder-element-toolbar span {
+    flex: 1 1 auto;
+    min-width: 0;
     max-width: 12rem;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -190,6 +260,14 @@
     padding-inline: var(--sf-space-xs);
     font-size: 0.75rem;
     font-weight: 700;
+}
+
+.builder-element-toolbar .icon-button,
+.builder-region-label .icon-button {
+    flex: 0 0 1.8rem;
+    width: 1.8rem;
+    height: 1.8rem;
+    font-size: 0.8rem;
 }
 
 .builder-drop-target {
@@ -321,14 +399,11 @@
     .layout-builder {
         width: 100%;
         grid-template-columns: 1fr;
+        max-width: 100%;
     }
 
     .layout-builder.is-desktop-preview {
         grid-template-columns: 1fr;
-    }
-
-    .layout-builder.is-desktop-preview .builder-preview-frame {
-        width: min(72rem, calc(100vw - 4rem));
     }
 
     .builder-create-site-bar,
@@ -341,5 +416,106 @@
     .created-sites-header,
     .created-site-preview-bar {
         flex-direction: column;
+    }
+}
+
+@media (max-width: 640px) {
+    .builder-panel {
+        padding: var(--sf-space-sm);
+    }
+
+    .builder-toolbar {
+        gap: var(--sf-space-xs);
+    }
+
+    .builder-toolbar-actions,
+    .builder-toolbar-preview {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .builder-toolbar-actions > select,
+    .builder-toolbar-actions > input[type="text"],
+    .builder-toolbar-preview > input[type="text"],
+    .builder-toolbar-preview > .builder-inline-label {
+        grid-column: 1 / -1;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .builder-toolbar > button {
+        width: 100%;
+        min-width: 0;
+        padding-inline: var(--sf-space-xs);
+        white-space: normal;
+        line-height: 1.15;
+    }
+
+    .builder-primary-action {
+        grid-column: 1 / -1;
+    }
+
+    .builder-inline-label {
+        justify-content: space-between;
+        white-space: normal;
+    }
+
+    .builder-inline-label input[type="range"] {
+        width: min(11rem, 48vw);
+    }
+
+    .builder-preview-shell {
+        padding: var(--sf-space-sm);
+        min-height: 26rem;
+    }
+
+    .builder-preview-frame {
+        padding: var(--sf-space-sm);
+    }
+
+    .builder-preview-region {
+        padding: var(--sf-space-md);
+    }
+
+    .created-site-card-body {
+        padding: var(--sf-space-md);
+    }
+}
+
+@media (max-width: 420px) {
+    .builder-toolbar-actions,
+    .builder-toolbar-preview {
+        grid-template-columns: 1fr;
+    }
+
+    .builder-inline-label input[type="range"] {
+        width: min(100%, 9rem);
+    }
+}
+
+@container (max-width: 24rem) {
+    .builder-element-toolbar {
+        top: 0.35rem;
+        right: 0.35rem;
+        gap: 0.2rem;
+        padding: 0.2rem;
+    }
+
+    .builder-element-toolbar span {
+        max-width: 7rem;
+        font-size: 0.68rem;
+    }
+
+    .builder-element-toolbar .icon-button {
+        flex-basis: 1.55rem;
+        width: 1.55rem;
+        height: 1.55rem;
+        font-size: 0.72rem;
+    }
+}
+
+@container (max-width: 17rem) {
+    .builder-element-toolbar span {
+        display: none;
     }
 }

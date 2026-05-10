@@ -59,6 +59,7 @@
 .shell-actions,
 .shell-actions ul,
 .shell-actions li {
+    min-width: 0;
     margin: 0;
     padding: 0;
     list-style: none;
@@ -78,6 +79,7 @@
     align-items: center;
     flex-wrap: wrap;
     gap: var(--sf-space-sm);
+    min-width: 0;
 }
 
 .shell-pill-button,
@@ -90,6 +92,7 @@
 .shell-link-button {
     font-size: 0.95rem;
     text-decoration: none;
+    min-width: 0;
 }
 
 .seller-link {
@@ -421,6 +424,7 @@
         gap: var(--sf-space-xs);
         overflow-x: auto;
         padding-bottom: 0.15rem;
+        scrollbar-width: thin;
     }
 
     .site-sidebar-section + .site-sidebar-section {
@@ -433,6 +437,7 @@
 
     .site-nav-item {
         width: auto;
+        min-width: max-content;
         white-space: nowrap;
     }
 
@@ -453,11 +458,33 @@
 
     .shell-actions-list {
         justify-content: flex-start;
+        width: 100%;
     }
 
     .shell-auth-actions,
     .shell-user-actions {
+        display: grid;
+        width: 100%;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: var(--sf-space-xs);
+    }
+
+    .shell-user-actions .seller-link:first-child {
+        grid-column: 1 / -1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .shell-auth-actions .shell-pill-button,
+    .shell-user-actions .shell-pill-button,
+    .shell-user-actions .fav-nav-btn,
+    .shell-user-actions .shell-link-button {
+        display: inline-flex;
+        align-items: center;
+        width: 100%;
+        justify-content: center;
+        text-align: center;
     }
 
     .shell-pill-button,
@@ -478,5 +505,26 @@
 
     .app-footer button {
         width: 100%;
+    }
+}
+
+@media (max-width: 380px) {
+    .shell-brand {
+        gap: var(--sf-space-xs);
+    }
+
+    .shell-brand strong {
+        font-size: 0.95rem;
+    }
+
+    .shell-brand svg {
+        width: 1.85rem;
+        height: 1.85rem;
+        padding: 0.4rem;
+    }
+
+    .shell-auth-actions,
+    .shell-user-actions {
+        grid-template-columns: 1fr;
     }
 }

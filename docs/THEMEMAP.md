@@ -19,7 +19,7 @@ This file is the design-system reference for the Student-Store Front frontend. U
 - `src/main/resources/static/css/elements.css` handles marketplace cards, compact listing contact actions, filters, restaurant preview, selected-cart UI, reusable sales-site sections, and common element surfaces.
 - `src/main/resources/static/css/forms.css` handles auth cards, form actions, upload UI, password meter, and QR login.
 - `src/main/resources/static/css/profile.css` handles profile summary, rating pills, profile review panels/cards, profile listing rows, buyer search controls, danger zone, and modals.
-- `src/main/resources/static/css/layout-builder.css` handles the layout builder, responsive preview frame, palette/inspector panels, and created-site library.
+- `src/main/resources/static/css/layout-builder.css` handles the layout builder, responsive preview frame, mobile-safe control bars, palette/inspector panels, and created-site library.
 
 ## Palette
 
@@ -176,8 +176,10 @@ Layout JSON region gaps should use `xs`, `sm`, `md`, `lg`, or `xl`; the layout r
 ### Layout Builder
 
 - The builder must keep the palette and inspector visible in desktop preview mode.
-- Desktop preview renders inside a horizontally scrollable preview shell with a wide frame; it should not use viewport breakout widths that cover the site sidebar.
-- Mobile/tablet/free-width preview modes constrain the frame to device-like widths.
+- Desktop preview renders inside the available canvas width; it should not use viewport breakout widths or force horizontal preview scrolling.
+- Mobile/tablet/free-width preview modes treat their target widths as caps, shrinking natively to the canvas when space is tighter.
+- Builder preview zoom should not crop the rendered layout or create horizontal scroll. Use layout-aware sizing for the preview frame rather than transform-only scaling.
+- Builder control rows must collapse cleanly on portrait phones. Toolbars should wrap into compact grid or scrollable groups instead of letting select boxes, labels, or action buttons overlap.
 - Full-row builder/live elements include `catalog.grid`, `restaurant.menuGrid`, `restaurant.menuHero`, `profile.summary`, `profile.listingList`, `common.salesHero`, `common.featureStrip`, `common.contactPanel`, `common.announcementBar`, and `common.emptyState`.
 
 ### Status Badges
@@ -208,9 +210,11 @@ Layout JSON region gaps should use `xs`, `sm`, `md`, `lg`, or `xl`; the layout r
 
 - Header becomes brand/actions plus a full-width search row below `880px`, and stacks more tightly below `560px`.
 - The persistent site sidebar becomes a horizontal scrollable navigation strip below `880px`.
+- The top header action cluster must not wrap into overlapping text on portrait phones; use explicit mobile stacking or grid groupings for auth/user controls.
 - The footer stacks naturally on small screens and makes its Support button full-width below `560px`.
 - Listing detail switches from two columns to one below `760px`.
 - Restaurant and sales heroes reduce spacing/type and collapse to one column below `760px`.
+- Builder preview and overlay controls should stay legible at narrow widths. Region labels and element toolbars may ellipsis or hide labels rather than overflowing the preview.
 - Restaurant menu cards collapse through container queries when narrow. Keep those container-query selectors scoped to `.restaurant-menu-card`; broad `.item-footer` rules can break marketplace listing footers.
 - Grids should use `repeat(auto-fit, minmax(min(100%, var(--grid-min-item-width)), 1fr))`.
 - Avoid viewport-scaled fonts. Use media queries for intentional size changes.
@@ -237,6 +241,8 @@ The frontend is a static Alpine/Pico PWA in `src/main/resources/static`, not a s
 - Marketplace card footers previously mixed price, date, seller metadata, and Pico-styled contact links. They now use a dedicated compact footer and icon-only contact buttons to avoid clipping and keep the price aligned.
 - Title-bar shortcuts for restaurant sample and created sites were removed; created sites now appear in persistent sidebar navigation and restaurant sample is selected through the layout builder.
 - Builder-created sites and preview surfaces now treat hero/banner/sales elements as full-row sections so headers do not collapse inside responsive grids.
+- Builder preview sizing now uses layout-aware frame caps so the rendered page fits the canvas without side cropping or horizontal preview scrolling.
+- Builder toolbars were reorganized into action, preview, and region groups so portrait mobile layouts keep readable controls instead of overlapping text.
 - The builder palette now includes common sales-site sections: Sales Hero, Feature Strip, Contact Panel, and Announcement Bar.
 - Header search now filters all catalog-like layout data sources, including restaurant menus and created-site sample grids, not only the marketplace home route.
 - A Support page and app footer were added using shell-level theme primitives, with copyright text and a footer Support CTA.

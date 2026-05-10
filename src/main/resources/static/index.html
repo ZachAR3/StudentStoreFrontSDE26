@@ -337,6 +337,7 @@
                                                                     class="restaurant-add-button"
                                                                     x-show="element.props.enableCart"
                                                                     :class="{ 'is-selected': cart.isSelected(item.id) }"
+                                                                    :aria-pressed="cart.isSelected(item.id)"
                                                                     @click.prevent.stop="toggleCartItem(item)"
                                                                     x-text="cart.isSelected(item.id) ? 'Selected' : (element.props.cartButtonLabel || 'Add')">
                                                                 </button>
@@ -879,7 +880,7 @@
                 </aside>
 
                 <section class="builder-panel builder-canvas">
-                    <div class="builder-toolbar">
+                    <div class="builder-toolbar builder-toolbar-actions">
                         <select x-model="builder.selectedLayoutId" @change="selectBuilderTemplate(builder.selectedLayoutId)">
                             <template x-for="layout in Storefront.core.layoutRegistry.list()" :key="layout.id">
                                 <option :value="layout.id" x-text="layout.label"></option>
@@ -891,7 +892,7 @@
                         <button class="outline" @click="clearBuilderDraftStorage()">Reset Draft</button>
                         <button class="outline" @click="exportBuilderLayout()">Export JSON</button>
                         <button class="outline" @click="importBuilderLayout()">Import JSON</button>
-                        <button @click="applyBuilderPreview()">Apply Preview</button>
+                        <button class="builder-primary-action" @click="applyBuilderPreview()">Apply Preview</button>
                     </div>
 
                     <div class="builder-create-site-bar">
@@ -902,11 +903,11 @@
                         <button @click="createSiteFromDraft()">Create Site</button>
                     </div>
 
-                    <div class="builder-toolbar">
-                        <button class="outline" @click="setBuilderPreviewMode('mobile')">Mobile</button>
-                        <button class="outline" @click="setBuilderPreviewMode('tablet')">Tablet</button>
-                        <button class="outline" @click="setBuilderPreviewMode('desktop')">Desktop</button>
-                        <button class="outline" @click="setBuilderPreviewMode('free')">Free Width</button>
+                    <div class="builder-toolbar builder-toolbar-preview">
+                        <button class="outline" :class="{ secondary: builder.previewMode === 'mobile' }" @click="setBuilderPreviewMode('mobile')" :aria-pressed="builder.previewMode === 'mobile'">Mobile</button>
+                        <button class="outline" :class="{ secondary: builder.previewMode === 'tablet' }" @click="setBuilderPreviewMode('tablet')" :aria-pressed="builder.previewMode === 'tablet'">Tablet</button>
+                        <button class="outline" :class="{ secondary: builder.previewMode === 'desktop' }" @click="setBuilderPreviewMode('desktop')" :aria-pressed="builder.previewMode === 'desktop'">Desktop</button>
+                        <button class="outline" :class="{ secondary: builder.previewMode === 'free' }" @click="setBuilderPreviewMode('free')" :aria-pressed="builder.previewMode === 'free'">Free Width</button>
                         <input type="text" x-model="builder.previewWidth" x-show="builder.previewMode === 'free'" placeholder="960px">
                         <label class="builder-inline-label">
                             <input type="checkbox" x-model="builder.useSampleData">
@@ -917,7 +918,7 @@
                         </label>
                     </div>
 
-                    <div class="builder-toolbar">
+                    <div class="builder-toolbar builder-toolbar-regions">
                         <template x-for="region in builder.draftLayout.regions" :key="region.id">
                             <button class="outline" :class="{ secondary: builder.selectedRegionId === region.id }" @click="selectBuilderRegion(region.id)" x-text="region.id"></button>
                         </template>
