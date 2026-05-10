@@ -171,6 +171,8 @@ Current providers:
 
 `MessageParser(message, images, tracingParams)` sends text and downscaled image payloads directly to the chosen multimodal provider. It returns either a single listing object for backward compatibility or an array of listing objects when multiple distinct items are detected. The parse token budget is controlled by `LISTING_PARSE_MAX_TOKENS` and now defaults high enough for multi-item image sheets. `ImageDescriber(images, tracingParams)` remains available for image-description benchmarks and diagnostics, but the production listing flow does not duplicate work by describing images before parsing.
 
+Explicit DM `"post"` drafts also pass through `ContextClassifier` before parsing unless the draft was already marked as a confirmed listing by the group-capture flow. This closes the moderation gap where troll or irrelevant DM drafts could previously bypass classification and go straight to posting.
+
 Provider parsers now use a shared JSON extraction utility that can recover structured output from common LLM wrappers (for example code fences, leading explanations, or extra trailing text) instead of relying on a single greedy `{...}` match.
 
 ---
@@ -421,16 +423,18 @@ async processListing(contact, listingDraft)
 ```
 
 Orchestrates the full upload pipeline:
-1. Downscale image copies for LLM parsing.
-2. Call `MessageParser(rawListingText, llmImages, tracingParams)` to extract one or more structured listing items.
-3. Call `getSellerByPhone` to retrieve the `sellerId`.
-4. Resolve image hashes against backend-known media URLs, then upload only unresolved images.
-5. For each parsed listing item, pick item-scoped images using `imageIndexes` (fallback: all draft images) and call `createPost` as a distinct marketplace post.
+1. If `listingDraft.isListing` is not already `true`, call `ContextClassifier(messages[])` and reject the draft when it returns `NO`.
+2. Downscale image copies for LLM parsing.
+3. Call `MessageParser(rawListingText, llmImages, tracingParams)` to extract one or more structured listing items.
+4. Call `getSellerByPhone` to retrieve the `sellerId`.
+5. Resolve image hashes against backend-known media URLs, then upload only unresolved images.
+6. For each parsed listing item, pick item-scoped images using `imageIndexes` (fallback: all draft images) and call `createPost` as a distinct marketplace post.
 
 **Return values:**
 | Value | Meaning |
 |---|---|
 | `{ ok: true, postedCount }` | One or more listings created successfully |
+| `{ ok: false, reason: 'not-a-listing' }` | Draft was rejected by the context classifier before parsing |
 | `{ ok: false, reason: 'missing-price', parsedListing: { missingItems } }` | Parse detected item(s) missing price; bot asks seller for each missing item |
 | `'missing-price'` | Single-item missing-price path |
 | `'listing-conflict'` | Backend rejected because of existing/conflicting listing |

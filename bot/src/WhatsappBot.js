@@ -62,6 +62,7 @@ const listingSubmissionService = new ListingSubmissionService({
     resolveMediaUrlsByHash: springServices.resolveMediaUrlsByHash,
     getSellerByPhone: springServices.getSellerByPhone,
     messageParser: MessageParser,
+    contextClassifier: ContextClassifier,
     langfuse,
     appBaseUrl: process.env.APP_BASE_URL || 'http://localhost:8080'
 })
