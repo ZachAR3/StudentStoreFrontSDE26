@@ -374,7 +374,3 @@ Check:
 - PostgreSQL port: `5432`
 - Default DB name: `studentstorefront`
 - Java toolchain: `21`
-
-## License
-
-No project license file is currently present in the repository. Add one if this project is intended for redistribution or external collaboration.
