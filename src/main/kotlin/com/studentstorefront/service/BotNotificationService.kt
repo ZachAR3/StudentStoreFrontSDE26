@@ -55,6 +55,20 @@ class BotNotificationService(
         sendMessage(phone, message, "seller review request for post ${post.postId}")
     }
 
+    fun notifySellerRegistered(phoneNumber: String) {
+        client.post()
+            .uri("/webhook/seller-registered")
+            .header("X-Bot-Api-Key", botApiKey)
+            .bodyValue(mapOf("phoneNumber" to phoneNumber))
+            .retrieve()
+            .bodyToMono(Void::class.java)
+            .onErrorResume { ex ->
+                log.warn("Failed to notify bot of seller registration for $phoneNumber: ${ex.message}")
+                Mono.empty()
+            }
+            .subscribe()
+    }
+
     private fun sendMessage(phone: String, message: String, context: String) {
         client.post()
             .uri("/send-message")

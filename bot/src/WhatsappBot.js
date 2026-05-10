@@ -91,7 +91,7 @@ const listingSubmissionService = new ListingSubmissionService({
     messageParser: MessageParser,
     contextClassifier: ContextClassifier,
     langfuse,
-    appBaseUrl: process.env.APP_BASE_URL || 'http://localhost:8080'
+    appBaseUrl: process.env.APP_BASE_URL || 'https://store.zachar3.duckdns.org'
 })
 
 client.once('ready', () => {
@@ -117,7 +117,7 @@ function isKnownBotCommand(rawBody) {
     if (!body) return false
 
     if (/^login:[0-9a-f-]{36}$/i.test(body)) return true
-    if (/^(yes|no|registered)$/i.test(body)) return true
+    if (/^(yes|no)$/i.test(body)) return true
 
     return shoppingChat.isKnownCommandText(body)
 }
@@ -259,7 +259,7 @@ async function handleLoginCommand(msg, contact, normalizedPhoneNumber) {
     } else if (result === 'EXPIRED') {
         await client.sendMessage(msg.from, 'This login link has expired. Please request a new QR code.')
     } else if (result === 'PHONE_NOT_LINKED') {
-        await client.sendMessage(msg.from, 'This number is not registered. Please sign up at http://localhost:8080.')
+        await client.sendMessage(msg.from, 'This number is not registered. Please sign up at https://store.zachar3.duckdns.org/#view=register')
     } else if (result === 'ALREADY_USED') {
         await client.sendMessage(msg.from, 'This login link was already used.')
     } else {
@@ -304,7 +304,7 @@ async function handleDmPostFlow(msg, contact, phoneNumber) {
         return true
     }
 
-    if (state?.mode !== 'dm-post' || response === 'registered') return false
+    if (state?.mode !== 'dm-post') return false
     if (shoppingChat.isKnownCommandText(msg.body)) return false
 
     await collectListingInput(phoneNumber, msg)
@@ -332,18 +332,6 @@ async function handleConsentResponse(msg, contact, phoneNumber) {
         NOT_CONSENTED_TO_MESSAGE_UPLOAD.add(phoneNumber)
         stateStore.clear(phoneNumber)
         console.log('User declined consent')
-        return true
-    }
-
-    if (response === 'registered' && state.registrationPending) {
-        const registrationRetryMessage = 'Could not find your account. Make sure you registered with this phone number!'
-        await listingSubmissionService.submitListingDraft({
-            contact,
-            phoneNumber,
-            replyChatId: msg.from,
-            registrationMessage: registrationRetryMessage,
-            markConsentedOnSuccess: true
-        })
         return true
     }
 

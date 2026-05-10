@@ -347,7 +347,7 @@ class ListingSubmissionService {
         missingPriceMessage = 'I can tell what you are selling, but I still need a price before I can upload it. Reply with just the price (for example: "15"), and I will keep this draft for 24 hours.',
         listingConflictMessage = 'I could not upload this listing because the server reported a conflicting existing record. It may be an old or hidden listing, so please check your profile or edit the details and try again.',
         invalidListingMessage = 'This draft does not look like a real marketplace listing, so I did not post it. Send the item name, price, category, and a short description, then try again.',
-        registrationMessage = `You need to register first! Visit ${this.appBaseUrl} and click Sign Up. Reply "registered" when done and I will upload your listing automatically.`,
+        registrationMessage = `You need to register first! Visit ${this.appBaseUrl} and click Sign Up. Once you verify your email, your listing will be uploaded automatically.`,
         markConsentedOnSuccess = false,
         clearStateOnSuccess = true,
         clearStateOnFailure = true,

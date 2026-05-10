@@ -12,7 +12,8 @@ import java.time.LocalDateTime
 class EmailVerificationService(
     private val sellerRepository: SellerRepository,
     private val tokenRepository: EmailVerificationTokenRepository,
-    private val emailService: EmailService
+    private val emailService: EmailService,
+    private val botNotificationService: BotNotificationService
 ) {
 
     fun sendCode(email: String) {
@@ -34,7 +35,11 @@ class EmailVerificationService(
 
         token.used = true
         tokenRepository.save(token)
-        sellerRepository.save(token.seller.copy(isEnabled = true))
+        val enabledSeller = sellerRepository.save(token.seller.copy(isEnabled = true))
+
+        enabledSeller.phoneNumber.takeIf { it.isNotBlank() }?.let { phone ->
+            botNotificationService.notifySellerRegistered(phone)
+        }
     }
 
     fun resendCode(email: String) {
