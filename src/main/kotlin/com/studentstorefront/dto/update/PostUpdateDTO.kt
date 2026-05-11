@@ -20,5 +20,10 @@ data class PostUpdateDTO(
     @field:Size(min = 10, max = 1000, message = "Description must be between 10 and 1000 characters")
     val description: String? = null,
 
-    val category: Category? = null
+    val category: Category? = null,
+
+    val imageOrder: List<PostImageReferenceDTO>? = null,
+
+    val existingImageUrls: List<@NotBlank(message = "Existing image URL must not be blank")
+    @URL(message = "Existing image URL must be valid") String>? = null
 )

@@ -485,6 +485,47 @@ document.addEventListener("alpine:init", () => {
                 this.selectedListingImageIndex = 0;
                 this.navigateTo("listingDetail");
             },
+            isListingOwner(post) {
+                return this.isLoggedIn && post?.seller?.sellerId === this.user?.sellerId;
+            },
+            openCreateListingForm() {
+                this.resetCreateListingForm();
+                this.upload.returnView = "listings";
+                this.upload.returnListingId = null;
+                this.upload.returnPreviousView = "listings";
+                this.navigateTo("createListing");
+            },
+            startEditingPost(postId) {
+                const post = this.marketplace.posts.find((item) => item.postId === postId) ||
+                    this.profile.profilePosts.find((item) => item.postId === postId);
+                if (!post) {
+                    this.setError("Listing not found.");
+                    return;
+                }
+                if (!this.isListingOwner(post)) {
+                    this.setError("Only the original poster can edit this listing.");
+                    return;
+                }
+
+                this.resetCreateListingForm();
+                this.upload.newPost = {
+                    title: post.title || "",
+                    price: Number(post.price) || null,
+                    description: post.description || "",
+                    category: post.category || "OTHER"
+                };
+                this.upload.mediaItems = (post.mediaUrls || []).map((url, index) => ({
+                    id: `existing-${post.postId}-${index}`,
+                    kind: "existing",
+                    url,
+                    previewUrl: url
+                }));
+                this.upload.editingPostId = post.postId;
+                this.upload.returnView = this.currentView === "profile" ? "profile" : "listingDetail";
+                this.upload.returnListingId = this.currentView === "listingDetail" ? post.postId : null;
+                this.upload.returnPreviousView = this.currentView === "listingDetail" ? this.previousView : "listings";
+                this.navigateTo("createListing");
+            },
             canOpenListingDetail(element) {
                 return element?.props?.itemElement !== "restaurant.menuItemCard" &&
                     ["listings", "favourites"].includes(this.currentView);
@@ -520,7 +561,7 @@ document.addEventListener("alpine:init", () => {
                 if (post.price && post.price < 0.01) errors.push("Price must be greater than 0");
                 if (!post.category) errors.push("Category is required");
                 if (!post.description?.trim()) errors.push("Description is required");
-                if (this.upload.selectedImages.length === 0) errors.push("At least one image is required");
+                if (this.upload.mediaItems.length === 0) errors.push("At least one image is required");
                 return errors;
             },
 
@@ -533,22 +574,29 @@ document.addEventListener("alpine:init", () => {
                 this.isLoading = true;
                 this.clearMessages();
                 try {
-                    const formData = new FormData();
-                    const postData = {
-                        title: this.upload.newPost.title,
-                        price: this.upload.newPost.price,
-                        description: this.upload.newPost.description,
-                        category: this.upload.newPost.category,
-                        sellerId: this.user.sellerId
-                    };
-                    formData.append("post", new Blob([JSON.stringify(postData)], { type: "application/json" }));
-                    this.upload.selectedImages.forEach((file) => formData.append("images", file));
-                    formData.append("coverIndex", 0);
-                    const createdPost = await services.posts.create(formData, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
-                    this.marketplace.posts.unshift(createdPost);
+                    const isEditing = Boolean(this.upload.editingPostId);
+                    const returnView = this.upload.returnView;
+                    const returnListingId = this.upload.returnListingId;
+                    const returnPreviousView = this.upload.returnPreviousView;
+                    const formData = this.buildListingFormData();
+                    const savedPost = isEditing
+                        ? await services.posts.update(this.upload.editingPostId, formData, this.auth.token).catch((error) => this.rethrowUnauthorized(error))
+                        : await services.posts.create(formData, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
+                    this.upsertListing(savedPost);
                     this.resetCreateListingForm();
-                    this.navigateTo("listings");
-                    this.setSuccess("Successfully published.");
+                    if (isEditing) {
+                        if (returnView === "listingDetail") {
+                            this.selectedListingId = returnListingId || savedPost.postId;
+                            this.navigateTo("listingDetail");
+                            this.previousView = returnPreviousView || "listings";
+                        } else {
+                            this.navigateTo(returnView || "profile");
+                        }
+                        this.setSuccess("Listing updated successfully.");
+                    } else {
+                        this.navigateTo("listings");
+                        this.setSuccess("Successfully published.");
+                    }
                 } catch (error) {
                     this.setError(error.message);
                 } finally {
@@ -556,12 +604,96 @@ document.addEventListener("alpine:init", () => {
                 }
             },
 
+            buildListingFormData() {
+                const formData = new FormData();
+                const postData = {
+                    title: this.upload.newPost.title,
+                    price: this.upload.newPost.price,
+                    description: this.upload.newPost.description,
+                    category: this.upload.newPost.category,
+                    sellerId: this.user.sellerId
+                };
+                const newFiles = [];
+
+                if (this.upload.editingPostId) {
+                    const existingImageUrls = [];
+                    const imageOrder = [];
+
+                    this.upload.mediaItems.forEach((item) => {
+                        if (item.kind === "existing") {
+                            existingImageUrls.push(item.url);
+                            imageOrder.push({ kind: "existing", url: item.url });
+                            return;
+                        }
+
+                        const uploadIndex = newFiles.length;
+                        newFiles.push(item.file);
+                        imageOrder.push({ kind: "upload", uploadIndex });
+                    });
+
+                    postData.existingImageUrls = existingImageUrls;
+                    postData.imageOrder = imageOrder;
+                } else {
+                    this.upload.mediaItems.forEach((item) => {
+                        if (item.kind === "upload") {
+                            newFiles.push(item.file);
+                        }
+                    });
+                }
+
+                formData.append("post", new Blob([JSON.stringify(postData)], { type: "application/json" }));
+                newFiles.forEach((file) => formData.append("images", file));
+                formData.append("coverIndex", 0);
+                return formData;
+            },
+
+            upsertListing(savedPost) {
+                const replaceOrInsert = (items) => {
+                    const existingIndex = items.findIndex((post) => post.postId === savedPost.postId);
+                    if (existingIndex === -1) {
+                        return [savedPost, ...items];
+                    }
+                    return items.map((post) => post.postId === savedPost.postId ? savedPost : post);
+                };
+
+                this.marketplace.posts = replaceOrInsert(this.marketplace.posts);
+
+                if (this.profile.profileSeller?.sellerId === savedPost.seller?.sellerId || this.profile.isOwnProfile) {
+                    this.profile.profilePosts = replaceOrInsert(this.profile.profilePosts);
+                }
+            },
+
+            releaseMediaItem(item) {
+                if (item?.kind === "upload" && item.previewUrl?.startsWith("blob:")) {
+                    URL.revokeObjectURL(item.previewUrl);
+                }
+            },
+
             resetCreateListingForm() {
                 this.upload.newPost = { title: "", price: null, description: "", category: "OTHER" };
-                this.upload.selectedImages = [];
-                this.upload.imagePreviews.forEach((preview) => URL.revokeObjectURL(preview));
-                this.upload.imagePreviews = [];
+                this.upload.mediaItems.forEach((item) => this.releaseMediaItem(item));
+                this.upload.mediaItems = [];
                 this.upload.dragStartIndex = null;
+                this.upload.editingPostId = null;
+                this.upload.returnView = "listings";
+                this.upload.returnListingId = null;
+                this.upload.returnPreviousView = "listings";
+            },
+
+            cancelListingEditor() {
+                const returnView = this.upload.editingPostId ? this.upload.returnView : "listings";
+                const returnListingId = this.upload.returnListingId;
+                const returnPreviousView = this.upload.returnPreviousView;
+                this.resetCreateListingForm();
+
+                if (returnView === "listingDetail") {
+                    this.selectedListingId = returnListingId;
+                    this.navigateTo("listingDetail");
+                    this.previousView = returnPreviousView || "listings";
+                    return;
+                }
+
+                this.navigateTo(returnView || "listings");
             },
 
             handleFileSelect(event) {
@@ -575,26 +707,27 @@ document.addEventListener("alpine:init", () => {
             },
             addFiles(files) {
                 const imageFiles = files.filter((file) => file.type.startsWith("image/"));
-                if (this.upload.selectedImages.length + imageFiles.length > 10) {
+                if (this.upload.mediaItems.length + imageFiles.length > 10) {
                     this.setError("You can only upload up to 10 images.");
                     return;
                 }
                 imageFiles.forEach((file) => {
-                    this.upload.selectedImages.push(file);
-                    this.upload.imagePreviews.push(URL.createObjectURL(file));
+                    this.upload.mediaItems.push({
+                        id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                        kind: "upload",
+                        file,
+                        previewUrl: URL.createObjectURL(file)
+                    });
                 });
             },
             removeImage(index) {
-                URL.revokeObjectURL(this.upload.imagePreviews[index]);
-                this.upload.selectedImages.splice(index, 1);
-                this.upload.imagePreviews.splice(index, 1);
+                const [removedItem] = this.upload.mediaItems.splice(index, 1);
+                this.releaseMediaItem(removedItem);
             },
             handleImageDrop(dropIndex) {
                 if (this.upload.dragStartIndex === null || this.upload.dragStartIndex === dropIndex) return;
-                const file = this.upload.selectedImages.splice(this.upload.dragStartIndex, 1)[0];
-                const preview = this.upload.imagePreviews.splice(this.upload.dragStartIndex, 1)[0];
-                this.upload.selectedImages.splice(dropIndex, 0, file);
-                this.upload.imagePreviews.splice(dropIndex, 0, preview);
+                const item = this.upload.mediaItems.splice(this.upload.dragStartIndex, 1)[0];
+                this.upload.mediaItems.splice(dropIndex, 0, item);
                 this.upload.dragStartIndex = null;
             },
 

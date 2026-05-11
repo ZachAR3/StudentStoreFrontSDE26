@@ -85,7 +85,7 @@
                                 <span>Saved</span>
                                 <span class="fav-badge" x-show="favouriteCount > 0" x-text="favouriteCount"></span>
                             </button>
-                            <button class="shell-pill-button" @click="navigateTo('createListing')">Create Listing</button>
+                            <button class="shell-pill-button" @click="openCreateListingForm()">Create Listing</button>
                             <a href="#" @click.prevent="handleLogout()" class="seller-link shell-link-button">Log Out</a>
                         </li>
                     </template>
@@ -413,6 +413,7 @@
                             <div class="listing-detail-price" x-text="formatPrice(selectedListing.price)"></div>
                             <div class="listing-detail-actions">
                                 <button class="outline" :class="{ 'contrast': isFavourite(selectedListing.id) }" @click="toggleFavourite(selectedListing.id)" x-text="isFavourite(selectedListing.id) ? 'Saved' : 'Save'"></button>
+                                <button class="outline" x-show="isListingOwner(selectedListing)" @click="startEditingPost(selectedListing.id)">Edit Listing</button>
                                 <a role="button" class="outline contrast" x-show="selectedListing.actions.email" :href="'mailto:' + selectedListing.actions.email">Email Seller</a>
                                 <a role="button" class="outline is-whatsapp" x-show="selectedListing.actions.whatsappPhone" :href="whatsappHref(selectedListing)" target="_blank">WhatsApp</a>
                             </div>
@@ -529,7 +530,7 @@
                                             <div class="empty-state" x-show="profile.profilePosts.length === 0">
                                                 <h3>No listings yet</h3>
                                                 <p x-text="profile.isOwnProfile ? `You haven't posted any listings yet.` : 'No listings yet.'"></p>
-                                                <button x-show="profile.isOwnProfile" @click="navigateTo('createListing')">Create Your First Listing</button>
+                                                <button x-show="profile.isOwnProfile" @click="openCreateListingForm()">Create Your First Listing</button>
                                             </div>
                                             <div class="profile-review-panel" x-show="profile.isOwnProfile && profile.pendingReviews.length > 0">
                                                 <div class="section-heading">
@@ -561,6 +562,7 @@
                                                         <strong x-text="formatPrice(post.price)"></strong>
                                                     </div>
                                                     <div class="profile-listing-actions" x-show="profile.isOwnProfile">
+                                                        <button class="outline" @click="startEditingPost(post.postId)">Edit</button>
                                                         <button class="outline" @click="promptMarkSold(post.postId)" x-show="!post.isSold">Sold</button>
                                                         <button class="outline" @click="openReviewModal(post.postId)" x-show="post.isSold && post.buyer">Review Buyer</button>
                                                         <button class="outline secondary" @click="promptDeletePost(post.postId)">Delete</button>
@@ -598,7 +600,7 @@
 
         <div class="view-container" x-show="currentView === 'createListing'">
             <article class="auth-card form-card-wide">
-                <h2>Post a New Item</h2>
+                <h2 x-text="upload.editingPostId ? 'Edit Listing' : 'Post a New Item'"></h2>
                 <form @submit.prevent="createPost()">
                     <div class="grid">
                         <label>Title
@@ -618,10 +620,11 @@
                                 <input type="file" multiple accept="image/*" @change="handleFileSelect" class="sf-hidden">
                             </label>
                         </div>
-                        <div class="image-preview-grid" x-show="upload.imagePreviews.length">
-                            <template x-for="(preview, index) in upload.imagePreviews" :key="preview">
+                        <p class="item-meta" x-show="upload.editingPostId">Keep, remove, or reorder images. The first image remains the cover.</p>
+                        <div class="image-preview-grid" x-show="upload.mediaItems.length">
+                            <template x-for="(item, index) in upload.mediaItems" :key="item.id">
                                 <div class="image-preview-card" :class="{ 'is-cover': index === 0 }" draggable="true" @dragstart="upload.dragStartIndex = index" @dragover.prevent @drop.prevent="handleImageDrop(index)">
-                                    <img :src="preview" alt="">
+                                    <img :src="item.previewUrl" alt="">
                                     <button class="icon-button image-preview-delete" @click.prevent="removeImage(index)" aria-label="Remove image">&times;</button>
                                     <span class="cover-badge" x-show="index === 0">Cover</span>
                                 </div>
@@ -639,8 +642,8 @@
                         <textarea rows="5" x-model="upload.newPost.description" placeholder="Provide details about the condition, pickup location, or ingredients..." required></textarea>
                     </label>
                     <div class="form-actions">
-                        <button type="button" class="outline secondary" @click="navigateTo('listings')">Cancel</button>
-                        <button type="submit" :aria-busy="isLoading">Publish Listing</button>
+                        <button type="button" class="outline secondary" @click="cancelListingEditor()">Cancel</button>
+                        <button type="submit" :aria-busy="isLoading" x-text="upload.editingPostId ? 'Save Changes' : 'Publish Listing'"></button>
                     </div>
                 </form>
             </article>

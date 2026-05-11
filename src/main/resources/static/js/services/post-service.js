@@ -12,6 +12,9 @@
         create(formData, token) {
             return api.json("/api/posts/upload", { method: "POST", body: formData }, token, "Failed to create item.");
         },
+        update(postId, formData, token) {
+            return api.json(`/api/posts/${postId}/upload`, { method: "PUT", body: formData }, token, "Failed to update listing");
+        },
         delete(postId, token) {
             return api.empty(`/api/posts/${postId}`, { method: "DELETE" }, token, "Failed to delete listing");
         },

@@ -2,10 +2,13 @@
     window.Storefront.stores.createUploadStore = function createUploadStore() {
         return {
             newPost: { title: "", price: null, description: "", category: "OTHER" },
-            selectedImages: [],
-            imagePreviews: [],
+            mediaItems: [],
             dragStartIndex: null,
-            uploadDragActive: false
+            uploadDragActive: false,
+            editingPostId: null,
+            returnView: "listings",
+            returnListingId: null,
+            returnPreviousView: "listings"
         };
     };
 })();

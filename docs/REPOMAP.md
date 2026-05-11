@@ -117,6 +117,7 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 | `POST` | `/api/posts/bot/renew/{id}` | `X-Bot-Api-Key` | Bot-only: Renew an archived/expired post, set it `ACTIVE`, extend `expiresAt`, and clear reminder state |
 | `GET` | `/api/posts/{id}` | Public | Get details of a specific post |
 | `PUT` | `/api/posts/{id}` | SELLER/ADMIN | Update an existing post |
+| `PUT` | `/api/posts/{id}/upload` | SELLER/ADMIN | Update an existing post, including replacing/reordering uploaded listing images |
 | `PATCH` | `/api/posts/{id}/mark-sold`| SELLER/ADMIN | Mark a post as sold with a required registered `buyerId`, store sale metadata, and request a buyer review |
 | `DELETE` | `/api/posts/{id}` | SELLER/ADMIN | Delete a post |
 | `GET` | `/api/posts/available` | Public | Get only unsold listings |

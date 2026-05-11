@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
 import org.springframework.data.web.PageableDefault
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.*
@@ -142,6 +143,18 @@ class PostController(
         @Valid @RequestBody postUpdateDTO: PostUpdateDTO
     ): ResponseEntity<PostResponseDTO> {
         val updatedPost = postService.updatePost(postId, postUpdateDTO)
+        return ResponseEntity.ok(updatedPost)
+    }
+
+    @PutMapping("/{postId}/upload", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
+    fun updatePostWithImages(
+        @PathVariable postId: Long,
+        @RequestPart("post") @Valid postUpdateDTO: PostUpdateDTO,
+        @RequestPart("images", required = false) images: List<org.springframework.web.multipart.MultipartFile>?,
+        @RequestParam(value = "coverIndex", defaultValue = "0") coverIndex: Int
+    ): ResponseEntity<PostResponseDTO> {
+        val updatedPost = postService.updatePostWithImages(postId, postUpdateDTO, images ?: emptyList(), coverIndex)
         return ResponseEntity.ok(updatedPost)
     }
 

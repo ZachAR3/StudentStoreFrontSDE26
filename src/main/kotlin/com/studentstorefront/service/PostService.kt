@@ -4,6 +4,7 @@ import com.studentstorefront.dto.request.PostRequestDTO
 import com.studentstorefront.dto.request.MarkSoldRequestDTO
 import com.studentstorefront.dto.response.PostResponseDTO
 import com.studentstorefront.dto.response.SellerResponseDTO
+import com.studentstorefront.dto.update.PostImageReferenceDTO
 import com.studentstorefront.dto.update.PostUpdateDTO
 import com.studentstorefront.enums.Category
 import com.studentstorefront.enums.PostStatus
@@ -148,6 +149,24 @@ class PostService(
         return mapToResponseDTO(savedPost, getCurrentSellerIdOrNull())
     }
 
+    fun updatePostWithImages(
+        postId: Long,
+        postUpdateDTO: PostUpdateDTO,
+        images: List<org.springframework.web.multipart.MultipartFile>,
+        coverIndex: Int
+    ): PostResponseDTO {
+        val existingPost = findPostById(postId)
+        assertOwnerOrAdmin(existingPost)
+        val updatedPost = updatePostEntity(existingPost, postUpdateDTO)
+        val savedPost = postRepository.save(updatedPost)
+
+        if (postUpdateDTO.imageOrder != null || postUpdateDTO.existingImageUrls != null || images.isNotEmpty()) {
+            replacePostMedia(savedPost, postUpdateDTO, images, coverIndex)
+        }
+
+        return mapToResponseDTO(savedPost, getCurrentSellerIdOrNull())
+    }
+
     fun deletePost(postId: Long) {
         val post = findPostById(postId)
         assertOwnerOrAdmin(post)
@@ -241,6 +260,82 @@ class PostService(
                 isCover = index == 0
             )
         })
+    }
+
+    private fun replacePostMedia(
+        post: Post,
+        postUpdateDTO: PostUpdateDTO,
+        images: List<org.springframework.web.multipart.MultipartFile>,
+        coverIndex: Int
+    ) {
+        require(coverIndex >= 0) { "Cover index must not be negative" }
+
+        val uploadedUrls = images.map { file ->
+            cloudinaryService.uploadImage(file) ?: throw RuntimeException("Failed to upload images")
+        }
+        val orderedUrls = resolveUpdatedMediaUrls(postUpdateDTO, uploadedUrls, coverIndex)
+        require(orderedUrls.isNotEmpty()) { "At least one image is required" }
+
+        postMediaRepository.deleteAll(postMediaRepository.findByPost_postId(post.postId!!))
+        postMediaRepository.saveAll(
+            orderedUrls.mapIndexed { index, mediaUrl ->
+                PostMedia(
+                    post = post,
+                    mediaUrl = mediaUrl,
+                    displayOrder = index,
+                    isCover = index == 0
+                )
+            }
+        )
+    }
+
+    private fun resolveUpdatedMediaUrls(
+        postUpdateDTO: PostUpdateDTO,
+        uploadedUrls: List<String>,
+        coverIndex: Int
+    ): List<String> {
+        val existingUrls = postUpdateDTO.existingImageUrls ?: emptyList()
+        val existingSet = existingUrls.toSet()
+        val imageOrder = postUpdateDTO.imageOrder
+
+        val orderedUrls = if (imageOrder.isNullOrEmpty()) {
+            existingUrls + uploadedUrls
+        } else {
+            imageOrder.map { reference ->
+                resolveImageReference(reference, existingSet, uploadedUrls)
+            }
+        }
+
+        require(orderedUrls.size == orderedUrls.distinct().size) { "Duplicate images are not allowed" }
+        require(coverIndex < orderedUrls.size) { "Cover index is out of range" }
+
+        return if (coverIndex == 0) orderedUrls else {
+            val reordered = orderedUrls.toMutableList()
+            val coverUrl = reordered.removeAt(coverIndex)
+            reordered.add(0, coverUrl)
+            reordered
+        }
+    }
+
+    private fun resolveImageReference(
+        reference: PostImageReferenceDTO,
+        existingSet: Set<String>,
+        uploadedUrls: List<String>
+    ): String {
+        return when (reference.kind.lowercase()) {
+            "existing" -> {
+                val url = reference.url?.takeIf { it in existingSet }
+                    ?: throw IllegalArgumentException("Invalid existing image reference")
+                url
+            }
+            "upload" -> {
+                val uploadIndex = reference.uploadIndex
+                    ?: throw IllegalArgumentException("Upload index is required for uploaded images")
+                uploadedUrls.getOrNull(uploadIndex)
+                    ?: throw IllegalArgumentException("Invalid uploaded image reference")
+            }
+            else -> throw IllegalArgumentException("Invalid image reference kind")
+        }
     }
 
     internal fun mapToResponseDTO(post: Post, currentSellerId: Long? = null): PostResponseDTO {
