@@ -33,8 +33,28 @@ class SellerService(
 ) {
 
     fun createSellerWithToken(request: SellerRequestDTO): Pair<SellerResponseDTO, String> {
-        val sellerResponse = createSeller(request)
-        val seller = sellerRepository.findByEmail(sellerResponse.email)!!
+        val existingUnverified = sellerRepository.findByEmail(request.email)?.takeIf { !it.isEnabled }
+
+        val seller: Seller
+        val sellerResponse: SellerResponseDTO
+
+        if (existingUnverified != null) {
+            val normalizedPhone = normalizePhone(request.phoneNumber)
+            val phoneOwner = sellerRepository.findByPhoneNumber(normalizedPhone)
+            if (phoneOwner != null && phoneOwner.sellerId != existingUnverified.sellerId) {
+                throw IllegalArgumentException("Phone number already registered: ${request.phoneNumber}")
+            }
+            emailVerificationTokenRepository.deleteBySellerSellerId(existingUnverified.sellerId!!)
+            existingUnverified.name = request.name
+            existingUnverified.phoneNumber = normalizedPhone
+            existingUnverified.password = passwordEncoder.encode(request.password)!!
+            seller = sellerRepository.save(existingUnverified)
+            sellerResponse = mapToResponseDTO(seller)
+        } else {
+            sellerResponse = createSeller(request)
+            seller = sellerRepository.findByEmail(sellerResponse.email)!!
+        }
+
         val token = EmailVerificationToken(seller = seller)
         emailVerificationTokenRepository.save(token)
         return sellerResponse to token.code

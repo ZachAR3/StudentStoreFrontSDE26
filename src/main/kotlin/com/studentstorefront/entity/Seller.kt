@@ -9,12 +9,12 @@ import java.time.LocalDateTime
 data class Seller(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     val sellerId: Long? = null,
-    val name: String = "",
+    var name: String = "",
     @Column(unique = true)
     val email: String = "",
     @Column(unique = true)
-    val phoneNumber: String = "",
-    val password: String = "",
+    var phoneNumber: String = "",
+    var password: String = "",
     @Enumerated(EnumType.STRING)
     val role: Role = Role.SELLER,
     val isEnabled: Boolean = false,
