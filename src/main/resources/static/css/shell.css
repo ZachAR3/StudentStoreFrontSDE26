@@ -348,6 +348,58 @@
     }
 }
 
+@media (max-width: 1080px) {
+    .app-body-shell {
+        width: min(calc(100% - (var(--sf-space-md) * 2)), var(--sf-content-max));
+        grid-template-columns: 1fr;
+        gap: var(--sf-space-md);
+        padding-top: var(--sf-space-md);
+    }
+
+    .site-sidebar {
+        position: static;
+        max-height: none;
+        overflow: visible;
+        padding-right: 0;
+        border-right: 0;
+        border-bottom: 1px solid var(--sf-color-border);
+        padding-bottom: var(--sf-space-md);
+    }
+
+    .site-sidebar-nav {
+        display: grid;
+        gap: var(--sf-space-xs);
+    }
+
+    .site-sidebar-section,
+    .site-subscription-list {
+        display: flex;
+        align-items: center;
+        gap: var(--sf-space-xs);
+        overflow-x: auto;
+        padding-bottom: 0.15rem;
+        scrollbar-width: thin;
+    }
+
+    .site-sidebar-section + .site-sidebar-section {
+        padding-top: var(--sf-space-sm);
+    }
+
+    .site-sidebar-heading {
+        flex: 0 0 auto;
+    }
+
+    .site-nav-item {
+        width: auto;
+        min-width: max-content;
+        white-space: nowrap;
+    }
+
+    .site-subscription-item {
+        min-width: 12rem;
+    }
+}
+
 @media (max-width: 880px) {
     .app-header {
         min-height: 0;
@@ -418,56 +470,6 @@
         height: 2.15rem;
         padding-inline: var(--sf-space-sm);
         font-size: 0.92rem;
-    }
-
-    .app-body-shell {
-        width: min(calc(100% - (var(--sf-space-md) * 2)), var(--sf-content-max));
-        grid-template-columns: 1fr;
-        gap: var(--sf-space-md);
-        padding-top: var(--sf-space-md);
-    }
-
-    .site-sidebar {
-        position: static;
-        max-height: none;
-        overflow: visible;
-        padding-right: 0;
-        border-right: 0;
-        border-bottom: 1px solid var(--sf-color-border);
-        padding-bottom: var(--sf-space-md);
-    }
-
-    .site-sidebar-nav {
-        display: grid;
-        gap: var(--sf-space-xs);
-    }
-
-    .site-sidebar-section,
-    .site-subscription-list {
-        display: flex;
-        align-items: center;
-        gap: var(--sf-space-xs);
-        overflow-x: auto;
-        padding-bottom: 0.15rem;
-        scrollbar-width: thin;
-    }
-
-    .site-sidebar-section + .site-sidebar-section {
-        padding-top: var(--sf-space-sm);
-    }
-
-    .site-sidebar-heading {
-        flex: 0 0 auto;
-    }
-
-    .site-nav-item {
-        width: auto;
-        min-width: max-content;
-        white-space: nowrap;
-    }
-
-    .site-subscription-item {
-        min-width: 12rem;
     }
 }
 

@@ -62,7 +62,7 @@ document.addEventListener("alpine:init", () => {
                         this.handleLogout();
                     }
                     if (this.auth.isLoggedIn) {
-                        this.syncFavourites();
+                        await this.syncFavourites();
                     }
                     const resetToken = new URLSearchParams(window.location.search).get("token");
                     if (resetToken) {
@@ -76,6 +76,7 @@ document.addEventListener("alpine:init", () => {
                     } else {
                         this.syncBrowserHistory(this.currentView, { replace: true });
                     }
+                    this.setupBuilderPreviewObserver();
                 } catch (error) {
                     this.layoutsReady = false;
                     this.setError(error.message || "Unable to initialize the storefront.");
@@ -241,6 +242,7 @@ document.addEventListener("alpine:init", () => {
                 if (!options.skipHistory) {
                     this.syncBrowserHistory(view, { replace: options.replaceHistory });
                 }
+                this.refreshBuilderPreviewMetrics();
             },
 
             async apiFetch(endpoint, options = {}) {
@@ -364,6 +366,7 @@ document.addEventListener("alpine:init", () => {
             handleLogout() {
                 this.auth.clearAuth();
                 this.favourites.favouriteIds = new Set();
+                storage.remove("storefront.favourites.v1");
                 storage.remove("favourites");
                 this.navigateTo("listings");
             },
@@ -819,8 +822,18 @@ document.addEventListener("alpine:init", () => {
             async syncFavourites() {
                 if (!this.isLoggedIn) return;
                 try {
-                    const postIds = await services.favourites.list(this.auth.token).catch((error) => this.rethrowUnauthorized(error));
-                    this.favourites.favouriteIds = new Set(postIds);
+                    const favourites = await services.favourites.list(this.auth.token).catch((error) => this.rethrowUnauthorized(error));
+                    const favouriteIds = Array.isArray(favourites)
+                        ? favourites
+                            .map((item) => {
+                                if (typeof item === "number") return item;
+                                if (item && item.postId != null) return Number(item.postId);
+                                if (item && item.id != null) return Number(item.id);
+                                return null;
+                            })
+                            .filter((item) => Number.isFinite(item))
+                        : [];
+                    this.favourites.favouriteIds = new Set(favouriteIds);
                     this.favourites.persist();
                 } catch (_error) {
                     return null;
@@ -845,6 +858,7 @@ document.addEventListener("alpine:init", () => {
                 this.builder.selectedElementId = this.builder.draftLayout?.regions?.[0]?.elements?.[0]?.id || "";
                 this.builder.importExportText = JSON.stringify(this.builder.draftLayout, null, 2);
                 this.validateBuilderLayout(false);
+                this.$nextTick(() => this.refreshBuilderPreviewMetrics());
             },
             loadCreatedSites() {
                 this.builder.createdSites = this.builder.loadCreatedSites();
@@ -1178,14 +1192,63 @@ document.addEventListener("alpine:init", () => {
             setBuilderPreviewMode(mode) {
                 this.builder.previewMode = mode;
                 this.builder.previewWidth = window.Storefront.builder.previewWidths[mode] || this.builder.previewWidth;
+                this.refreshBuilderPreviewMetrics();
+            },
+            setupBuilderPreviewObserver() {
+                this.$nextTick(() => {
+                    const previewShell = this.$refs?.builderPreviewShell;
+                    if (!previewShell) return;
+                    if (this.builder.previewResizeObserver) {
+                        this.builder.previewResizeObserver.disconnect();
+                    }
+                    if (typeof ResizeObserver !== "function") {
+                        this.refreshBuilderPreviewMetrics();
+                        return;
+                    }
+                    this.builder.previewResizeObserver = new ResizeObserver(() => this.refreshBuilderPreviewMetrics());
+                    this.builder.previewResizeObserver.observe(previewShell);
+                    this.refreshBuilderPreviewMetrics();
+                });
+            },
+            refreshBuilderPreviewMetrics() {
+                this.$nextTick(() => {
+                    const previewShell = this.$refs?.builderPreviewShell;
+                    if (!previewShell) return;
+                    const styles = window.getComputedStyle(previewShell);
+                    const paddingInline = (parseFloat(styles.paddingLeft) || 0) + (parseFloat(styles.paddingRight) || 0);
+                    this.builder.previewCanvasWidth = Math.max(0, Math.floor(previewShell.clientWidth - paddingInline));
+                });
+            },
+            parsePreviewLength(value) {
+                if (typeof value === "number" && Number.isFinite(value)) {
+                    return value;
+                }
+                const match = String(value || "").trim().match(/^([0-9]*\.?[0-9]+)\s*(px|rem)$/);
+                if (!match) return null;
+                const amount = Number(match[1]);
+                if (!Number.isFinite(amount)) return null;
+                if (match[2] === "rem") {
+                    const rootFontSize = parseFloat(window.getComputedStyle(document.documentElement).fontSize) || 16;
+                    return amount * rootFontSize;
+                }
+                return amount;
             },
             builderPreviewStyle() {
-                const zoom = Number(this.builder.previewZoom) || 1;
-                const safeZoom = Math.max(zoom, 0.01);
+                const availableWidth = Math.max(0, Number(this.builder.previewCanvasWidth) || 0);
+                const zoom = Math.min(Math.max(Number(this.builder.previewZoom) || 1, 0.7), 1.2);
+                const maxPreviewWidth = this.parsePreviewLength("72rem");
+                const targetWidth = this.builder.previewMode === "desktop"
+                    ? availableWidth || maxPreviewWidth
+                    : this.parsePreviewLength(this.builder.previewWidth) || availableWidth || maxPreviewWidth;
+                const baseWidth = Math.min(targetWidth, maxPreviewWidth, availableWidth || targetWidth);
+                const frameWidth = availableWidth
+                    ? Math.min(Math.round(baseWidth * zoom), availableWidth)
+                    : Math.round(baseWidth * zoom);
+                if (!frameWidth) {
+                    return {};
+                }
                 return {
-                    "--builder-preview-width": this.builder.previewWidth,
-                    "--builder-preview-zoom": zoom,
-                    "--builder-preview-zoom-fit-width": `${100 / safeZoom}%`
+                    width: `${Math.max(frameWidth, 0)}px`
                 };
             },
 

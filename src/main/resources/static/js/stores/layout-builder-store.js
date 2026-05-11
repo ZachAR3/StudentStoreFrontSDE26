@@ -16,6 +16,8 @@
             previewWidth: "100%",
             previewMode: "desktop",
             previewZoom: 1,
+            previewCanvasWidth: 0,
+            previewResizeObserver: null,
             validationErrors: [],
             importExportText: "",
             history: [],
