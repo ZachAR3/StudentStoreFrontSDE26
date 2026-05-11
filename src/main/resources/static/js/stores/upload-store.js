@@ -6,9 +6,12 @@
             dragStartIndex: null,
             uploadDragActive: false,
             editingPostId: null,
-            returnView: "listings",
-            returnListingId: null,
-            returnPreviousView: "listings"
+            editorContext: {
+                view: "listings",
+                listingId: null,
+                previousView: "listings",
+                sellerId: null
+            }
         };
     };
 })();

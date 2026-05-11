@@ -137,10 +137,7 @@ class PostService(
     }
 
     fun updatePost(postId: Long, postUpdateDTO: PostUpdateDTO): PostResponseDTO {
-        val existingPost = findPostById(postId)
-        assertOwnerOrAdmin(existingPost)
-        val updatedPost = updatePostEntity(existingPost, postUpdateDTO)
-        val savedPost = postRepository.save(updatedPost)
+        val savedPost = saveUpdatedPost(postId, postUpdateDTO)
         if (postUpdateDTO.imageUrlList != null) {
             postMediaRepository.deleteAll(postMediaRepository.findByPost_postId(postId))
             savePostMedia(savedPost, postUpdateDTO.imageUrlList, null)
@@ -155,13 +152,10 @@ class PostService(
         images: List<org.springframework.web.multipart.MultipartFile>,
         coverIndex: Int
     ): PostResponseDTO {
-        val existingPost = findPostById(postId)
-        assertOwnerOrAdmin(existingPost)
-        val updatedPost = updatePostEntity(existingPost, postUpdateDTO)
-        val savedPost = postRepository.save(updatedPost)
+        val savedPost = saveUpdatedPost(postId, postUpdateDTO)
 
-        if (postUpdateDTO.imageOrder != null || postUpdateDTO.existingImageUrls != null || images.isNotEmpty()) {
-            replacePostMedia(savedPost, postUpdateDTO, images, coverIndex)
+        if (postUpdateDTO.imageOrder != null || images.isNotEmpty()) {
+            replacePostMedia(savedPost, postUpdateDTO.imageOrder, images, coverIndex)
         }
 
         return mapToResponseDTO(savedPost, getCurrentSellerIdOrNull())
@@ -237,6 +231,12 @@ class PostService(
         )
     }
 
+    private fun saveUpdatedPost(postId: Long, postUpdateDTO: PostUpdateDTO): Post {
+        val existingPost = findPostById(postId)
+        assertOwnerOrAdmin(existingPost)
+        return postRepository.save(updatePostEntity(existingPost, postUpdateDTO))
+    }
+
     @Transactional(readOnly = true)
     fun resolveMediaUrlsByHash(imageHashes: List<String>): Map<String, String> {
         if (imageHashes.isEmpty()) return emptyMap()
@@ -264,19 +264,21 @@ class PostService(
 
     private fun replacePostMedia(
         post: Post,
-        postUpdateDTO: PostUpdateDTO,
+        imageOrder: List<PostImageReferenceDTO>?,
         images: List<org.springframework.web.multipart.MultipartFile>,
         coverIndex: Int
     ) {
         require(coverIndex >= 0) { "Cover index must not be negative" }
 
+        val currentMedia = findOrderedPostMedia(post.postId!!)
+        val existingUrls = currentMedia.map { it.mediaUrl }
         val uploadedUrls = images.map { file ->
             cloudinaryService.uploadImage(file) ?: throw RuntimeException("Failed to upload images")
         }
-        val orderedUrls = resolveUpdatedMediaUrls(postUpdateDTO, uploadedUrls, coverIndex)
+        val orderedUrls = resolveUpdatedMediaUrls(existingUrls, imageOrder, uploadedUrls, coverIndex)
         require(orderedUrls.isNotEmpty()) { "At least one image is required" }
 
-        postMediaRepository.deleteAll(postMediaRepository.findByPost_postId(post.postId!!))
+        postMediaRepository.deleteAll(currentMedia)
         postMediaRepository.saveAll(
             orderedUrls.mapIndexed { index, mediaUrl ->
                 PostMedia(
@@ -290,13 +292,12 @@ class PostService(
     }
 
     private fun resolveUpdatedMediaUrls(
-        postUpdateDTO: PostUpdateDTO,
+        existingUrls: List<String>,
+        imageOrder: List<PostImageReferenceDTO>?,
         uploadedUrls: List<String>,
         coverIndex: Int
     ): List<String> {
-        val existingUrls = postUpdateDTO.existingImageUrls ?: emptyList()
         val existingSet = existingUrls.toSet()
-        val imageOrder = postUpdateDTO.imageOrder
 
         val orderedUrls = if (imageOrder.isNullOrEmpty()) {
             existingUrls + uploadedUrls
@@ -343,9 +344,7 @@ class PostService(
             postId = post.postId!!,
             title = post.title,
             price = post.price,
-            mediaUrls = postMediaRepository.findByPost_postId(post.postId!!)
-                .sortedWith(compareBy({ !it.isCover }, { it.displayOrder }))
-                .map { it.mediaUrl },
+            mediaUrls = findOrderedPostMedia(post.postId!!).map { it.mediaUrl },
             description = post.description,
             category = post.category,
             isSold = post.isSold,
@@ -368,6 +367,10 @@ class PostService(
             phoneNumber = seller.phoneNumber
         )
     }
+
+    private fun findOrderedPostMedia(postId: Long): List<PostMedia> =
+        postMediaRepository.findByPost_postId(postId)
+            .sortedWith(compareBy({ !it.isCover }, { it.displayOrder }))
 
     private fun escapeLike(input: String): String =
         input.replace("!", "!!").replace("%", "!%").replace("_", "!_")

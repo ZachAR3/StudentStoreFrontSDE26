@@ -488,11 +488,23 @@ document.addEventListener("alpine:init", () => {
             isListingOwner(post) {
                 return this.isLoggedIn && post?.seller?.sellerId === this.user?.sellerId;
             },
+            defaultListingEditorContext() {
+                return {
+                    view: "listings",
+                    listingId: null,
+                    previousView: "listings",
+                    sellerId: null
+                };
+            },
+            setListingEditorContext(overrides = {}) {
+                this.upload.editorContext = {
+                    ...this.defaultListingEditorContext(),
+                    ...overrides
+                };
+            },
             openCreateListingForm() {
                 this.resetCreateListingForm();
-                this.upload.returnView = "listings";
-                this.upload.returnListingId = null;
-                this.upload.returnPreviousView = "listings";
+                this.setListingEditorContext();
                 this.navigateTo("createListing");
             },
             startEditingPost(postId) {
@@ -521,9 +533,18 @@ document.addEventListener("alpine:init", () => {
                     previewUrl: url
                 }));
                 this.upload.editingPostId = post.postId;
-                this.upload.returnView = this.currentView === "profile" ? "profile" : "listingDetail";
-                this.upload.returnListingId = this.currentView === "listingDetail" ? post.postId : null;
-                this.upload.returnPreviousView = this.currentView === "listingDetail" ? this.previousView : "listings";
+                this.setListingEditorContext(
+                    this.currentView === "profile"
+                        ? {
+                            view: "profile",
+                            sellerId: post.seller?.sellerId || null
+                        }
+                        : {
+                            view: "listingDetail",
+                            listingId: post.postId,
+                            previousView: this.previousView
+                        }
+                );
                 this.navigateTo("createListing");
             },
             canOpenListingDetail(element) {
@@ -574,24 +595,16 @@ document.addEventListener("alpine:init", () => {
                 this.isLoading = true;
                 this.clearMessages();
                 try {
-                    const isEditing = Boolean(this.upload.editingPostId);
-                    const returnView = this.upload.returnView;
-                    const returnListingId = this.upload.returnListingId;
-                    const returnPreviousView = this.upload.returnPreviousView;
+                    const editingPostId = this.upload.editingPostId;
+                    const editorContext = { ...this.upload.editorContext };
                     const formData = this.buildListingFormData();
-                    const savedPost = isEditing
-                        ? await services.posts.update(this.upload.editingPostId, formData, this.auth.token).catch((error) => this.rethrowUnauthorized(error))
+                    const savedPost = editingPostId
+                        ? await services.posts.update(editingPostId, formData, this.auth.token).catch((error) => this.rethrowUnauthorized(error))
                         : await services.posts.create(formData, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
                     this.upsertListing(savedPost);
                     this.resetCreateListingForm();
-                    if (isEditing) {
-                        if (returnView === "listingDetail") {
-                            this.selectedListingId = returnListingId || savedPost.postId;
-                            this.navigateTo("listingDetail");
-                            this.previousView = returnPreviousView || "listings";
-                        } else {
-                            this.navigateTo(returnView || "profile");
-                        }
+                    if (editingPostId) {
+                        await this.restoreListingEditorContext(editorContext, savedPost.postId);
                         this.setSuccess("Listing updated successfully.");
                     } else {
                         this.navigateTo("listings");
@@ -616,12 +629,10 @@ document.addEventListener("alpine:init", () => {
                 const newFiles = [];
 
                 if (this.upload.editingPostId) {
-                    const existingImageUrls = [];
                     const imageOrder = [];
 
                     this.upload.mediaItems.forEach((item) => {
                         if (item.kind === "existing") {
-                            existingImageUrls.push(item.url);
                             imageOrder.push({ kind: "existing", url: item.url });
                             return;
                         }
@@ -631,7 +642,6 @@ document.addEventListener("alpine:init", () => {
                         imageOrder.push({ kind: "upload", uploadIndex });
                     });
 
-                    postData.existingImageUrls = existingImageUrls;
                     postData.imageOrder = imageOrder;
                 } else {
                     this.upload.mediaItems.forEach((item) => {
@@ -663,6 +673,24 @@ document.addEventListener("alpine:init", () => {
                 }
             },
 
+            async restoreListingEditorContext(context, fallbackListingId = null) {
+                const nextContext = context || this.defaultListingEditorContext();
+
+                if (nextContext.view === "listingDetail") {
+                    this.selectedListingId = nextContext.listingId || fallbackListingId;
+                    this.navigateTo("listingDetail");
+                    this.previousView = nextContext.previousView || "listings";
+                    return;
+                }
+
+                if (nextContext.view === "profile" && nextContext.sellerId) {
+                    await this.viewProfile(nextContext.sellerId);
+                    return;
+                }
+
+                this.navigateTo(nextContext.view || "listings");
+            },
+
             releaseMediaItem(item) {
                 if (item?.kind === "upload" && item.previewUrl?.startsWith("blob:")) {
                     URL.revokeObjectURL(item.previewUrl);
@@ -675,25 +703,15 @@ document.addEventListener("alpine:init", () => {
                 this.upload.mediaItems = [];
                 this.upload.dragStartIndex = null;
                 this.upload.editingPostId = null;
-                this.upload.returnView = "listings";
-                this.upload.returnListingId = null;
-                this.upload.returnPreviousView = "listings";
+                this.setListingEditorContext();
             },
 
-            cancelListingEditor() {
-                const returnView = this.upload.editingPostId ? this.upload.returnView : "listings";
-                const returnListingId = this.upload.returnListingId;
-                const returnPreviousView = this.upload.returnPreviousView;
+            async cancelListingEditor() {
+                const editorContext = this.upload.editingPostId
+                    ? { ...this.upload.editorContext }
+                    : this.defaultListingEditorContext();
                 this.resetCreateListingForm();
-
-                if (returnView === "listingDetail") {
-                    this.selectedListingId = returnListingId;
-                    this.navigateTo("listingDetail");
-                    this.previousView = returnPreviousView || "listings";
-                    return;
-                }
-
-                this.navigateTo(returnView || "listings");
+                await this.restoreListingEditorContext(editorContext);
             },
 
             handleFileSelect(event) {

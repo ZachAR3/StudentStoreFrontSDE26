@@ -116,6 +116,7 @@ Layout JSON region gaps should use `xs`, `sm`, `md`, `lg`, or `xl`; the layout r
 - Helper/auth links use `.auth-link-row` or `.auth-forgot-row`.
 - Password meter bars use `is-danger`, `is-warning`, and `is-success` classes, not inline colors.
 - Upload dropzone uses primary-soft active state.
+- The listing form is shared for both create and edit flows. In edit mode it must preload existing values, allow image removal/reordering, and keep the first previewed image as the cover.
 
 ### Cards And Panels
 
@@ -129,6 +130,7 @@ Layout JSON region gaps should use `xs`, `sm`, `md`, `lg`, or `xl`; the layout r
 - Support page sections use `.support-page`, `.support-hero`, `.support-grid`, and `.support-card`; these should stay quiet and utility-focused, using normal surfaces rather than marketing-style hero treatment.
 - Cards should not nest inside decorative parent cards. Use full-width sections or grids for grouping.
 - Profile rows use `.profile-listing-card`.
+- Owner-only listing actions should stay compact and use the existing outline-button language: `Edit`, `Sold`, `Review Buyer`, and `Delete`.
 - Profile rating summaries use `.profile-rating-strip` and `.profile-rating-pill`; keep them compact, tokenized, and close to the profile identity block.
 - Pending and recent profile reviews use `.profile-review-panel` plus `.profile-review-card`, with quiet muted surfaces rather than marketplace-card styling.
 - Builder panels use `.builder-panel`.
@@ -202,11 +204,13 @@ Layout JSON region gaps should use `xs`, `sm`, `md`, `lg`, or `xl`; the layout r
 
 - Preserve existing `x-model`, `@submit.prevent`, route names, API service calls, and state object names.
 - Keep profile review state under the existing profile store and review API calls in `js/services/review-service.js`; do not move review workflow logic into layout element definitions.
+- Keep listing create/edit workflow state under the existing upload store; do not split edit state across profile/detail-specific stores.
 - Prefer class bindings over inline style strings for theme states.
 - Inline style bindings are acceptable only for layout/runtime CSS variables, dynamic media ratios, builder preview dimensions, and generated avatar colors.
 - Keep click handlers on nested card controls using `.stop` so card-level open behavior does not swallow contact/favourite actions.
 - For clickable listing cards, keep the card as `role="link"` rather than `role="button"` so Pico does not restyle the full card as a control.
 - Use `navigateTo` for SPA view changes so hash/history state stays in sync and browser back/forward keeps working.
+- Edit actions launched from listing detail or profile should return the user to the originating context after save or cancel.
 
 ## Responsive Rules
 
@@ -250,3 +254,4 @@ The frontend is a static Alpine/Pico PWA in `src/main/resources/static`, not a s
 - Header search now filters all catalog-like layout data sources, including restaurant menus and created-site sample grids, not only the marketplace home route.
 - A Support page and app footer were added using shell-level theme primitives, with copyright text and a footer Support CTA.
 - Seller/buyer ratings were added to the profile surface with compact rating pills, pending review cards, recent review cards, and buyer-search/review modals that reuse existing profile/modal tokens.
+- Posted listings can now be edited from the owner profile and listing-detail views using the shared listing form, including existing-image reorder/removal plus new uploads.

@@ -116,8 +116,8 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 | `POST` | `/api/posts/bot/media/resolve` | `X-Bot-Api-Key` | Bot-only: Resolve known media URLs by SHA-256 image hash so duplicate image bytes can be reused |
 | `POST` | `/api/posts/bot/renew/{id}` | `X-Bot-Api-Key` | Bot-only: Renew an archived/expired post, set it `ACTIVE`, extend `expiresAt`, and clear reminder state |
 | `GET` | `/api/posts/{id}` | Public | Get details of a specific post |
-| `PUT` | `/api/posts/{id}` | SELLER/ADMIN | Update an existing post |
-| `PUT` | `/api/posts/{id}/upload` | SELLER/ADMIN | Update an existing post, including replacing/reordering uploaded listing images |
+| `PUT` | `/api/posts/{id}` | SELLER/ADMIN | Update an existing post; service-layer ownership rules allow only the original seller or an admin |
+| `PUT` | `/api/posts/{id}/upload` | SELLER/ADMIN | Update an existing post with multipart form data, including keeping, removing, reordering, and uploading listing images |
 | `PATCH` | `/api/posts/{id}/mark-sold`| SELLER/ADMIN | Mark a post as sold with a required registered `buyerId`, store sale metadata, and request a buyer review |
 | `DELETE` | `/api/posts/{id}` | SELLER/ADMIN | Delete a post |
 | `GET` | `/api/posts/available` | Public | Get only unsold listings |
@@ -175,6 +175,10 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 - `seller`: Reference to a `Seller`
 - `buyer`: Optional reference to the registered `Seller` account that purchased the item
 - `postMedia`: Collection of `PostMedia` objects
+
+Edit behavior:
+- Posted listings remain editable by their original seller while retaining the same `postId`.
+- Multipart edit requests can preserve existing images, append new uploads, or reorder the full image set; the first ordered image remains the cover.
 
 ### **PostMedia**
 - `id`: Primary Key (Long)

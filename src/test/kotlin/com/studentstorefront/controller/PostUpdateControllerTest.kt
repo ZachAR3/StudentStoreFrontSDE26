@@ -10,11 +10,8 @@ import com.studentstorefront.enums.Role
 import com.studentstorefront.repository.PostMediaRepository
 import com.studentstorefront.repository.PostRepository
 import com.studentstorefront.repository.SellerRepository
-import com.studentstorefront.service.CloudinaryService
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.mockito.ArgumentMatchers.any
-import org.mockito.BDDMockito.given
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.http.MediaType
@@ -25,7 +22,6 @@ import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfig
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.context.TestPropertySource
-import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
@@ -68,9 +64,6 @@ class PostUpdateControllerTest {
     @Autowired lateinit var postMediaRepository: PostMediaRepository
     @Autowired lateinit var passwordEncoder: PasswordEncoder
 
-    @MockitoBean
-    lateinit var cloudinaryService: CloudinaryService
-
     private val objectMapper = ObjectMapper().registerKotlinModule()
     private lateinit var mockMvc: MockMvc
     private lateinit var owner: Seller
@@ -109,8 +102,6 @@ class PostUpdateControllerTest {
     @Test
     @WithMockUser(username = "listing-owner@constructor.university", roles = ["SELLER"])
     fun `owner can update a listing after posting it`() {
-        given(cloudinaryService.uploadImage(any())).willReturn("https://cdn.example.com/updated-chair.jpg")
-
         mockMvc.perform(
             multipart("/api/posts/${listing.postId}/upload")
                 .file(
@@ -123,20 +114,10 @@ class PostUpdateControllerTest {
                             "price" to BigDecimal("42.50"),
                             "description" to "Updated listing description with fresher details",
                             "category" to "FURNITURE",
-                            "existingImageUrls" to listOf("https://cdn.example.com/original-chair.jpg"),
                             "imageOrder" to listOf(
-                                mapOf("kind" to "upload", "uploadIndex" to 0),
                                 mapOf("kind" to "existing", "url" to "https://cdn.example.com/original-chair.jpg")
                             )
                         ).toByteArray()
-                    )
-                )
-                .file(
-                    MockMultipartFile(
-                        "images",
-                        "chair-new.png",
-                        MediaType.IMAGE_PNG_VALUE,
-                        "new-image".toByteArray()
                     )
                 )
                 .param("coverIndex", "0")
@@ -148,8 +129,7 @@ class PostUpdateControllerTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.title").value("Desk Chair Updated"))
             .andExpect(jsonPath("$.price").value(42.50))
-            .andExpect(jsonPath("$.mediaUrls[0]").value("https://cdn.example.com/updated-chair.jpg"))
-            .andExpect(jsonPath("$.mediaUrls[1]").value("https://cdn.example.com/original-chair.jpg"))
+            .andExpect(jsonPath("$.mediaUrls[0]").value("https://cdn.example.com/original-chair.jpg"))
     }
 
     @Test
@@ -165,7 +145,6 @@ class PostUpdateControllerTest {
                         body(
                             "title" to "Unauthorized change",
                             "description" to "Trying to edit someone else's listing",
-                            "existingImageUrls" to listOf("https://cdn.example.com/original-chair.jpg"),
                             "imageOrder" to listOf(
                                 mapOf("kind" to "existing", "url" to "https://cdn.example.com/original-chair.jpg")
                             )

@@ -22,8 +22,5 @@ data class PostUpdateDTO(
 
     val category: Category? = null,
 
-    val imageOrder: List<PostImageReferenceDTO>? = null,
-
-    val existingImageUrls: List<@NotBlank(message = "Existing image URL must not be blank")
-    @URL(message = "Existing image URL must be valid") String>? = null
+    val imageOrder: List<PostImageReferenceDTO>? = null
 )
