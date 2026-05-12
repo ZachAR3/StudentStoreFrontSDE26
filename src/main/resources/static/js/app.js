@@ -261,16 +261,26 @@ document.addEventListener("alpine:init", () => {
                 throw error;
             },
 
+            passwordHasSpecialCharacter(password) {
+                return /[^A-Za-z\d\s]/.test(password || "");
+            },
+            getPasswordRequirementMessage() {
+                return "Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character. Spaces are not allowed.";
+            },
+            hasPasswordMismatch(password, confirmPassword) {
+                return Boolean(confirmPassword) && password !== confirmPassword;
+            },
             isPasswordValid(password) {
-                return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(password);
+                return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d\s])\S{8,}$/.test(password || "");
             },
             passwordStrength(password) {
+                const value = password || "";
                 let score = 0;
-                if (/[a-z]/.test(password)) score++;
-                if (/[A-Z]/.test(password)) score++;
-                if (/\d/.test(password)) score++;
-                if (/[@$!%*?&]/.test(password)) score++;
-                if ((password || "").length >= 8) score++;
+                if (/[a-z]/.test(value)) score++;
+                if (/[A-Z]/.test(value)) score++;
+                if (/\d/.test(value)) score++;
+                if (this.passwordHasSpecialCharacter(value)) score++;
+                if (value.length >= 8) score++;
                 return score;
             },
             passwordMeterBarClass(password, bar) {
@@ -280,13 +290,30 @@ document.addEventListener("alpine:init", () => {
                 if (strength >= 3) return "is-warning";
                 return "is-danger";
             },
-            isRegisterFormValid() {
+            getRegisterValidationError() {
                 const f = this.auth.registerForm;
-                return f.name && f.name.length >= 2 && f.name.length <= 100 &&
-                    f.email && f.email.endsWith("@constructor.university") &&
-                    f.phoneNumber && /^\+?[0-9]{10,15}$/.test(f.phoneNumber) &&
-                    f.password && this.isPasswordValid(f.password) &&
-                    f.confirmPassword === f.password;
+                if (!f.name || f.name.length < 2 || f.name.length > 100) {
+                    return "Name must be between 2 and 100 characters.";
+                }
+                if (!f.email || !f.email.endsWith("@constructor.university")) {
+                    return "Use your Constructor University email address.";
+                }
+                if (!f.phoneNumber || !/^\+?[0-9]{10,15}$/.test(f.phoneNumber)) {
+                    return "Phone number must contain 10 to 15 digits and may start with +.";
+                }
+                if (!f.password || !this.isPasswordValid(f.password)) {
+                    return this.getPasswordRequirementMessage();
+                }
+                if (!f.confirmPassword) {
+                    return "Please confirm your password.";
+                }
+                if (this.hasPasswordMismatch(f.password, f.confirmPassword)) {
+                    return "Passwords do not match.";
+                }
+                return "";
+            },
+            isRegisterFormValid() {
+                return !this.getRegisterValidationError();
             },
 
             async handleLogin() {
@@ -306,13 +333,13 @@ document.addEventListener("alpine:init", () => {
             },
 
             async handleRegister() {
-                this.isLoading = true;
                 this.clearMessages();
-                if (!this.isRegisterFormValid()) {
-                    this.setError("Please check your name, Constructor University email, phone number, and password requirements.");
-                    this.isLoading = false;
+                const validationError = this.getRegisterValidationError();
+                if (validationError) {
+                    this.setError(validationError);
                     return;
                 }
+                this.isLoading = true;
                 try {
                     const { confirmPassword, ...registrationData } = this.auth.registerForm;
                     const data = await services.auth.register(registrationData);
@@ -386,16 +413,20 @@ document.addEventListener("alpine:init", () => {
             },
 
             async handleResetPassword() {
-                if (this.auth.resetPasswordForm.newPassword !== this.auth.resetPasswordForm.confirmPassword) {
-                    this.setError("Passwords do not match");
+                this.clearMessages();
+                if (!this.auth.resetPasswordForm.confirmPassword) {
+                    this.setError("Please confirm your password.");
+                    return;
+                }
+                if (this.hasPasswordMismatch(this.auth.resetPasswordForm.newPassword, this.auth.resetPasswordForm.confirmPassword)) {
+                    this.setError("Passwords do not match.");
                     return;
                 }
                 if (!this.isPasswordValid(this.auth.resetPasswordForm.newPassword)) {
-                    this.setError("Password must have 8+ chars with uppercase, lowercase, digit, and special character");
+                    this.setError(this.getPasswordRequirementMessage());
                     return;
                 }
                 this.isLoading = true;
-                this.clearMessages();
                 try {
                     await services.auth.resetPassword({
                         token: this.auth.resetPasswordForm.token,

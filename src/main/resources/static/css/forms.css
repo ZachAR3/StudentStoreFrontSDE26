@@ -90,6 +90,12 @@
     color: var(--sf-color-success);
 }
 
+.password-help-error {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--sf-color-danger);
+}
+
 .upload-dropzone {
     display: grid;
     justify-items: center;

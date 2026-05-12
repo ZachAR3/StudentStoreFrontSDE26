@@ -1,5 +1,7 @@
 package com.studentstorefront.dto.update
 
+import com.studentstorefront.validation.PASSWORD_MESSAGE
+import com.studentstorefront.validation.PASSWORD_REGEX
 import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
@@ -22,8 +24,8 @@ data class SellerUpdateDTO(
     val phoneNumber: String? = null,
 
     @field:Pattern(
-        regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$",
-        message = "Password must contain at least 8 characters with uppercase, lowercase, digit, and special character"
+        regexp = PASSWORD_REGEX,
+        message = PASSWORD_MESSAGE
     )
     val password: String? = null
 )

@@ -706,13 +706,14 @@
                             <span :class="{ 'is-met': /[a-z]/.test(auth.resetPasswordForm.newPassword) }">lowercase</span>
                             <span :class="{ 'is-met': /[A-Z]/.test(auth.resetPasswordForm.newPassword) }">uppercase</span>
                             <span :class="{ 'is-met': /\d/.test(auth.resetPasswordForm.newPassword) }">digit</span>
-                            <span :class="{ 'is-met': /[@$!%*?&]/.test(auth.resetPasswordForm.newPassword) }">special</span>
+                            <span :class="{ 'is-met': passwordHasSpecialCharacter(auth.resetPasswordForm.newPassword) }">special (. _ # @ ...)</span>
                         </div>
                     </div>
                     <label>Confirm New Password
                         <input type="password" x-model="auth.resetPasswordForm.confirmPassword" required>
                     </label>
-                    <button type="submit" class="sf-u-full-width" :disabled="!isPasswordValid(auth.resetPasswordForm.newPassword) || auth.resetPasswordForm.newPassword !== auth.resetPasswordForm.confirmPassword">Reset Password</button>
+                    <p class="password-help-error" x-show="hasPasswordMismatch(auth.resetPasswordForm.newPassword, auth.resetPasswordForm.confirmPassword)">Passwords do not match.</p>
+                    <button type="submit" class="sf-u-full-width" :disabled="isLoading">Reset Password</button>
                 </form>
             </article>
         </div>
@@ -759,13 +760,14 @@
                             <span :class="{ 'is-met': /[a-z]/.test(auth.registerForm.password) }">lowercase</span>
                             <span :class="{ 'is-met': /[A-Z]/.test(auth.registerForm.password) }">uppercase</span>
                             <span :class="{ 'is-met': /\d/.test(auth.registerForm.password) }">digit</span>
-                            <span :class="{ 'is-met': /[@$!%*?&]/.test(auth.registerForm.password) }">special</span>
+                            <span :class="{ 'is-met': passwordHasSpecialCharacter(auth.registerForm.password) }">special (. _ # @ ...)</span>
                         </div>
                     </div>
                     <label>Confirm Password
                         <input type="password" x-model="auth.registerForm.confirmPassword" required>
                     </label>
-                    <button type="submit" class="sf-u-full-width" :disabled="!isRegisterFormValid()">Create Account</button>
+                    <p class="password-help-error" x-show="hasPasswordMismatch(auth.registerForm.password, auth.registerForm.confirmPassword)">Passwords do not match.</p>
+                    <button type="submit" class="sf-u-full-width" :disabled="isLoading">Create Account</button>
                 </form>
                 <div class="auth-link-row">
                     <small>Already have an account? <a href="#" @click.prevent="navigateTo('login')">Log in</a></small>
