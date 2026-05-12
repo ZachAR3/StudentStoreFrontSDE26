@@ -860,7 +860,7 @@ button.is-whatsapp {
 }
 
 @container (max-width: 26rem) {
-    .restaurant-menu-card {
+    .layout-card-grid > .restaurant-menu-card {
         grid-template-columns: 1fr;
         grid-template-areas:
             "media"
@@ -868,17 +868,36 @@ button.is-whatsapp {
             "footer";
     }
 
-    .restaurant-menu-card .item-card-media {
+    .layout-card-grid > .restaurant-menu-card .item-card-media {
         aspect-ratio: 4 / 3;
     }
 
-    .restaurant-menu-card .item-footer {
+    .layout-card-grid > .restaurant-menu-card .item-title {
+        -webkit-line-clamp: 2;
+    }
+
+    .layout-card-grid > .restaurant-menu-card .item-footer {
         grid-template-columns: minmax(0, 1fr) auto;
         align-items: center;
     }
 
-    .restaurant-menu-card .item-actions-block {
+    .layout-card-grid > .restaurant-menu-card .item-actions-block {
         justify-content: flex-end;
+    }
+}
+
+@container (max-width: 20rem) {
+    .layout-card-grid > .restaurant-menu-card .item-footer {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+
+    .layout-card-grid > .restaurant-menu-card .item-actions-block {
+        justify-content: flex-start;
+    }
+
+    .layout-card-grid > .restaurant-menu-card .restaurant-add-button {
+        justify-self: start;
     }
 }
 

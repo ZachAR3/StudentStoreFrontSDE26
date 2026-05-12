@@ -37,6 +37,7 @@
     justify-items: stretch;
     width: 100%;
     min-width: 0;
+    container-type: inline-size;
 }
 
 .layout-card-grid > .item-card:not(.restaurant-menu-card) {
