@@ -208,6 +208,21 @@ class WhatsAppQrLoginServiceTest {
     }
 
     @Test
+    fun `confirmLogin returns PHONE_NOT_LINKED when phone belongs to unverified seller`() {
+        val seller = buildSeller(isEnabled = false)
+        val session = WhatsAppLoginSession(creatorIp = "127.0.0.1")
+        every { sessionRepository.findByLoginToken(session.loginToken) } returns session
+        every { sellerRepository.findByPhoneNumber("+${seller.phoneNumber}") } returns seller
+
+        val result = service.confirmLogin(session.loginToken, seller.phoneNumber)
+
+        assertEquals("PHONE_NOT_LINKED", result.result)
+        assertEquals(WhatsAppSessionStatus.PHONE_NOT_LINKED, session.status)
+        assertEquals("+${seller.phoneNumber}", session.phoneNumber)
+        verify { sessionRepository.save(session) }
+    }
+
+    @Test
     fun `confirmLogin returns OK and transitions session to COMPLETED with claimToken`() {
         val seller = buildSeller()
         val session = WhatsAppLoginSession(creatorIp = "127.0.0.1")
@@ -259,6 +274,26 @@ class WhatsAppQrLoginServiceTest {
     }
 
     @Test
+    fun `claimJwt returns null and downgrades stale session when seller is unverified`() {
+        val seller = buildSeller(isEnabled = false)
+        val session = WhatsAppLoginSession(creatorIp = "127.0.0.1").apply {
+            status = WhatsAppSessionStatus.COMPLETED
+            claimToken = UUID.randomUUID()
+            sellerId = seller.sellerId
+            completedAt = LocalDateTime.now().minusSeconds(30)
+        }
+        every { sessionRepository.findByClaimToken(session.claimToken!!) } returns session
+        every { sellerRepository.findById(seller.sellerId!!) } returns Optional.of(seller)
+
+        val result = service.claimJwt(session.claimToken!!)
+
+        assertNull(result)
+        assertEquals(WhatsAppSessionStatus.PHONE_NOT_LINKED, session.status)
+        assertNull(session.claimToken)
+        verify { sessionRepository.save(session) }
+    }
+
+    @Test
     fun `claimJwt issues JWT and transitions session to CLAIMED`() {
         val seller = buildSeller()
         val userDetails = User(seller.email, seller.password, emptyList())
@@ -296,12 +331,13 @@ class WhatsAppQrLoginServiceTest {
 
     // ── helpers ────────────────────────────────────────────────────────────────
 
-    private fun buildSeller() = Seller(
+    private fun buildSeller(isEnabled: Boolean = true) = Seller(
         sellerId = 1L,
         name = "Test Seller",
         email = "test@constructor.university",
         phoneNumber = "15551234567",
         password = "hashed",
-        role = Role.SELLER
+        role = Role.SELLER,
+        isEnabled = isEnabled
     )
 }

@@ -69,6 +69,7 @@ class WhatsAppQrLoginService(
 
         val normalizedPhone = normalizePhone(phoneNumber)
         val seller = sellerRepository.findByPhoneNumber(normalizedPhone)
+            ?.takeIf { it.isEnabled }
             ?: run {
                 session.status = WhatsAppSessionStatus.PHONE_NOT_LINKED
                 session.phoneNumber = normalizedPhone
@@ -97,7 +98,13 @@ class WhatsAppQrLoginService(
         val completedAt = session.completedAt ?: return null
         if (LocalDateTime.now().isAfter(completedAt.plusMinutes(CLAIM_TTL_MINUTES))) return null
 
-        val seller = sellerRepository.findById(session.sellerId!!).orElse(null) ?: return null
+        val seller = sellerRepository.findById(session.sellerId!!).orElse(null)
+        if (seller == null || !seller.isEnabled) {
+            session.status = WhatsAppSessionStatus.PHONE_NOT_LINKED
+            session.claimToken = null
+            sessionRepository.save(session)
+            return null
+        }
 
         val userDetails = userDetailsService.loadUserByUsername(seller.email)
         val jwt = jwtService.generateToken(userDetails)

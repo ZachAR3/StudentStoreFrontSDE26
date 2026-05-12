@@ -12,6 +12,7 @@ import com.studentstorefront.repository.PasswordResetTokenRepository
 import com.studentstorefront.repository.PostRepository
 import com.studentstorefront.repository.ReviewRepository
 import com.studentstorefront.repository.SellerRepository
+import com.studentstorefront.repository.WhatsAppLoginSessionRepository
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.security.access.AccessDeniedException
@@ -29,49 +30,32 @@ class SellerService(
     private val reviewRepository: ReviewRepository,
     private val passwordEncoder: PasswordEncoder,
     private val emailVerificationTokenRepository: EmailVerificationTokenRepository,
-    private val passwordResetTokenRepository: PasswordResetTokenRepository
+    private val passwordResetTokenRepository: PasswordResetTokenRepository,
+    private val whatsAppLoginSessionRepository: WhatsAppLoginSessionRepository
 ) {
 
     fun createSellerWithToken(request: SellerRequestDTO): Pair<SellerResponseDTO, String> {
-        val existingUnverified = sellerRepository.findByEmail(request.email)?.takeIf { !it.isEnabled }
-
-        val seller: Seller
-        val sellerResponse: SellerResponseDTO
-
-        if (existingUnverified != null) {
-            val normalizedPhone = normalizePhone(request.phoneNumber)
-            val phoneOwner = sellerRepository.findByPhoneNumber(normalizedPhone)
-            if (phoneOwner != null && phoneOwner.sellerId != existingUnverified.sellerId) {
-                throw IllegalArgumentException("Phone number already registered: ${request.phoneNumber}")
-            }
-            emailVerificationTokenRepository.deleteBySellerSellerId(existingUnverified.sellerId!!)
-            existingUnverified.name = request.name
-            existingUnverified.phoneNumber = normalizedPhone
-            existingUnverified.password = passwordEncoder.encode(request.password)!!
-            seller = sellerRepository.save(existingUnverified)
-            sellerResponse = mapToResponseDTO(seller)
-        } else {
-            sellerResponse = createSeller(request)
-            seller = sellerRepository.findByEmail(sellerResponse.email)!!
-        }
-
+        val normalizedPhone = normalizePhone(request.phoneNumber)
+        val seller = resolveRegistrationSeller(request, normalizedPhone)
         val token = EmailVerificationToken(seller = seller)
         emailVerificationTokenRepository.save(token)
-        return sellerResponse to token.code
+        return mapToResponseDTO(seller) to token.code
     }
 
     fun createSeller(sellerRequestDTO: SellerRequestDTO): SellerResponseDTO {
+        val normalizedPhone = normalizePhone(sellerRequestDTO.phoneNumber)
+
         // Check if email already exists
         if (sellerRepository.existsByEmail(sellerRequestDTO.email)) {
             throw IllegalArgumentException("Email already exists: ${sellerRequestDTO.email}")
         }
 
         // Check if phone number already exists
-        if (sellerRepository.findByPhoneNumber(sellerRequestDTO.phoneNumber) != null) {
+        if (sellerRepository.findByPhoneNumber(normalizedPhone) != null) {
             throw IllegalArgumentException("Phone number already registered: ${sellerRequestDTO.phoneNumber}")
         }
 
-        val seller = createSellerEntity(sellerRequestDTO)
+        val seller = createSellerEntity(sellerRequestDTO, normalizedPhone)
         val savedSeller = sellerRepository.save(seller)
         return mapToResponseDTO(savedSeller)
     }
@@ -99,7 +83,9 @@ class SellerService(
 
     @Transactional(readOnly = true)
     fun getSellerByPhone(phone: String): SellerResponseDTO? {
-        val seller = sellerRepository.findByPhoneNumber(phone) ?: return null
+        val seller = sellerRepository.findByPhoneNumber(normalizePhone(phone))
+            ?.takeIf { it.isEnabled }
+            ?: return null
         return mapToResponseDTO(seller)
     }
 
@@ -149,12 +135,7 @@ class SellerService(
         if (!sellerRepository.existsById(sellerId)) {
             throw IllegalArgumentException("Seller not found with id: $sellerId")
         }
-        emailVerificationTokenRepository.deleteBySellerSellerId(sellerId)
-        passwordResetTokenRepository.deleteBySellerSellerId(sellerId)
-        favouriteRepository.deleteBySellerSellerId(sellerId)
-        reviewRepository.deleteByReviewerSellerIdOrRevieweeSellerId(sellerId, sellerId)
-        postRepository.clearBuyerReferences(sellerId)
-        postRepository.deleteAll(postRepository.findBySellerSellerId(sellerId))
+        clearSellerDependencies(sellerId)
         sellerRepository.deleteById(sellerId)
     }
 
@@ -171,12 +152,7 @@ class SellerService(
         }
 
         // Delete dependent rows before removing posts/account.
-        emailVerificationTokenRepository.deleteBySellerSellerId(seller.sellerId!!)
-        passwordResetTokenRepository.deleteBySellerSellerId(seller.sellerId!!)
-        favouriteRepository.deleteBySellerSellerId(seller.sellerId!!)
-        reviewRepository.deleteByReviewerSellerIdOrRevieweeSellerId(seller.sellerId!!, seller.sellerId!!)
-        postRepository.clearBuyerReferences(seller.sellerId!!)
-        postRepository.deleteAll(postRepository.findBySellerSellerId(seller.sellerId!!))
+        clearSellerDependencies(seller.sellerId!!)
 
         // Delete the seller
         sellerRepository.delete(seller)
@@ -203,11 +179,68 @@ class SellerService(
         return "+$digits"
     }
 
-    private fun createSellerEntity(sellerRequestDTO: SellerRequestDTO): Seller {
+    private fun resolveRegistrationSeller(request: SellerRequestDTO, normalizedPhone: String): Seller {
+        val emailOwner = sellerRepository.findByEmail(request.email)
+        val phoneOwner = sellerRepository.findByPhoneNumber(normalizedPhone)
+
+        if (emailOwner?.isEnabled == true) {
+            throw IllegalArgumentException("Email already exists: ${request.email}")
+        }
+
+        if (phoneOwner?.isEnabled == true && phoneOwner.sellerId != emailOwner?.sellerId) {
+            throw IllegalArgumentException("Phone number already registered: ${request.phoneNumber}")
+        }
+
+        return when {
+            emailOwner == null && phoneOwner == null -> sellerRepository.save(createSellerEntity(request, normalizedPhone))
+            emailOwner != null && phoneOwner != null && emailOwner.sellerId != phoneOwner.sellerId ->
+                recycleMergedUnverifiedAccounts(emailOwner, phoneOwner, request, normalizedPhone)
+            else -> recycleUnverifiedSeller(emailOwner ?: phoneOwner!!, request, normalizedPhone)
+        }
+    }
+
+    private fun recycleMergedUnverifiedAccounts(
+        emailOwner: Seller,
+        phoneOwner: Seller,
+        request: SellerRequestDTO,
+        normalizedPhone: String
+    ): Seller {
+        clearSellerDependencies(phoneOwner.sellerId!!)
+        sellerRepository.deleteById(phoneOwner.sellerId!!)
+        return recycleUnverifiedSeller(emailOwner, request, normalizedPhone)
+    }
+
+    private fun recycleUnverifiedSeller(
+        seller: Seller,
+        request: SellerRequestDTO,
+        normalizedPhone: String
+    ): Seller {
+        clearSellerDependencies(seller.sellerId!!)
+        return sellerRepository.save(
+            seller.copy(
+                name = request.name,
+                email = request.email,
+                phoneNumber = normalizedPhone,
+                password = passwordEncoder.encode(request.password)!!
+            )
+        )
+    }
+
+    private fun clearSellerDependencies(sellerId: Long) {
+        emailVerificationTokenRepository.deleteBySellerSellerId(sellerId)
+        passwordResetTokenRepository.deleteBySellerSellerId(sellerId)
+        favouriteRepository.deleteBySellerSellerId(sellerId)
+        reviewRepository.deleteByReviewerSellerIdOrRevieweeSellerId(sellerId, sellerId)
+        whatsAppLoginSessionRepository.deleteBySellerId(sellerId)
+        postRepository.clearBuyerReferences(sellerId)
+        postRepository.deleteAll(postRepository.findBySellerSellerId(sellerId))
+    }
+
+    private fun createSellerEntity(sellerRequestDTO: SellerRequestDTO, normalizedPhone: String): Seller {
         return Seller(
             name = sellerRequestDTO.name,
             email = sellerRequestDTO.email,
-            phoneNumber = normalizePhone(sellerRequestDTO.phoneNumber),
+            phoneNumber = normalizedPhone,
             password = passwordEncoder.encode(sellerRequestDTO.password)!! // Hash the password
         )
     }

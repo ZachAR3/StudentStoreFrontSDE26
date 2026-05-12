@@ -12,6 +12,7 @@ interface WhatsAppLoginSessionRepository : JpaRepository<WhatsAppLoginSession, U
     fun findBySessionId(sessionId: UUID): WhatsAppLoginSession?
     fun findByLoginToken(loginToken: UUID): WhatsAppLoginSession?
     fun findByClaimToken(claimToken: UUID): WhatsAppLoginSession?
+    fun deleteBySellerId(sellerId: Long)
 
     @Modifying
     @Query("""

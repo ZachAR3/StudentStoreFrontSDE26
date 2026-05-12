@@ -33,7 +33,7 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 │   │   │   ├── entity/        # JPA Entities (Favourite, PasswordResetToken, Post, PostMedia, Review, Seller, WhatsAppLoginSession)
 │   │   │   ├── enums/         # Enums (Category, PostStatus, ReviewDirection, Role, WhatsAppSessionStatus)
 │   │   │   ├── exception/     # Global Exception Handling
-│   │   │   ├── repository/    # Database Access Layers (Favourite, PasswordResetToken, Post, PostMedia, Review, Seller, WhatsAppLoginSession)
+│   │   │   ├── repository/    # Database Access Layers (EmailVerificationToken, Favourite, PasswordResetToken, Post, PostMedia, Review, Seller, WhatsAppLoginSession)
 │   │   │   ├── scheduler/     # Listing expiration reminders and archival jobs
 │   │   │   └── service/       # Business Logic (BotNotificationService, CloudinaryService, EmailService, FavouriteService, JwtService, PasswordResetService, PostService, ReviewService, SellerService, WhatsAppQrLoginService)
 │   │   └── resources/
@@ -53,7 +53,7 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 │   │       └── application.properties # Database, JWT & WhatsApp bot config
 │   └── test/
 │       └── kotlin/com/studentstorefront/
-│           ├── service/       # Unit tests (WhatsAppQrLoginServiceTest — MockK)
+│           ├── service/       # Unit tests (SellerServiceTest, WhatsAppQrLoginServiceTest — MockK)
 │           └── controller/    # Integration tests (WhatsAppQrLoginControllerTest, PostSearchControllerTest — MockMvc + Testcontainers)
 ├── bot/                       # Node.js WhatsApp Bot integration
 │   ├── src/
@@ -96,14 +96,14 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 
 | Method | Endpoint | Auth | Description |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/api/auth/register` | Public | Register a new seller and receive a JWT Bearer token |
+| `POST` | `/api/auth/register` | Public | Create or refresh a pending seller registration, normalize the phone number, and send an email verification code |
 | `POST` | `/api/auth/login` | Public | Authenticate with email/password and receive a JWT Bearer token |
 | `POST` | `/api/auth/forgot-password`| Public | Request a password reset link (sent via email) |
 | `POST` | `/api/auth/reset-password` | Public | Reset password using a valid token |
 | `POST` | `/api/auth/whatsapp/session` | Public | Create a WhatsApp QR login session; returns `sessionId`, `qrContent`, and `expiresAt` |
 | `GET` | `/api/auth/whatsapp/session/{sessionId}` | Public | Poll session status; returns `PENDING`, `COMPLETED` (with `claimToken`), `EXPIRED`, `PHONE_NOT_LINKED`, or `CLAIMED` |
-| `POST` | `/api/auth/whatsapp/confirm` | `X-Bot-Api-Key` | Bot-only: confirm a login by supplying `loginToken` + `phoneNumber` |
-| `POST` | `/api/auth/whatsapp/claim` | Public | Exchange a one-time `claimToken` for a JWT |
+| `POST` | `/api/auth/whatsapp/confirm` | `X-Bot-Api-Key` | Bot-only: confirm a login by supplying `loginToken` + `phoneNumber`; only enabled sellers can complete the flow |
+| `POST` | `/api/auth/whatsapp/claim` | Public | Exchange a one-time `claimToken` for a JWT; stale sessions tied to missing/unverified sellers are rejected |
 
 ### **Post Management** (`/api/posts`)
 
@@ -130,14 +130,14 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 | Method | Endpoint | Auth | Description |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/sellers` | ADMIN | Fetch paginated list of all sellers |
-| `POST` | `/api/sellers` | Public* | Create a new seller directly (Vulnerable: use `/auth/register`) |
+| `POST` | `/api/sellers` | ADMIN | Create a new seller directly; phone uniqueness uses normalized `+digits` storage just like self-registration |
 | `GET` | `/api/sellers/{id}` | SELLER/ADMIN | Get details of a specific seller |
 | `GET` | `/api/sellers/email/{email}`| ADMIN | Get details of a specific seller by email |
-| `GET` | `/api/sellers/by-phone` | Public* | Bot-specific: Lookup seller by phone number (Vulnerable: leaks PII) |
+| `GET` | `/api/sellers/by-phone` | Public* | Bot-specific: Lookup an enabled registered seller by phone number; unverified accounts are treated as not registered |
 | `GET` | `/api/sellers/search?q={text}` | SELLER/ADMIN | Search enabled registered sellers by name/email for buyer selection when marking a listing sold |
 | `PUT` | `/api/sellers/{id}` | SELLER/ADMIN | Update an existing seller |
-| `DELETE` | `/api/sellers/me` | SELLER/ADMIN | Self-service account deletion (requires password re-entry) |
-| `DELETE` | `/api/sellers/{id}` | ADMIN | Delete a seller |
+| `DELETE` | `/api/sellers/me` | SELLER/ADMIN | Self-service account deletion (requires password re-entry) and clears tokens, QR login sessions, favourites, reviews, buyer links, and owned posts before removing the seller |
+| `DELETE` | `/api/sellers/{id}` | ADMIN | Delete a seller with the same dependency cleanup used by self-service deletion |
 
 ### **Review Management** (`/api/reviews`)
 
@@ -198,6 +198,11 @@ Edit behavior:
 - `isEnabled`: Boolean active status flag
 - `createdAt`: Timestamp
 
+Lifecycle notes:
+- Public registration creates or refreshes a disabled seller record until email verification completes.
+- Re-registering with the same unverified email or phone refreshes that pending account instead of permanently burning the identifier after an abandoned or failed signup.
+- Seller deletion clears dependent tokens, WhatsApp QR sessions, favourites, reviews, buyer references, and owned posts before the seller row is removed, allowing the same email/phone to be reused later.
+
 ### **Favourite**
 - `id`: Primary Key (Long)
 - `seller`: Reference to the owning `Seller`
@@ -234,6 +239,10 @@ Edit behavior:
 - `expiresAt`: `createdAt + 5 minutes`
 - `completedAt`: Timestamp when bot confirmed the login
 - `claimedAt`: Timestamp when frontend exchanged claimToken for JWT
+
+Behavior notes:
+- Only enabled sellers can move a WhatsApp session into the login claim flow.
+- Deleting a seller removes any sessions tied to that seller so later account recreation can reuse the same phone/email cleanly.
 
 ---
 
@@ -319,6 +328,8 @@ The Alpine SPA stores view state in the URL hash (`#view=...`, plus `site=...` f
 ### **Security & University Verification**
 - Access and registrations enforce `@constructor.university` email domains.
 - Authentication relies on **JWT** Bearer tokens.
+- Email/password login remains blocked until `isEnabled = true`, even if a pending seller row already exists.
+- If verification-email delivery fails or a signup is abandoned, submitting `/api/auth/register` again with the same unverified email or phone refreshes the pending account and issues a fresh verification code.
 - **Email Service:** Used for verification codes and password reset links. SMTP credentials are environment-driven (`MAIL_HOST`, `MAIL_USERNAME`, `MAIL_PASSWORD`); Gmail requires an app password rather than a passkey or normal account password.
 
 ### **Listing Expiration**
@@ -336,6 +347,7 @@ The Alpine SPA stores view state in the URL hash (`#view=...`, plus `site=...` f
 
 ### **WhatsApp Bot Bridge**
 - **Bot Engine:** Built with `whatsapp-web.js`. Handles group message parsing, DM commands, QR login confirmations, and explicit DM posting flows.
+- Phone-based seller lookup and WhatsApp QR login only treat enabled sellers as registered accounts; stale unverified signups are ignored until verification completes.
 - **Command Short-Circuiting:** Known bot commands are detected before listing classification in the target chat, so command messages skip LLM classification entirely (lower latency and token usage).
 - **DM Posting Flow:** Users can start a draft with `post`, send text and photos, and let the inactivity timer submit the draft. Consent and registration retries use persisted bot-side state so drafts survive restarts.
 - **Missing-Price Staging:** If the parser can identify items but one or more are missing valid prices, the draft moves into `awaiting-price` for up to 24 hours. The bot DMs an itemized missing-price list (for each missing item) and retries the same staged draft when the seller replies.
