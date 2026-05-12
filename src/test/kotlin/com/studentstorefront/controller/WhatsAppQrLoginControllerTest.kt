@@ -74,7 +74,8 @@ class WhatsAppQrLoginControllerTest {
                 email = "qrtest@constructor.university",
                 phoneNumber = "+15559876543",
                 password = passwordEncoder.encode("password") ?: "",
-                role = Role.SELLER
+                role = Role.SELLER,
+                isEnabled = true
             )
         )
     }
