@@ -1,6 +1,7 @@
 package com.studentstorefront.service
 
 import com.studentstorefront.dto.request.SellerRequestDTO
+import com.studentstorefront.entity.Post
 import com.studentstorefront.entity.Seller
 import com.studentstorefront.enums.Role
 import com.studentstorefront.repository.EmailVerificationTokenRepository
@@ -218,15 +219,40 @@ class SellerServiceTest {
         verify(exactly = 1) { sellerRepository.deleteById(sellerId) }
     }
 
-    private fun stubSellerDependencyCleanup(sellerId: Long) {
+    @Test
+    fun `deleteSeller removes favourites and reviews for owned posts before deleting them`() {
+        val seller = buildSeller(sellerId = 42L)
+        val posts = listOf(
+            Post(postId = 13L, seller = seller),
+            Post(postId = 14L, seller = seller)
+        )
+
+        every { sellerRepository.existsById(seller.sellerId!!) } returns true
+        stubSellerDependencyCleanup(seller.sellerId!!, posts)
+        every { sellerRepository.deleteById(seller.sellerId!!) } just Runs
+
+        service.deleteSeller(seller.sellerId!!)
+
+        verify(exactly = 1) { favouriteRepository.deleteByPostPostId(13L) }
+        verify(exactly = 1) { favouriteRepository.deleteByPostPostId(14L) }
+        verify(exactly = 1) { reviewRepository.deleteByPostPostId(13L) }
+        verify(exactly = 1) { reviewRepository.deleteByPostPostId(14L) }
+        verify(exactly = 1) { postRepository.deleteAll(posts) }
+    }
+
+    private fun stubSellerDependencyCleanup(sellerId: Long, ownedPosts: List<Post> = emptyList()) {
         every { emailVerificationTokenRepository.deleteBySellerSellerId(sellerId) } just Runs
         every { passwordResetTokenRepository.deleteBySellerSellerId(sellerId) } just Runs
         every { favouriteRepository.deleteBySellerSellerId(sellerId) } just Runs
         every { reviewRepository.deleteByReviewerSellerIdOrRevieweeSellerId(sellerId, sellerId) } just Runs
         every { whatsAppLoginSessionRepository.deleteBySellerId(sellerId) } just Runs
         every { postRepository.clearBuyerReferences(sellerId) } returns 0
-        every { postRepository.findBySellerSellerId(sellerId) } returns emptyList()
-        every { postRepository.deleteAll(emptyList()) } just Runs
+        ownedPosts.mapNotNull { it.postId }.forEach { postId ->
+            every { favouriteRepository.deleteByPostPostId(postId) } just Runs
+            every { reviewRepository.deleteByPostPostId(postId) } just Runs
+        }
+        every { postRepository.findBySellerSellerId(sellerId) } returns ownedPosts
+        every { postRepository.deleteAll(ownedPosts) } just Runs
     }
 
     private fun buildSeller(

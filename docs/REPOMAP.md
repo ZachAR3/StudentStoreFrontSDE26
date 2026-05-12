@@ -136,7 +136,7 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 | `GET` | `/api/sellers/by-phone` | Public* | Bot-specific: Lookup an enabled registered seller by phone number; unverified accounts are treated as not registered |
 | `GET` | `/api/sellers/search?q={text}` | SELLER/ADMIN | Search enabled registered sellers by name/email for buyer selection when marking a listing sold |
 | `PUT` | `/api/sellers/{id}` | SELLER/ADMIN | Update an existing seller |
-| `DELETE` | `/api/sellers/me` | SELLER/ADMIN | Self-service account deletion (requires password re-entry) and clears tokens, QR login sessions, favourites, reviews, buyer links, and owned posts before removing the seller |
+| `DELETE` | `/api/sellers/me` | SELLER/ADMIN | Self-service account deletion (requires password re-entry) and clears tokens, QR login sessions, seller-owned favourites, favourites/reviews attached to the seller's posts, buyer links, and owned posts before removing the seller |
 | `DELETE` | `/api/sellers/{id}` | ADMIN | Delete a seller with the same dependency cleanup used by self-service deletion |
 
 ### **Review Management** (`/api/reviews`)
@@ -201,7 +201,7 @@ Edit behavior:
 Lifecycle notes:
 - Public registration creates or refreshes a disabled seller record until email verification completes.
 - Re-registering with the same unverified email or phone refreshes that pending account instead of permanently burning the identifier after an abandoned or failed signup.
-- Seller deletion clears dependent tokens, WhatsApp QR sessions, favourites, reviews, buyer references, and owned posts before the seller row is removed, allowing the same email/phone to be reused later.
+- Seller deletion clears dependent tokens, WhatsApp QR sessions, seller-owned favourites, favourites/reviews attached to the seller's listings, buyer references, and owned posts before the seller row is removed, allowing the same email/phone to be reused later.
 
 ### **Favourite**
 - `id`: Primary Key (Long)

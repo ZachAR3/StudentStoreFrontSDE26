@@ -29,9 +29,15 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException::class)
     fun handleDataIntegrityViolation(ex: DataIntegrityViolationException): ResponseEntity<Map<String, String>> {
+        val details = generateSequence(ex as Throwable?) { it.cause }
+            .mapNotNull { it.message }
+            .joinToString(" ")
+            .lowercase()
         val message = when {
-            ex.message?.contains("email") == true -> "An account with this email already exists"
-            ex.message?.contains("phone_number") == true -> "An account with this phone number already exists"
+            details.contains("violates foreign key constraint") || details.contains("still referenced") ->
+                "This record can't be deleted because other data still references it"
+            details.contains("email") -> "An account with this email already exists"
+            details.contains("phone_number") -> "An account with this phone number already exists"
             else -> "A record with this data already exists"
         }
         return ResponseEntity.status(HttpStatus.CONFLICT).body(mapOf("message" to message))

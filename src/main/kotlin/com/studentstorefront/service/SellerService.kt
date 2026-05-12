@@ -233,7 +233,12 @@ class SellerService(
         reviewRepository.deleteByReviewerSellerIdOrRevieweeSellerId(sellerId, sellerId)
         whatsAppLoginSessionRepository.deleteBySellerId(sellerId)
         postRepository.clearBuyerReferences(sellerId)
-        postRepository.deleteAll(postRepository.findBySellerSellerId(sellerId))
+        val ownedPosts = postRepository.findBySellerSellerId(sellerId)
+        ownedPosts.mapNotNull { it.postId }.forEach { postId ->
+            favouriteRepository.deleteByPostPostId(postId)
+            reviewRepository.deleteByPostPostId(postId)
+        }
+        postRepository.deleteAll(ownedPosts)
     }
 
     private fun createSellerEntity(sellerRequestDTO: SellerRequestDTO, normalizedPhone: String): Seller {
