@@ -21,16 +21,16 @@ interface PostRepository: JpaRepository<Post, Long> {
     fun findByCategoryAndIsSoldFalseAndStatus(category: Category, status: PostStatus, pageable: Pageable): Page<Post>
     fun findByIsSoldFalseAndStatus(status: PostStatus, pageable: Pageable): Page<Post>
 
-    // --- seller profile queries (all statuses — sellers see their own expired posts) ---
+    // --- user profile queries (all statuses — sellers see their own expired posts) ---
 
-    fun findBySellerSellerId(sellerId: Long, pageable: Pageable): Page<Post>
-    fun findBySellerSellerId(sellerId: Long): List<Post>
-    fun findBySellerSellerIdAndIsSoldTrue(sellerId: Long): List<Post>
-    fun findByBuyerSellerIdAndIsSoldTrue(sellerId: Long): List<Post>
+    fun findByUserUserId(userId: Long, pageable: Pageable): Page<Post>
+    fun findByUserUserId(userId: Long): List<Post>
+    fun findByUserUserIdAndIsSoldTrue(userId: Long): List<Post>
+    fun findByBuyerUserIdAndIsSoldTrue(userId: Long): List<Post>
 
     @Modifying
-    @Query("UPDATE Post p SET p.buyer = NULL WHERE p.buyer.sellerId = :buyerId")
-    fun clearBuyerReferences(@Param("buyerId") buyerId: Long): Int
+    @Query("UPDATE Post p SET p.buyer = NULL WHERE p.buyer.userId = :buyerUserId")
+    fun clearBuyerReferences(@Param("buyerUserId") buyerUserId: Long): Int
 
     @Query(
         """

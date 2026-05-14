@@ -27,14 +27,14 @@ class PostController(
 ) {
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     fun createPost(@Valid @RequestBody postRequestDTO: PostRequestDTO): ResponseEntity<PostResponseDTO> {
         val createdPost = postService.createPost(postRequestDTO)
         return ResponseEntity.status(HttpStatus.CREATED).body(createdPost)
     }
 
     @PostMapping("/upload", consumes = ["multipart/form-data"])
-    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     fun createPostWithImages(
         @RequestPart("post") @Valid postRequestDTO: PostRequestDTO,
         @RequestPart("images") images: List<org.springframework.web.multipart.MultipartFile>,
@@ -52,15 +52,6 @@ class PostController(
         if (apiKey != botApiKey) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         val createdPost = postService.createPostAsBot(postRequestDTO)
         return ResponseEntity.status(HttpStatus.CREATED).body(createdPost)
-    }
-
-    @PostMapping("/bot/media/resolve")
-    fun resolveBotMediaUrls(
-        @RequestHeader("X-Bot-Api-Key") apiKey: String,
-        @RequestBody imageHashes: List<String>
-    ): ResponseEntity<Map<String, String>> {
-        if (apiKey != botApiKey) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        return ResponseEntity.ok(postService.resolveMediaUrlsByHash(imageHashes))
     }
 
     @PostMapping("/bot/renew/{postId}")
@@ -119,12 +110,12 @@ class PostController(
         }
     }
 
-    @GetMapping("/seller/{sellerId}")
-    fun getPostsBySeller(
-        @PathVariable sellerId: Long,
+    @GetMapping("/user/{userId}")
+    fun getPostsByUser(
+        @PathVariable userId: Long,
         @PageableDefault(size = 20) pageable: Pageable
     ): ResponseEntity<Page<PostResponseDTO>> {
-        val posts = postService.getPostsBySeller(sellerId, pageable)
+        val posts = postService.getPostsByUser(userId, pageable)
         return ResponseEntity.ok(posts)
     }
 
@@ -137,7 +128,7 @@ class PostController(
     }
 
     @PutMapping("/{postId}")
-    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     fun updatePost(
         @PathVariable postId: Long,
         @Valid @RequestBody postUpdateDTO: PostUpdateDTO
@@ -147,7 +138,7 @@ class PostController(
     }
 
     @PutMapping("/{postId}/upload", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     fun updatePostWithImages(
         @PathVariable postId: Long,
         @RequestPart("post") @Valid postUpdateDTO: PostUpdateDTO,
@@ -159,7 +150,7 @@ class PostController(
     }
 
     @PatchMapping("/{postId}/mark-sold")
-    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     fun markAsSold(
         @PathVariable postId: Long,
         @Valid @RequestBody request: MarkSoldRequestDTO
@@ -169,7 +160,7 @@ class PostController(
     }
 
     @DeleteMapping("/{postId}")
-    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     fun deletePost(@PathVariable postId: Long): ResponseEntity<Void> {
         postService.deletePost(postId)
         return ResponseEntity.noContent().build()

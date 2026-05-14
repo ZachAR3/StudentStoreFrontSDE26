@@ -8,10 +8,10 @@ import org.springframework.stereotype.Repository
 
 @Repository
 interface ReviewRepository : JpaRepository<Review, Long> {
-    fun existsByPostPostIdAndDirection(postId: Long, direction: ReviewDirection): Boolean
-    fun findByPostPostId(postId: Long): List<Review>
-    fun findByRevieweeSellerIdOrderByCreatedAtDesc(sellerId: Long, pageable: Pageable): List<Review>
-    fun findByRevieweeSellerIdAndDirection(sellerId: Long, direction: ReviewDirection): List<Review>
-    fun deleteByPostPostId(postId: Long)
-    fun deleteByReviewerSellerIdOrRevieweeSellerId(reviewerId: Long, revieweeId: Long)
+    fun existsBySaleIdAndDirection(saleId: Long, direction: ReviewDirection): Boolean
+    fun findBySaleId(saleId: Long): List<Review>
+    fun findByRevieweeUserIdOrderByCreatedAtDesc(userId: Long, pageable: Pageable): List<Review>
+    fun findByRevieweeUserIdAndDirection(userId: Long, direction: ReviewDirection): List<Review>
+    fun deleteBySalePostPostId(postId: Long)
+    fun deleteByReviewerUserIdOrRevieweeUserId(reviewerId: Long, revieweeId: Long)
 }

@@ -1,7 +1,7 @@
 package com.studentstorefront.scheduler
 
 import com.studentstorefront.entity.Post
-import com.studentstorefront.entity.Seller
+import com.studentstorefront.entity.User
 import com.studentstorefront.enums.Category
 import com.studentstorefront.enums.PostStatus
 import com.studentstorefront.enums.Role
@@ -107,13 +107,13 @@ class PostExpirationSchedulerTest {
         category = Category.OTHER,
         expiresAt = LocalDateTime.now().plusMinutes(30),
         status = PostStatus.ACTIVE,
-        seller = Seller(
-            sellerId = 1L,
-            name = "Seller",
-            email = "seller@test.com",
+        user = User(
+            userId = 1L,
+            name = "User",
+            email = "user@test.com",
             phoneNumber = "+1234567890",
             password = "hash",
-            role = Role.SELLER
+            role = Role.USER
         )
     )
 }

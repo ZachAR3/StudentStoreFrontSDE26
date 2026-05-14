@@ -18,8 +18,8 @@ class BotNotificationService(
     private val client = WebClient.builder().baseUrl(botApiUrl).build()
 
     fun sendRenewalReminder(post: Post) {
-        val phone = post.seller?.phoneNumber ?: run {
-            log.warn("Post ${post.postId} has no seller phone — skipping reminder")
+        val phone = post.user?.phoneNumber ?: run {
+            log.warn("Post ${post.postId} has no user phone — skipping reminder")
             return
         }
         val expiresAt = post.expiresAt?.format(DateTimeFormatter.ofPattern("HH:mm, dd MMM")) ?: "soon"
@@ -41,29 +41,29 @@ class BotNotificationService(
 
     fun sendSellerReviewRequest(post: Post) {
         val buyer = post.buyer ?: run {
-            log.warn("Post ${post.postId} has no buyer — skipping seller review request")
+            log.warn("Post ${post.postId} has no buyer — skipping user review request")
             return
         }
         val phone = buyer.phoneNumber.takeIf { it.isNotBlank() } ?: run {
-            log.warn("Buyer ${buyer.sellerId} has no phone — skipping seller review request")
+            log.warn("Buyer ${buyer.userId} has no phone — skipping user review request")
             return
         }
         val message = "Thanks for buying \"${post.title}\". " +
-                "Please leave a quick review for ${post.seller?.name ?: "the seller"} in Student-Store Front: " +
+                "Please leave a quick review for ${post.user?.name ?: "the user"} in Student-Store Front: " +
                 "$appBaseUrl/#view=profile"
 
-        sendMessage(phone, message, "seller review request for post ${post.postId}")
+        sendMessage(phone, message, "user review request for post ${post.postId}")
     }
 
     fun notifySellerRegistered(phoneNumber: String) {
         client.post()
-            .uri("/webhook/seller-registered")
+            .uri("/webhook/user-registered")
             .header("X-Bot-Api-Key", botApiKey)
             .bodyValue(mapOf("phoneNumber" to phoneNumber))
             .retrieve()
             .bodyToMono(Void::class.java)
             .onErrorResume { ex ->
-                log.warn("Failed to notify bot of seller registration for $phoneNumber: ${ex.message}")
+                log.warn("Failed to notify bot of user registration for $phoneNumber: ${ex.message}")
                 Mono.empty()
             }
             .subscribe()

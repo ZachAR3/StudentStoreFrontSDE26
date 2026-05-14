@@ -4,12 +4,12 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.studentstorefront.entity.Post
 import com.studentstorefront.entity.PostMedia
-import com.studentstorefront.entity.Seller
+import com.studentstorefront.entity.User
 import com.studentstorefront.enums.Category
 import com.studentstorefront.enums.Role
 import com.studentstorefront.repository.PostMediaRepository
 import com.studentstorefront.repository.PostRepository
-import com.studentstorefront.repository.SellerRepository
+import com.studentstorefront.repository.UserRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -59,15 +59,15 @@ class PostUpdateControllerTest {
     }
 
     @Autowired lateinit var webApplicationContext: WebApplicationContext
-    @Autowired lateinit var sellerRepository: SellerRepository
+    @Autowired lateinit var sellerRepository: UserRepository
     @Autowired lateinit var postRepository: PostRepository
     @Autowired lateinit var postMediaRepository: PostMediaRepository
     @Autowired lateinit var passwordEncoder: PasswordEncoder
 
     private val objectMapper = ObjectMapper().registerKotlinModule()
     private lateinit var mockMvc: MockMvc
-    private lateinit var owner: Seller
-    private lateinit var otherSeller: Seller
+    private lateinit var owner: User
+    private lateinit var otherSeller: User
     private lateinit var listing: Post
 
     @BeforeEach
@@ -78,7 +78,7 @@ class PostUpdateControllerTest {
             .build()
 
         owner = sellerRepository.save(testSeller("Listing Owner", "listing-owner@constructor.university", "+15550000101"))
-        otherSeller = sellerRepository.save(testSeller("Other Seller", "other-seller@constructor.university", "+15550000102"))
+        otherSeller = sellerRepository.save(testSeller("Other User", "other-user@constructor.university", "+15550000102"))
 
         listing = postRepository.save(
             Post(
@@ -86,7 +86,7 @@ class PostUpdateControllerTest {
                 price = BigDecimal("35.00"),
                 description = "Original listing description",
                 category = Category.FURNITURE,
-                seller = owner
+                user = owner
             )
         )
         postMediaRepository.save(
@@ -100,7 +100,7 @@ class PostUpdateControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "listing-owner@constructor.university", roles = ["SELLER"])
+    @WithMockUser(username = "listing-owner@constructor.university", roles = ["USER"])
     fun `owner can update a listing after posting it`() {
         mockMvc.perform(
             multipart("/api/posts/${listing.postId}/upload")
@@ -133,8 +133,8 @@ class PostUpdateControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "other-seller@constructor.university", roles = ["SELLER"])
-    fun `non owner cannot update another seller listing`() {
+    @WithMockUser(username = "other-user@constructor.university", roles = ["USER"])
+    fun `non owner cannot update another user listing`() {
         mockMvc.perform(
             multipart("/api/posts/${listing.postId}/upload")
                 .file(
@@ -160,13 +160,13 @@ class PostUpdateControllerTest {
             .andExpect(status().isForbidden)
     }
 
-    private fun testSeller(name: String, email: String, phone: String): Seller {
-        return Seller(
+    private fun testSeller(name: String, email: String, phone: String): User {
+        return User(
             name = name,
             email = email,
             phoneNumber = phone,
             password = passwordEncoder.encode("Password1!") ?: "",
-            role = Role.SELLER,
+            role = Role.USER,
             isEnabled = true
         )
     }

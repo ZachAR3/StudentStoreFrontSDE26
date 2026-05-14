@@ -7,9 +7,9 @@ import org.springframework.data.jpa.repository.Query
 import java.time.LocalDateTime
 
 interface PasswordResetTokenRepository : JpaRepository<PasswordResetToken, Long> {
-    fun findByToken(token: String): PasswordResetToken?
+    fun findByTokenHash(tokenHash: String): PasswordResetToken?
 
-    fun deleteBySellerSellerId(sellerId: Long)
+    fun deleteByUserUserId(userId: Long)
 
     @Modifying
     @Query("DELETE FROM PasswordResetToken t WHERE t.expiresAt < :now")

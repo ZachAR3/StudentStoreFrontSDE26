@@ -1,13 +1,13 @@
 package com.studentstorefront.service
 
 import com.studentstorefront.dto.response.AuthResponseDTO
-import com.studentstorefront.dto.response.SellerResponseDTO
+import com.studentstorefront.dto.response.UserResponseDTO
 import com.studentstorefront.dto.response.WhatsAppConfirmResponseDTO
 import com.studentstorefront.dto.response.WhatsAppPollResponseDTO
 import com.studentstorefront.dto.response.WhatsAppSessionResponseDTO
 import com.studentstorefront.entity.WhatsAppLoginSession
 import com.studentstorefront.enums.WhatsAppSessionStatus
-import com.studentstorefront.repository.SellerRepository
+import com.studentstorefront.repository.UserRepository
 import com.studentstorefront.repository.WhatsAppLoginSessionRepository
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.scheduling.annotation.Scheduled
@@ -21,7 +21,7 @@ import java.util.UUID
 @Service
 class WhatsAppQrLoginService(
     private val sessionRepository: WhatsAppLoginSessionRepository,
-    private val sellerRepository: SellerRepository,
+    private val userRepository: UserRepository,
     private val jwtService: JwtService,
     private val userDetailsService: UserDetailsService,
     @Value("\${whatsapp.bot.phone}") private val botPhone: String
@@ -68,7 +68,7 @@ class WhatsAppQrLoginService(
         }
 
         val normalizedPhone = normalizePhone(phoneNumber)
-        val seller = sellerRepository.findByPhoneNumber(normalizedPhone)
+        val user = userRepository.findByPhoneNumber(normalizedPhone)
             ?.takeIf { it.isEnabled }
             ?: run {
                 session.status = WhatsAppSessionStatus.PHONE_NOT_LINKED
@@ -78,7 +78,7 @@ class WhatsAppQrLoginService(
             }
 
         session.status = WhatsAppSessionStatus.COMPLETED
-        session.sellerId = seller.sellerId
+        session.userId = user.userId
         session.phoneNumber = normalizedPhone
         session.completedAt = LocalDateTime.now()
         session.claimToken = UUID.randomUUID()
@@ -98,15 +98,15 @@ class WhatsAppQrLoginService(
         val completedAt = session.completedAt ?: return null
         if (LocalDateTime.now().isAfter(completedAt.plusMinutes(CLAIM_TTL_MINUTES))) return null
 
-        val seller = sellerRepository.findById(session.sellerId!!).orElse(null)
-        if (seller == null || !seller.isEnabled) {
+        val user = userRepository.findById(session.userId!!).orElse(null)
+        if (user == null || !user.isEnabled) {
             session.status = WhatsAppSessionStatus.PHONE_NOT_LINKED
             session.claimToken = null
             sessionRepository.save(session)
             return null
         }
 
-        val userDetails = userDetailsService.loadUserByUsername(seller.email)
+        val userDetails = userDetailsService.loadUserByUsername(user.email)
         val jwt = jwtService.generateToken(userDetails)
 
         session.status = WhatsAppSessionStatus.CLAIMED
@@ -115,11 +115,11 @@ class WhatsAppQrLoginService(
 
         return AuthResponseDTO(
             token = jwt,
-            seller = SellerResponseDTO(
-                sellerId = seller.sellerId!!,
-                name = seller.name,
-                email = seller.email,
-                phoneNumber = seller.phoneNumber
+            user = UserResponseDTO(
+                userId = user.userId!!,
+                name = user.name,
+                email = user.email,
+                phoneNumber = user.phoneNumber
             )
         )
     }

@@ -1,0 +1,2 @@
+-- Baseline migration marker for existing environments.
+-- Fresh environment setup is completed in V2.

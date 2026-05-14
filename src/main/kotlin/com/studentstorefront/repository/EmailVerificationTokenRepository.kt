@@ -7,11 +7,11 @@ import org.springframework.data.jpa.repository.Query
 
 interface EmailVerificationTokenRepository : JpaRepository<EmailVerificationToken, Long> {
 
-    fun findBySellerEmailAndCodeAndUsedFalse(email: String, code: String): EmailVerificationToken?
+    fun findTopByUserEmailAndUsedFalseOrderByCreatedAtDesc(email: String): EmailVerificationToken?
 
     @Modifying
-    @Query("DELETE FROM EmailVerificationToken t WHERE t.seller.email = :email")
-    fun deleteAllBySellerEmail(email: String)
+    @Query("DELETE FROM EmailVerificationToken t WHERE t.user.email = :email")
+    fun deleteAllByUserEmail(email: String)
 
-    fun deleteBySellerSellerId(sellerId: Long)
+    fun deleteByUserUserId(userId: Long)
 }

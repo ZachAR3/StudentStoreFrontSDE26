@@ -4,5 +4,5 @@ import jakarta.validation.constraints.NotNull
 
 data class MarkSoldRequestDTO(
     @field:NotNull(message = "Buyer ID is required")
-    val buyerId: Long?
+    val buyerUserId: Long?
 )

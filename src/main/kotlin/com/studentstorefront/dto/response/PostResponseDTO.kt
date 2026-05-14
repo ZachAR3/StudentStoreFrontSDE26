@@ -17,7 +17,7 @@ data class PostResponseDTO(
     val createdAt: LocalDateTime,
     val expiresAt: LocalDateTime?,
     val soldAt: LocalDateTime?,
-    val seller: SellerResponseDTO,
-    val buyer: SellerResponseDTO? = null,
+    val user: PublicUserResponseDTO,
+    val buyer: PublicUserResponseDTO? = null,
     val isFavourited: Boolean = false
 )

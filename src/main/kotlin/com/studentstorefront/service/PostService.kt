@@ -3,20 +3,22 @@ package com.studentstorefront.service
 import com.studentstorefront.dto.request.PostRequestDTO
 import com.studentstorefront.dto.request.MarkSoldRequestDTO
 import com.studentstorefront.dto.response.PostResponseDTO
-import com.studentstorefront.dto.response.SellerResponseDTO
+import com.studentstorefront.dto.response.PublicUserResponseDTO
 import com.studentstorefront.dto.update.PostImageReferenceDTO
 import com.studentstorefront.dto.update.PostUpdateDTO
 import com.studentstorefront.enums.Category
 import com.studentstorefront.enums.PostStatus
 import com.studentstorefront.enums.Role
 import com.studentstorefront.entity.Post
-import com.studentstorefront.entity.Seller
 import com.studentstorefront.entity.PostMedia
+import com.studentstorefront.entity.Sale
+import com.studentstorefront.entity.User
 import com.studentstorefront.repository.FavouriteRepository
 import com.studentstorefront.repository.PostMediaRepository
 import com.studentstorefront.repository.PostRepository
 import com.studentstorefront.repository.ReviewRepository
-import com.studentstorefront.repository.SellerRepository
+import com.studentstorefront.repository.SaleRepository
+import com.studentstorefront.repository.UserRepository
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.security.access.AccessDeniedException
@@ -30,22 +32,23 @@ import java.time.LocalDateTime
 @Transactional
 class PostService(
     private val postRepository: PostRepository,
-    private val sellerRepository: SellerRepository,
+    private val userRepository: UserRepository,
     private val postMediaRepository: PostMediaRepository,
     private val favouriteRepository: FavouriteRepository,
     private val reviewRepository: ReviewRepository,
+    private val saleRepository: SaleRepository,
     private val cloudinaryService: CloudinaryService,
     private val botNotificationService: BotNotificationService
 ) {
 
     fun createPost(postRequestDTO: PostRequestDTO): PostResponseDTO {
-        val current = getCurrentSeller()
-        val sellerId = if (current.role == Role.ADMIN) postRequestDTO.sellerId ?: current.sellerId!! else current.sellerId!!
-        val seller = findSellerById(sellerId)
-        val post = createPostEntity(postRequestDTO, seller)
+        val current = getCurrentUser()
+        val userId = if (current.role == Role.ADMIN) postRequestDTO.userId ?: current.userId!! else current.userId!!
+        val user = findUserById(userId)
+        val post = createPostEntity(postRequestDTO, user)
         val savedPost = postRepository.save(post)
-        savePostMedia(savedPost, postRequestDTO.imageUrlList, postRequestDTO.imageHashList)
-        return mapToResponseDTO(savedPost, current.sellerId)
+        savePostMedia(savedPost, postRequestDTO.imageUrlList)
+        return mapToResponseDTO(savedPost, current.userId)
     }
 
     fun createPostWithImages(
@@ -53,10 +56,10 @@ class PostService(
         images: List<org.springframework.web.multipart.MultipartFile>,
         coverIndex: Int
     ): PostResponseDTO {
-        val current = getCurrentSeller()
-        val sellerId = if (current.role == Role.ADMIN) postRequestDTO.sellerId ?: current.sellerId!! else current.sellerId!!
-        val seller = findSellerById(sellerId)
-        val post = createPostEntity(postRequestDTO, seller)
+        val current = getCurrentUser()
+        val userId = if (current.role == Role.ADMIN) postRequestDTO.userId ?: current.userId!! else current.userId!!
+        val user = findUserById(userId)
+        val post = createPostEntity(postRequestDTO, user)
         val savedPost = postRepository.save(post)
 
         val mediaUrls = mutableListOf<String>()
@@ -79,53 +82,53 @@ class PostService(
             throw RuntimeException("Failed to upload images")
         }
 
-        return mapToResponseDTO(savedPost, current.sellerId)
+        return mapToResponseDTO(savedPost, current.userId)
     }
 
     fun createPostAsBot(postRequestDTO: PostRequestDTO): PostResponseDTO {
-        val sellerId = postRequestDTO.sellerId
-            ?: throw IllegalArgumentException("sellerId is required for bot post creation")
-        val seller = findSellerById(sellerId)
-        val post = createPostEntity(postRequestDTO, seller)
+        val userId = postRequestDTO.userId
+            ?: throw IllegalArgumentException("userId is required for bot post creation")
+        val user = findUserById(userId)
+        val post = createPostEntity(postRequestDTO, user)
         val savedPost = postRepository.save(post)
-        savePostMedia(savedPost, postRequestDTO.imageUrlList, postRequestDTO.imageHashList)
+        savePostMedia(savedPost, postRequestDTO.imageUrlList)
         return mapToResponseDTO(savedPost)
     }
 
     @Transactional(readOnly = true)
     fun getAllPosts(pageable: Pageable): Page<PostResponseDTO> {
-        val currentSellerId = getCurrentSellerIdOrNull()
-        return postRepository.findAll(pageable).map { mapToResponseDTO(it, currentSellerId) }
+        val currentUserId = getCurrentUserIdOrNull()
+        return postRepository.findAll(pageable).map { mapToResponseDTO(it, currentUserId) }
     }
 
     @Transactional(readOnly = true)
     fun getPostById(postId: Long): PostResponseDTO {
         val post = findPostById(postId)
-        return mapToResponseDTO(post, getCurrentSellerIdOrNull())
+        return mapToResponseDTO(post, getCurrentUserIdOrNull())
     }
 
     @Transactional(readOnly = true)
     fun getPostsByCategory(category: Category, pageable: Pageable): Page<PostResponseDTO> {
-        val currentSellerId = getCurrentSellerIdOrNull()
-        return postRepository.findByCategoryAndStatus(category, PostStatus.ACTIVE, pageable).map { mapToResponseDTO(it, currentSellerId) }
+        val currentUserId = getCurrentUserIdOrNull()
+        return postRepository.findByCategoryAndStatus(category, PostStatus.ACTIVE, pageable).map { mapToResponseDTO(it, currentUserId) }
     }
 
     @Transactional(readOnly = true)
-    fun getPostsBySeller(sellerId: Long, pageable: Pageable): Page<PostResponseDTO> {
-        val currentSellerId = getCurrentSellerIdOrNull()
-        return postRepository.findBySellerSellerId(sellerId, pageable).map { mapToResponseDTO(it, currentSellerId) }
+    fun getPostsByUser(userId: Long, pageable: Pageable): Page<PostResponseDTO> {
+        val currentUserId = getCurrentUserIdOrNull()
+        return postRepository.findByUserUserId(userId, pageable).map { mapToResponseDTO(it, currentUserId) }
     }
 
     @Transactional(readOnly = true)
     fun getAvailablePosts(pageable: Pageable): Page<PostResponseDTO> {
-        val currentSellerId = getCurrentSellerIdOrNull()
-        return postRepository.findByIsSoldFalseAndStatus(PostStatus.ACTIVE, pageable).map { mapToResponseDTO(it, currentSellerId) }
+        val currentUserId = getCurrentUserIdOrNull()
+        return postRepository.findByIsSoldFalseAndStatus(PostStatus.ACTIVE, pageable).map { mapToResponseDTO(it, currentUserId) }
     }
 
     @Transactional(readOnly = true)
     fun searchAvailablePosts(query: String?, category: Category?, pageable: Pageable): Page<PostResponseDTO> {
         val normalizedQuery = query?.trim()?.takeIf { it.isNotEmpty() }
-        val currentSellerId = getCurrentSellerIdOrNull()
+        val currentUserId = getCurrentUserIdOrNull()
 
         val posts = when {
             normalizedQuery == null && category == null -> postRepository.findByIsSoldFalseAndStatus(PostStatus.ACTIVE, pageable)
@@ -133,17 +136,17 @@ class PostService(
             else -> postRepository.searchAvailablePosts(escapeLike(normalizedQuery!!), category, pageable)
         }
 
-        return posts.map { mapToResponseDTO(it, currentSellerId) }
+        return posts.map { mapToResponseDTO(it, currentUserId) }
     }
 
     fun updatePost(postId: Long, postUpdateDTO: PostUpdateDTO): PostResponseDTO {
         val savedPost = saveUpdatedPost(postId, postUpdateDTO)
         if (postUpdateDTO.imageUrlList != null) {
             postMediaRepository.deleteAll(postMediaRepository.findByPost_postId(postId))
-            savePostMedia(savedPost, postUpdateDTO.imageUrlList, null)
+            savePostMedia(savedPost, postUpdateDTO.imageUrlList)
 
         }
-        return mapToResponseDTO(savedPost, getCurrentSellerIdOrNull())
+        return mapToResponseDTO(savedPost, getCurrentUserIdOrNull())
     }
 
     fun updatePostWithImages(
@@ -158,14 +161,14 @@ class PostService(
             replacePostMedia(savedPost, postUpdateDTO.imageOrder, images, coverIndex)
         }
 
-        return mapToResponseDTO(savedPost, getCurrentSellerIdOrNull())
+        return mapToResponseDTO(savedPost, getCurrentUserIdOrNull())
     }
 
     fun deletePost(postId: Long) {
         val post = findPostById(postId)
         assertOwnerOrAdmin(post)
         favouriteRepository.deleteByPostPostId(postId)
-        reviewRepository.deleteByPostPostId(postId)
+        reviewRepository.deleteBySalePostPostId(postId)
         postRepository.deleteById(postId)
     }
 
@@ -175,33 +178,59 @@ class PostService(
         if (post.isSold) {
             throw IllegalArgumentException("Listing is already marked as sold")
         }
-        val buyerId = request.buyerId ?: throw IllegalArgumentException("Buyer ID is required")
-        val buyer = findSellerById(buyerId)
-        if (buyer.sellerId == post.seller?.sellerId) {
-            throw IllegalArgumentException("Seller cannot select themselves as the buyer")
+        if (post.status != PostStatus.ACTIVE) {
+            throw IllegalArgumentException("Only active listings can be marked as sold")
+        }
+        val buyerUserId = request.buyerUserId ?: throw IllegalArgumentException("Buyer ID is required")
+        val buyer = findUserById(buyerUserId)
+        if (!buyer.isEnabled) {
+            throw IllegalArgumentException("Buyer must be a verified enabled user")
+        }
+        if (buyer.userId == post.user?.userId) {
+            throw IllegalArgumentException("User cannot select themselves as the buyer")
         }
 
-        val updatedPost = post.copy(isSold = true, buyer = buyer, soldAt = LocalDateTime.now())
+        val soldAt = LocalDateTime.now()
+        val updatedPost = post.copy(
+            isSold = true,
+            buyer = buyer,
+            soldAt = soldAt,
+            status = PostStatus.SOLD
+        )
         val savedPost = postRepository.save(updatedPost)
+        saleRepository.save(
+            Sale(
+                post = savedPost,
+                seller = savedPost.user!!,
+                buyer = buyer,
+                soldAt = soldAt
+            )
+        )
         botNotificationService.sendSellerReviewRequest(savedPost)
-        return mapToResponseDTO(savedPost, getCurrentSellerIdOrNull())
+        return mapToResponseDTO(savedPost, getCurrentUserIdOrNull())
     }
 
     fun renewPost(postId: Long): PostResponseDTO {
         val post = findPostById(postId)
+        if (post.isSold || saleRepository.existsByPostPostId(postId)) {
+            throw IllegalArgumentException("Sold listings cannot be renewed")
+        }
+        if (post.status != PostStatus.ARCHIVED) {
+            throw IllegalArgumentException("Only archived listings can be renewed")
+        }
         val renewed = post.copy(
             status = PostStatus.ACTIVE,
             expiresAt = LocalDateTime.now().plusDays(2),
             reminderSentAt = null
         )
-        return mapToResponseDTO(postRepository.save(renewed), getCurrentSellerIdOrNull())
+        return mapToResponseDTO(postRepository.save(renewed), getCurrentUserIdOrNull())
     }
 
     // Private helper methods for cleaner code
 
-    private fun findSellerById(sellerId: Long): Seller {
-        return sellerRepository.findById(sellerId)
-            .orElseThrow { IllegalArgumentException("Seller not found with id: $sellerId") }
+    private fun findUserById(userId: Long): User {
+        return userRepository.findById(userId)
+            .orElseThrow { IllegalArgumentException("User not found with id: $userId") }
     }
 
     private fun findPostById(postId: Long): Post {
@@ -209,16 +238,16 @@ class PostService(
             .orElseThrow { IllegalArgumentException("Post not found with id: $postId") }
     }
 
-    private fun createPostEntity(postRequestDTO: PostRequestDTO, seller: Seller): Post {
+    private fun createPostEntity(postRequestDTO: PostRequestDTO, user: User): Post {
         return Post(
             title = postRequestDTO.title,
             price = postRequestDTO.price,
             description = postRequestDTO.description,
             category = postRequestDTO.category,
-            isSold = postRequestDTO.isSold ?: false,
+            isSold = false,
             createdAt = LocalDateTime.now(),
             expiresAt = LocalDateTime.now().plusDays(2),
-            seller = seller
+            user = user
         )
     }
 
@@ -238,24 +267,11 @@ class PostService(
     }
 
     @Transactional(readOnly = true)
-    fun resolveMediaUrlsByHash(imageHashes: List<String>): Map<String, String> {
-        if (imageHashes.isEmpty()) return emptyMap()
-
-        return postMediaRepository.findByImageHashIn(imageHashes.distinct())
-            .filter { !it.imageHash.isNullOrBlank() }
-            .distinctBy { it.imageHash }
-            .associate { it.imageHash!! to it.mediaUrl }
-    }
-
-    private fun savePostMedia(post: Post, imageUrlList: List<String>?, imageHashList: List<String>?) {
+    private fun savePostMedia(post: Post, imageUrlList: List<String>?) {
         postMediaRepository.saveAll((imageUrlList ?: emptyList()).mapIndexed { index, mediaUrl ->
-            val imageHash = imageHashList?.getOrNull(index)?.takeIf { it.isNotBlank() }
-            val existingUrl = imageHash?.let { resolveMediaUrlsByHash(listOf(it))[it] }
-
             PostMedia(
                 post = post,
-                mediaUrl = existingUrl ?: mediaUrl,
-                imageHash = imageHash,
+                mediaUrl = mediaUrl,
                 displayOrder = index,
                 isCover = index == 0
             )
@@ -339,7 +355,12 @@ class PostService(
         }
     }
 
-    internal fun mapToResponseDTO(post: Post, currentSellerId: Long? = null): PostResponseDTO {
+    internal fun mapToResponseDTO(post: Post, currentUserId: Long? = null): PostResponseDTO {
+        val canViewBuyer = currentUserId != null && (
+            currentUserId == post.user?.userId ||
+            currentUserId == post.buyer?.userId ||
+            isCurrentUserAdmin()
+        )
         return PostResponseDTO(
             postId = post.postId!!,
             title = post.title,
@@ -352,19 +373,17 @@ class PostService(
             createdAt = post.createdAt,
             expiresAt = post.expiresAt,
             soldAt = post.soldAt,
-            seller = mapSellerToResponseDTO(post.seller!!),
-            buyer = post.buyer?.let { mapSellerToResponseDTO(it) },
-            isFavourited = currentSellerId != null &&
-                favouriteRepository.existsBySellerSellerIdAndPostPostId(currentSellerId, post.postId!!)
+            user = mapUserToPublicResponseDTO(post.user!!),
+            buyer = if (canViewBuyer) post.buyer?.let { mapUserToPublicResponseDTO(it) } else null,
+            isFavourited = currentUserId != null &&
+                favouriteRepository.existsByUserUserIdAndPostPostId(currentUserId, post.postId!!)
         )
     }
 
-    private fun mapSellerToResponseDTO(seller: Seller): SellerResponseDTO {
-        return SellerResponseDTO(
-            sellerId = seller.sellerId!!,
-            name = seller.name,
-            email = seller.email,
-            phoneNumber = seller.phoneNumber
+    private fun mapUserToPublicResponseDTO(user: User): PublicUserResponseDTO {
+        return PublicUserResponseDTO(
+            userId = user.userId!!,
+            name = user.name
         )
     }
 
@@ -375,21 +394,26 @@ class PostService(
     private fun escapeLike(input: String): String =
         input.replace("!", "!!").replace("%", "!%").replace("_", "!_")
 
-    private fun getCurrentSeller(): Seller {
+    private fun getCurrentUser(): User {
         val email = SecurityContextHolder.getContext().authentication?.name
             ?: throw IllegalArgumentException("Not authenticated")
-        return sellerRepository.findByEmail(email)
-            ?: throw IllegalArgumentException("Authenticated seller not found")
+        return userRepository.findByEmail(email)
+            ?: throw IllegalArgumentException("Authenticated user not found")
     }
 
-    private fun getCurrentSellerIdOrNull(): Long? {
+    private fun getCurrentUserIdOrNull(): Long? {
         val email = SecurityContextHolder.getContext().authentication?.name ?: return null
-        return sellerRepository.findByEmail(email)?.sellerId
+        return userRepository.findByEmail(email)?.userId
+    }
+
+    private fun isCurrentUserAdmin(): Boolean {
+        val email = SecurityContextHolder.getContext().authentication?.name ?: return false
+        return userRepository.findByEmail(email)?.role == Role.ADMIN
     }
 
     private fun assertOwnerOrAdmin(post: Post) {
-        val current = getCurrentSeller()
-        if (current.role != Role.ADMIN && post.seller?.sellerId != current.sellerId) {
+        val current = getCurrentUser()
+        if (current.role != Role.ADMIN && post.user?.userId != current.userId) {
             throw AccessDeniedException("You do not own this post")
         }
     }

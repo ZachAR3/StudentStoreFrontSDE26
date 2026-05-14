@@ -19,26 +19,26 @@ class ReviewController(
 ) {
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     fun createReview(@Valid @RequestBody request: ReviewRequestDTO): ResponseEntity<ReviewResponseDTO> {
         return ResponseEntity.status(HttpStatus.CREATED).body(reviewService.createReview(request))
     }
 
     @GetMapping("/context/{postId}")
-    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     fun getReviewContext(@PathVariable postId: Long): ResponseEntity<ReviewContextResponseDTO> {
         return ResponseEntity.ok(reviewService.getReviewContext(postId))
     }
 
     @GetMapping("/pending")
-    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     fun getPendingReviewContexts(): ResponseEntity<List<ReviewContextResponseDTO>> {
         return ResponseEntity.ok(reviewService.getPendingReviewContexts())
     }
 
-    @GetMapping("/profile/{sellerId}")
-    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
-    fun getProfileReviews(@PathVariable sellerId: Long): ResponseEntity<ProfileReviewsResponseDTO> {
-        return ResponseEntity.ok(reviewService.getProfileReviews(sellerId))
+    @GetMapping("/profile/{userId}")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    fun getProfileReviews(@PathVariable userId: Long): ResponseEntity<ProfileReviewsResponseDTO> {
+        return ResponseEntity.ok(reviewService.getProfileReviews(userId))
     }
 }

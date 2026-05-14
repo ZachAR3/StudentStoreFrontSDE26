@@ -14,20 +14,20 @@ class FavouriteController(
 ) {
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     fun getFavouritePosts(): ResponseEntity<List<PostResponseDTO>> {
         return ResponseEntity.ok(favouriteService.getFavouritePosts())
     }
 
     @PostMapping("/{postId}")
-    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     fun addFavourite(@PathVariable postId: Long): ResponseEntity<Void> {
         favouriteService.addFavourite(postId)
         return ResponseEntity.ok().build()
     }
 
     @DeleteMapping("/{postId}")
-    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     fun removeFavourite(@PathVariable postId: Long): ResponseEntity<Void> {
         favouriteService.removeFavourite(postId)
         return ResponseEntity.noContent().build()

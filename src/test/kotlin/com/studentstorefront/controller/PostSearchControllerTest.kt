@@ -1,11 +1,11 @@
 package com.studentstorefront.controller
 
 import com.studentstorefront.entity.Post
-import com.studentstorefront.entity.Seller
+import com.studentstorefront.entity.User
 import com.studentstorefront.enums.Category
 import com.studentstorefront.enums.Role
 import com.studentstorefront.repository.PostRepository
-import com.studentstorefront.repository.SellerRepository
+import com.studentstorefront.repository.UserRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -53,12 +53,12 @@ class PostSearchControllerTest {
     }
 
     @Autowired lateinit var webApplicationContext: WebApplicationContext
-    @Autowired lateinit var sellerRepository: SellerRepository
+    @Autowired lateinit var sellerRepository: UserRepository
     @Autowired lateinit var postRepository: PostRepository
     @Autowired lateinit var passwordEncoder: PasswordEncoder
 
     private lateinit var mockMvc: MockMvc
-    private lateinit var seller: Seller
+    private lateinit var user: User
 
     @BeforeEach
     fun setup() {
@@ -67,13 +67,13 @@ class PostSearchControllerTest {
             .apply<DefaultMockMvcBuilder>(springSecurity())
             .build()
 
-        seller = sellerRepository.save(
-            Seller(
-                name = "Search Seller",
+        user = sellerRepository.save(
+            User(
+                name = "Search User",
                 email = "search@constructor.university",
                 phoneNumber = "15550001111",
                 password = passwordEncoder.encode("password") ?: "",
-                role = Role.SELLER
+                role = Role.USER
             )
         )
 
@@ -128,7 +128,7 @@ class PostSearchControllerTest {
             category = category,
             isSold = isSold,
             createdAt = createdAt,
-            seller = seller
+            user = user
         )
     }
 }

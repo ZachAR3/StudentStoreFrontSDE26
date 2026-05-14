@@ -11,11 +11,11 @@ data class EmailVerificationToken(
     val id: Long? = null,
 
     @Column(nullable = false)
-    val code: String = generateCode(),
+    val codeHash: String,
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "seller_id", nullable = false)
-    val seller: Seller,
+    @JoinColumn(name = "user_id", nullable = false)
+    val user: User,
 
     @Column(nullable = false)
     val expiresAt: LocalDateTime = LocalDateTime.now().plusMinutes(15),

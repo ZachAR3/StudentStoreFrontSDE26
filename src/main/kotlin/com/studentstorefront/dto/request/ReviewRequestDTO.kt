@@ -6,8 +6,8 @@ import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Size
 
 data class ReviewRequestDTO(
-    @field:NotNull(message = "Post ID is required")
-    val postId: Long?,
+    @field:NotNull(message = "Sale ID is required")
+    val saleId: Long?,
     @field:NotNull(message = "Rating is required")
     @field:Min(value = 1, message = "Rating must be at least 1")
     @field:Max(value = 5, message = "Rating cannot exceed 5")

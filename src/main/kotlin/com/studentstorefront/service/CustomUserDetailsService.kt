@@ -1,6 +1,6 @@
 package com.studentstorefront.service
 
-import com.studentstorefront.repository.SellerRepository
+import com.studentstorefront.repository.UserRepository
 import org.springframework.security.core.userdetails.User
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.security.core.userdetails.UserDetailsService
@@ -13,21 +13,21 @@ import org.springframework.stereotype.Service
  */
 @Service
 class CustomUserDetailsService(
-    private val sellerRepository: SellerRepository
+    private val userRepository: UserRepository
 ) : UserDetailsService {
 
     override fun loadUserByUsername(email: String): UserDetails {
-        val seller = sellerRepository.findByEmail(email)
+        val user = userRepository.findByEmail(email)
             ?: throw UsernameNotFoundException("User not found with email: $email")
 
         return User.builder()
-            .username(seller.email)
-            .password(seller.password)
-            .authorities("ROLE_${seller.role.name}")
+            .username(user.email)
+            .password(user.password)
+            .authorities("ROLE_${user.role.name}")
             .accountExpired(false)
             .accountLocked(false)
             .credentialsExpired(false)
-            .disabled(!seller.isEnabled)
+            .disabled(!user.isEnabled)
             .build()
     }
 }

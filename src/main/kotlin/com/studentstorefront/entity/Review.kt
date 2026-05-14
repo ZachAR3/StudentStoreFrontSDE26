@@ -8,21 +8,22 @@ import java.time.LocalDateTime
 @Table(
     name = "reviews",
     uniqueConstraints = [
-        UniqueConstraint(name = "uk_review_post_direction", columnNames = ["post_id", "direction"])
+        UniqueConstraint(name = "uk_review_sale_direction", columnNames = ["sale_id", "direction"])
     ]
 )
 data class Review(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "review_id")
     val reviewId: Long? = null,
     @ManyToOne(optional = false)
-    @JoinColumn(name = "post_id")
-    val post: Post,
+    @JoinColumn(name = "sale_id", nullable = false)
+    val sale: Sale,
     @ManyToOne(optional = false)
-    @JoinColumn(name = "reviewer_id")
-    val reviewer: Seller,
+    @JoinColumn(name = "reviewer_user_id", nullable = false)
+    val reviewer: User,
     @ManyToOne(optional = false)
-    @JoinColumn(name = "reviewee_id")
-    val reviewee: Seller,
+    @JoinColumn(name = "reviewee_user_id", nullable = false)
+    val reviewee: User,
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     val direction: ReviewDirection,

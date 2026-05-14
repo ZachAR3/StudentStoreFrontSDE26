@@ -24,8 +24,10 @@ data class WhatsAppLoginSession(
     @Column(nullable = false)
     var status: WhatsAppSessionStatus = WhatsAppSessionStatus.PENDING,
 
-    var sellerId: Long? = null,
+    @Column(name = "user_id")
+    var userId: Long? = null,
 
+    @Column(name = "phone_number")
     var phoneNumber: String? = null,
 
     @Column(nullable = false)

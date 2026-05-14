@@ -4,16 +4,16 @@ import com.studentstorefront.dto.request.ForgotPasswordRequestDTO
 import com.studentstorefront.dto.request.LoginRequestDTO
 import com.studentstorefront.dto.request.ResendVerificationRequestDTO
 import com.studentstorefront.dto.request.ResetPasswordRequestDTO
-import com.studentstorefront.dto.request.SellerRequestDTO
+import com.studentstorefront.dto.request.UserRequestDTO
 import com.studentstorefront.dto.request.VerifyEmailRequestDTO
 import com.studentstorefront.dto.response.AuthResponseDTO
-import com.studentstorefront.dto.response.SellerResponseDTO
+import com.studentstorefront.dto.response.UserResponseDTO
 import com.studentstorefront.dto.response.VerificationRequiredResponseDTO
 import com.studentstorefront.service.EmailService
 import com.studentstorefront.service.EmailVerificationService
 import com.studentstorefront.service.JwtService
 import com.studentstorefront.service.PasswordResetService
-import com.studentstorefront.service.SellerService
+import com.studentstorefront.service.UserService
 import jakarta.validation.Valid
 import org.springframework.mail.MailException
 import org.springframework.http.HttpStatus
@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.*
 class AuthController(
     private val authenticationManager: AuthenticationManager,
     private val jwtService: JwtService,
-    private val sellerService: SellerService,
+    private val userService: UserService,
     private val userDetailsService: UserDetailsService,
     private val passwordResetService: PasswordResetService,
     private val emailVerificationService: EmailVerificationService,
@@ -38,13 +38,13 @@ class AuthController(
 
     /**
      * Self-service registration endpoint
-     * Creates a new seller account and sends an email verification code.
+     * Creates a new user account and sends an email verification code.
      */
     @PostMapping("/register")
-    fun register(@Valid @RequestBody registerRequest: SellerRequestDTO): ResponseEntity<Any> {
-        val (createdSeller, code) = sellerService.createSellerWithToken(registerRequest)
+    fun register(@Valid @RequestBody registerRequest: UserRequestDTO): ResponseEntity<Any> {
+        val (createdUser, code) = userService.createUserWithToken(registerRequest)
         try {
-            emailService.sendVerificationEmail(createdSeller.email, code)
+            emailService.sendVerificationEmail(createdUser.email, code)
         } catch (ex: MailException) {
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(
                 mapOf(
@@ -55,7 +55,7 @@ class AuthController(
             )
         }
         return ResponseEntity.status(HttpStatus.CREATED).body(
-            VerificationRequiredResponseDTO(email = createdSeller.email)
+            VerificationRequiredResponseDTO(email = createdUser.email)
         )
     }
 
@@ -64,8 +64,8 @@ class AuthController(
         emailVerificationService.verifyCode(request.email, request.code)
         val userDetails = userDetailsService.loadUserByUsername(request.email)
         val token = jwtService.generateToken(userDetails)
-        val seller = sellerService.getSellerByEmail(request.email)
-        return ResponseEntity.ok(AuthResponseDTO(token = token, seller = seller))
+        val user = userService.getUserByEmail(request.email)
+        return ResponseEntity.ok(AuthResponseDTO(token = token, user = user))
     }
 
     @PostMapping("/resend-verification")
@@ -91,20 +91,20 @@ class AuthController(
         // Generate JWT token
         val token = jwtService.generateToken(userDetails)
 
-        // Get seller information
-        val seller = sellerService.getSellerByEmail(loginRequest.email)
+        // Get user information
+        val user = userService.getUserByEmail(loginRequest.email)
 
-        // Return token with seller info
+        // Return token with user info
         val authResponse = AuthResponseDTO(
             token = token,
-            seller = seller
+            user = user
         )
 
         return ResponseEntity.ok(authResponse)
     }
 
     @GetMapping("/me")
-    fun getMe(): ResponseEntity<SellerResponseDTO> = ResponseEntity.ok(sellerService.getMe())
+    fun getMe(): ResponseEntity<UserResponseDTO> = ResponseEntity.ok(userService.getMe())
 
     @PostMapping("/forgot-password")
     fun forgotPassword(@Valid @RequestBody request: ForgotPasswordRequestDTO): ResponseEntity<Map<String, String>> {

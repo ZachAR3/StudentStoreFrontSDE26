@@ -1,19 +1,18 @@
 package com.studentstorefront.service
 
 import com.studentstorefront.dto.request.ReviewRequestDTO
+import com.studentstorefront.dto.response.PublicUserResponseDTO
 import com.studentstorefront.dto.response.ProfileReviewsResponseDTO
 import com.studentstorefront.dto.response.RatingSummaryDTO
 import com.studentstorefront.dto.response.ReviewContextResponseDTO
 import com.studentstorefront.dto.response.ReviewResponseDTO
-import com.studentstorefront.dto.response.SellerResponseDTO
-import com.studentstorefront.entity.Post
 import com.studentstorefront.entity.Review
-import com.studentstorefront.entity.Seller
+import com.studentstorefront.entity.Sale
+import com.studentstorefront.entity.User
 import com.studentstorefront.enums.ReviewDirection
-import com.studentstorefront.enums.Role
-import com.studentstorefront.repository.PostRepository
 import com.studentstorefront.repository.ReviewRepository
-import com.studentstorefront.repository.SellerRepository
+import com.studentstorefront.repository.SaleRepository
+import com.studentstorefront.repository.UserRepository
 import org.springframework.data.domain.PageRequest
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.security.core.context.SecurityContextHolder
@@ -25,27 +24,27 @@ import kotlin.math.round
 @Transactional
 class ReviewService(
     private val reviewRepository: ReviewRepository,
-    private val postRepository: PostRepository,
-    private val sellerRepository: SellerRepository
+    private val saleRepository: SaleRepository,
+    private val userRepository: UserRepository
 ) {
 
     fun createReview(request: ReviewRequestDTO): ReviewResponseDTO {
-        val postId = request.postId ?: throw IllegalArgumentException("Post ID is required")
+        val saleId = request.saleId ?: throw IllegalArgumentException("Sale ID is required")
         val rating = request.rating ?: throw IllegalArgumentException("Rating is required")
-        val post = findReviewablePost(postId)
-        val current = getCurrentSeller()
-        val direction = resolveDirection(post, current)
+        val sale = findReviewableSale(saleId)
+        val current = getCurrentUser()
+        val direction = resolveDirection(sale, current)
 
-        if (reviewRepository.existsByPostPostIdAndDirection(postId, direction)) {
+        if (reviewRepository.existsBySaleIdAndDirection(saleId, direction)) {
             throw IllegalArgumentException("Review already submitted for this transaction")
         }
 
         val reviewee = when (direction) {
-            ReviewDirection.BUYER_TO_SELLER -> post.seller!!
-            ReviewDirection.SELLER_TO_BUYER -> post.buyer!!
+            ReviewDirection.BUYER_TO_SELLER -> sale.seller
+            ReviewDirection.SELLER_TO_BUYER -> sale.buyer
         }
         val review = Review(
-            post = post,
+            sale = sale,
             reviewer = current,
             reviewee = reviewee,
             direction = direction,
@@ -58,66 +57,65 @@ class ReviewService(
 
     @Transactional(readOnly = true)
     fun getReviewContext(postId: Long): ReviewContextResponseDTO {
-        val post = findReviewablePost(postId)
-        val current = getCurrentSeller()
-        val direction = resolveDirection(post, current)
+        val sale = saleRepository.findByPostPostId(postId)
+            ?: throw IllegalArgumentException("No sale found for this post")
+        val current = getCurrentUser()
+        val direction = resolveDirection(sale, current)
         val reviewee = when (direction) {
-            ReviewDirection.BUYER_TO_SELLER -> post.seller!!
-            ReviewDirection.SELLER_TO_BUYER -> post.buyer!!
+            ReviewDirection.BUYER_TO_SELLER -> sale.seller
+            ReviewDirection.SELLER_TO_BUYER -> sale.buyer
         }
 
         return ReviewContextResponseDTO(
-            postId = post.postId!!,
-            postTitle = post.title,
+            saleId = sale.id!!,
+            postId = sale.post.postId!!,
+            postTitle = sale.post.title,
             direction = direction,
-            reviewer = mapSellerToResponseDTO(current),
-            reviewee = mapSellerToResponseDTO(reviewee),
-            alreadyReviewed = reviewRepository.existsByPostPostIdAndDirection(postId, direction)
+            reviewer = mapUserToResponseDTO(current),
+            reviewee = mapUserToResponseDTO(reviewee),
+            alreadyReviewed = reviewRepository.existsBySaleIdAndDirection(sale.id!!, direction)
         )
     }
 
     @Transactional(readOnly = true)
     fun getPendingReviewContexts(): List<ReviewContextResponseDTO> {
-        val current = getCurrentSeller()
-        val sellerPosts = postRepository.findBySellerSellerIdAndIsSoldTrue(current.sellerId!!)
-        val buyerPosts = postRepository.findByBuyerSellerIdAndIsSoldTrue(current.sellerId!!)
-
-        return (sellerPosts + buyerPosts)
-            .distinctBy { it.postId }
-            .mapNotNull { post ->
-                val direction = runCatching { resolveDirection(post, current) }.getOrNull() ?: return@mapNotNull null
-                val postId = post.postId ?: return@mapNotNull null
-                if (reviewRepository.existsByPostPostIdAndDirection(postId, direction)) return@mapNotNull null
+        val current = getCurrentUser()
+        val sales = (saleRepository.findBySellerUserId(current.userId!!) + saleRepository.findByBuyerUserId(current.userId!!))
+            .distinctBy { it.id }
+        return sales.mapNotNull { sale ->
+                val direction = runCatching { resolveDirection(sale, current) }.getOrNull() ?: return@mapNotNull null
+                if (reviewRepository.existsBySaleIdAndDirection(sale.id!!, direction)) return@mapNotNull null
                 val reviewee = when (direction) {
-                    ReviewDirection.BUYER_TO_SELLER -> post.seller!!
-                    ReviewDirection.SELLER_TO_BUYER -> post.buyer!!
+                    ReviewDirection.BUYER_TO_SELLER -> sale.seller
+                    ReviewDirection.SELLER_TO_BUYER -> sale.buyer
                 }
                 ReviewContextResponseDTO(
-                    postId = postId,
-                    postTitle = post.title,
+                    saleId = sale.id!!,
+                    postId = sale.post.postId!!,
+                    postTitle = sale.post.title,
                     direction = direction,
-                    reviewer = mapSellerToResponseDTO(current),
-                    reviewee = mapSellerToResponseDTO(reviewee),
+                    reviewer = mapUserToResponseDTO(current),
+                    reviewee = mapUserToResponseDTO(reviewee),
                     alreadyReviewed = false
                 )
             }
     }
 
     @Transactional(readOnly = true)
-    fun getProfileReviews(sellerId: Long): ProfileReviewsResponseDTO {
-        if (!sellerRepository.existsById(sellerId)) {
-            throw IllegalArgumentException("Seller not found with id: $sellerId")
+    fun getProfileReviews(userId: Long): ProfileReviewsResponseDTO {
+        if (!userRepository.existsById(userId)) {
+            throw IllegalArgumentException("User not found with id: $userId")
         }
-        val sellerReviews = reviewRepository.findByRevieweeSellerIdAndDirection(
-            sellerId,
+        val sellerReviews = reviewRepository.findByRevieweeUserIdAndDirection(
+            userId,
             ReviewDirection.BUYER_TO_SELLER
         )
-        val buyerReviews = reviewRepository.findByRevieweeSellerIdAndDirection(
-            sellerId,
+        val buyerReviews = reviewRepository.findByRevieweeUserIdAndDirection(
+            userId,
             ReviewDirection.SELLER_TO_BUYER
         )
         val recentReviews = reviewRepository
-            .findByRevieweeSellerIdOrderByCreatedAtDesc(sellerId, PageRequest.of(0, 5))
+            .findByRevieweeUserIdOrderByCreatedAtDesc(userId, PageRequest.of(0, 5))
             .map { mapToResponseDTO(it) }
 
         return ProfileReviewsResponseDTO(
@@ -127,19 +125,15 @@ class ReviewService(
         )
     }
 
-    private fun findReviewablePost(postId: Long): Post {
-        val post = postRepository.findById(postId)
-            .orElseThrow { IllegalArgumentException("Post not found with id: $postId") }
-        if (!post.isSold || post.buyer == null || post.seller == null) {
-            throw IllegalArgumentException("Reviews are only available after a completed sale")
-        }
-        return post
+    private fun findReviewableSale(saleId: Long): Sale {
+        return saleRepository.findById(saleId)
+            .orElseThrow { IllegalArgumentException("Sale not found with id: $saleId") }
     }
 
-    private fun resolveDirection(post: Post, reviewer: Seller): ReviewDirection {
-        return when (reviewer.sellerId) {
-            post.buyer?.sellerId -> ReviewDirection.BUYER_TO_SELLER
-            post.seller?.sellerId -> ReviewDirection.SELLER_TO_BUYER
+    private fun resolveDirection(sale: Sale, reviewer: User): ReviewDirection {
+        return when (reviewer.userId) {
+            sale.buyer.userId -> ReviewDirection.BUYER_TO_SELLER
+            sale.seller.userId -> ReviewDirection.SELLER_TO_BUYER
             else -> throw AccessDeniedException("You cannot review this transaction")
         }
     }
@@ -153,10 +147,11 @@ class ReviewService(
     private fun mapToResponseDTO(review: Review): ReviewResponseDTO {
         return ReviewResponseDTO(
             reviewId = review.reviewId!!,
-            postId = review.post.postId!!,
-            postTitle = review.post.title,
-            reviewer = mapSellerToResponseDTO(review.reviewer),
-            reviewee = mapSellerToResponseDTO(review.reviewee),
+            saleId = review.sale.id!!,
+            postId = review.sale.post.postId!!,
+            postTitle = review.sale.post.title,
+            reviewer = mapUserToResponseDTO(review.reviewer),
+            reviewee = mapUserToResponseDTO(review.reviewee),
             direction = review.direction,
             rating = review.rating,
             comment = review.comment,
@@ -164,19 +159,17 @@ class ReviewService(
         )
     }
 
-    private fun mapSellerToResponseDTO(seller: Seller): SellerResponseDTO {
-        return SellerResponseDTO(
-            sellerId = seller.sellerId!!,
-            name = seller.name,
-            email = seller.email,
-            phoneNumber = seller.phoneNumber
+    private fun mapUserToResponseDTO(user: User): PublicUserResponseDTO {
+        return PublicUserResponseDTO(
+            userId = user.userId!!,
+            name = user.name
         )
     }
 
-    private fun getCurrentSeller(): Seller {
+    private fun getCurrentUser(): User {
         val email = SecurityContextHolder.getContext().authentication?.name
             ?: throw IllegalArgumentException("Not authenticated")
-        return sellerRepository.findByEmail(email)
-            ?: throw IllegalArgumentException("Authenticated seller not found")
+        return userRepository.findByEmail(email)
+            ?: throw IllegalArgumentException("Authenticated user not found")
     }
 }

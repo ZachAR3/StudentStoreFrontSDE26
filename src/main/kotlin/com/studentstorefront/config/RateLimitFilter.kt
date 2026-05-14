@@ -22,7 +22,11 @@ class RateLimitFilter : OncePerRequestFilter() {
     private val limits = mapOf(
         "/api/auth/login" to 5L,
         "/api/auth/forgot-password" to 3L,
-        "/api/auth/resend-verification" to 3L
+        "/api/auth/resend-verification" to 3L,
+        "/api/auth/verify-email" to 5L,
+        "/api/auth/whatsapp/session" to 10L,
+        "/api/auth/whatsapp/claim" to 15L,
+        "/api/auth/whatsapp/confirm" to 20L
     )
 
     // keyed by "$ip:$path"; evict entries idle for 1 hour to prevent unbounded growth

@@ -2,17 +2,19 @@ package com.studentstorefront.service
 
 import com.studentstorefront.entity.PasswordResetToken
 import com.studentstorefront.repository.PasswordResetTokenRepository
-import com.studentstorefront.repository.SellerRepository
+import com.studentstorefront.repository.UserRepository
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.security.MessageDigest
 import java.time.LocalDateTime
+import java.util.UUID
 
 @Service
 @Transactional
 class PasswordResetService(
-    private val sellerRepository: SellerRepository,
+    private val userRepository: UserRepository,
     private val tokenRepository: PasswordResetTokenRepository,
     private val emailService: EmailService,
     private val passwordEncoder: PasswordEncoder
@@ -22,18 +24,19 @@ class PasswordResetService(
     private lateinit var baseUrl: String
 
     fun requestReset(email: String) {
-        val seller = sellerRepository.findByEmail(email) ?: return
+        val user = userRepository.findByEmail(email) ?: return
 
-        tokenRepository.deleteBySellerSellerId(seller.sellerId!!)
-        val resetToken = PasswordResetToken(seller = seller)
+        tokenRepository.deleteByUserUserId(user.userId!!)
+        val rawToken = UUID.randomUUID().toString()
+        val resetToken = PasswordResetToken(user = user, tokenHash = sha256(rawToken))
         tokenRepository.save(resetToken)
 
-        val resetLink = "$baseUrl/index.html?token=${resetToken.token}#reset-password"
+        val resetLink = "$baseUrl/index.html?token=$rawToken#reset-password"
         emailService.sendPasswordResetEmail(email, resetLink)
     }
 
     fun resetPassword(token: String, newPassword: String) {
-        val resetToken = tokenRepository.findByToken(token)
+        val resetToken = tokenRepository.findByTokenHash(sha256(token))
             ?: throw IllegalArgumentException("Invalid or expired reset token")
 
         if (resetToken.used) {
@@ -44,14 +47,19 @@ class PasswordResetService(
             throw IllegalArgumentException("Reset token has expired")
         }
 
-        val updatedSeller = resetToken.seller.copy(
+        val updatedUser = resetToken.user.copy(
             password = passwordEncoder.encode(newPassword)!!
         )
-        sellerRepository.save(updatedSeller)
+        userRepository.save(updatedUser)
 
         resetToken.used = true
         tokenRepository.save(resetToken)
 
         tokenRepository.deleteExpiredTokens(LocalDateTime.now())
     }
+
+    private fun sha256(input: String): String =
+        MessageDigest.getInstance("SHA-256")
+            .digest(input.toByteArray())
+            .joinToString("") { "%02x".format(it) }
 }

@@ -1,10 +1,10 @@
 package com.studentstorefront.service
 
-import com.studentstorefront.entity.Seller
+import com.studentstorefront.entity.User
 import com.studentstorefront.entity.WhatsAppLoginSession
 import com.studentstorefront.enums.Role
 import com.studentstorefront.enums.WhatsAppSessionStatus
-import com.studentstorefront.repository.SellerRepository
+import com.studentstorefront.repository.UserRepository
 import com.studentstorefront.repository.WhatsAppLoginSessionRepository
 import io.mockk.every
 import io.mockk.mockk
@@ -13,15 +13,15 @@ import io.mockk.verify
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.springframework.security.core.userdetails.User
 import org.springframework.security.core.userdetails.UserDetailsService
+import org.springframework.security.core.userdetails.User as SecurityUser
 import java.time.LocalDateTime
 import java.util.*
 
 class WhatsAppQrLoginServiceTest {
 
     private val sessionRepository: WhatsAppLoginSessionRepository = mockk()
-    private val sellerRepository: SellerRepository = mockk()
+    private val sellerRepository: UserRepository = mockk()
     private val jwtService: JwtService = mockk()
     private val userDetailsService: UserDetailsService = mockk()
 
@@ -194,7 +194,7 @@ class WhatsAppQrLoginServiceTest {
     }
 
     @Test
-    fun `confirmLogin returns PHONE_NOT_LINKED and saves session when no seller matches phone`() {
+    fun `confirmLogin returns PHONE_NOT_LINKED and saves session when no user matches phone`() {
         val session = WhatsAppLoginSession(creatorIp = "127.0.0.1")
         every { sessionRepository.findByLoginToken(session.loginToken) } returns session
         every { sellerRepository.findByPhoneNumber("+99999999999") } returns null
@@ -208,33 +208,33 @@ class WhatsAppQrLoginServiceTest {
     }
 
     @Test
-    fun `confirmLogin returns PHONE_NOT_LINKED when phone belongs to unverified seller`() {
-        val seller = buildSeller(isEnabled = false)
+    fun `confirmLogin returns PHONE_NOT_LINKED when phone belongs to unverified user`() {
+        val user = buildSeller(isEnabled = false)
         val session = WhatsAppLoginSession(creatorIp = "127.0.0.1")
         every { sessionRepository.findByLoginToken(session.loginToken) } returns session
-        every { sellerRepository.findByPhoneNumber("+${seller.phoneNumber}") } returns seller
+        every { sellerRepository.findByPhoneNumber("+${user.phoneNumber}") } returns user
 
-        val result = service.confirmLogin(session.loginToken, seller.phoneNumber)
+        val result = service.confirmLogin(session.loginToken, user.phoneNumber)
 
         assertEquals("PHONE_NOT_LINKED", result.result)
         assertEquals(WhatsAppSessionStatus.PHONE_NOT_LINKED, session.status)
-        assertEquals("+${seller.phoneNumber}", session.phoneNumber)
+        assertEquals("+${user.phoneNumber}", session.phoneNumber)
         verify { sessionRepository.save(session) }
     }
 
     @Test
     fun `confirmLogin returns OK and transitions session to COMPLETED with claimToken`() {
-        val seller = buildSeller()
+        val user = buildSeller()
         val session = WhatsAppLoginSession(creatorIp = "127.0.0.1")
         every { sessionRepository.findByLoginToken(session.loginToken) } returns session
-        every { sellerRepository.findByPhoneNumber("+${seller.phoneNumber}") } returns seller
+        every { sellerRepository.findByPhoneNumber("+${user.phoneNumber}") } returns user
 
-        val result = service.confirmLogin(session.loginToken, seller.phoneNumber)
+        val result = service.confirmLogin(session.loginToken, user.phoneNumber)
 
         assertEquals("OK", result.result)
         assertEquals(WhatsAppSessionStatus.COMPLETED, session.status)
-        assertEquals(seller.sellerId, session.sellerId)
-        assertEquals("+${seller.phoneNumber}", session.phoneNumber)
+        assertEquals(user.userId, session.userId)
+        assertEquals("+${user.phoneNumber}", session.phoneNumber)
         assertNotNull(session.claimToken)
         assertNotNull(session.completedAt)
         verify { sessionRepository.save(session) }
@@ -274,16 +274,16 @@ class WhatsAppQrLoginServiceTest {
     }
 
     @Test
-    fun `claimJwt returns null and downgrades stale session when seller is unverified`() {
-        val seller = buildSeller(isEnabled = false)
+    fun `claimJwt returns null and downgrades stale session when user is unverified`() {
+        val user = buildSeller(isEnabled = false)
         val session = WhatsAppLoginSession(creatorIp = "127.0.0.1").apply {
             status = WhatsAppSessionStatus.COMPLETED
             claimToken = UUID.randomUUID()
-            sellerId = seller.sellerId
+            userId = user.userId
             completedAt = LocalDateTime.now().minusSeconds(30)
         }
         every { sessionRepository.findByClaimToken(session.claimToken!!) } returns session
-        every { sellerRepository.findById(seller.sellerId!!) } returns Optional.of(seller)
+        every { sellerRepository.findById(user.userId!!) } returns Optional.of(user)
 
         val result = service.claimJwt(session.claimToken!!)
 
@@ -295,17 +295,17 @@ class WhatsAppQrLoginServiceTest {
 
     @Test
     fun `claimJwt issues JWT and transitions session to CLAIMED`() {
-        val seller = buildSeller()
-        val userDetails = User(seller.email, seller.password, emptyList())
+        val user = buildSeller()
+        val userDetails = SecurityUser(user.email, user.password, emptyList())
         val session = WhatsAppLoginSession(creatorIp = "127.0.0.1").apply {
             status = WhatsAppSessionStatus.COMPLETED
             claimToken = UUID.randomUUID()
-            sellerId = seller.sellerId
+            userId = user.userId
             completedAt = LocalDateTime.now().minusSeconds(30)
         }
         every { sessionRepository.findByClaimToken(session.claimToken!!) } returns session
-        every { sellerRepository.findById(seller.sellerId!!) } returns Optional.of(seller)
-        every { userDetailsService.loadUserByUsername(seller.email) } returns userDetails
+        every { sellerRepository.findById(user.userId!!) } returns Optional.of(user)
+        every { userDetailsService.loadUserByUsername(user.email) } returns userDetails
         every { jwtService.generateToken(userDetails) } returns "test.jwt.token"
 
         val result = service.claimJwt(session.claimToken!!)
@@ -313,8 +313,8 @@ class WhatsAppQrLoginServiceTest {
         assertNotNull(result)
         assertEquals("test.jwt.token", result!!.token)
         assertEquals("Bearer", result.type)
-        assertEquals(seller.email, result.seller.email)
-        assertEquals(seller.sellerId, result.seller.sellerId)
+        assertEquals(user.email, result.user.email)
+        assertEquals(user.userId, result.user.userId)
         assertEquals(WhatsAppSessionStatus.CLAIMED, session.status)
         assertNotNull(session.claimedAt)
         verify { sessionRepository.save(session) }
@@ -331,13 +331,13 @@ class WhatsAppQrLoginServiceTest {
 
     // ── helpers ────────────────────────────────────────────────────────────────
 
-    private fun buildSeller(isEnabled: Boolean = true) = Seller(
-        sellerId = 1L,
-        name = "Test Seller",
+    private fun buildSeller(isEnabled: Boolean = true) = User(
+        userId = 1L,
+        name = "Test User",
         email = "test@constructor.university",
         phoneNumber = "15551234567",
         password = "hashed",
-        role = Role.SELLER,
+        role = Role.USER,
         isEnabled = isEnabled
     )
 }

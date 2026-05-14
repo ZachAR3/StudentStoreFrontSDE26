@@ -2,9 +2,9 @@ package com.studentstorefront.controller
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import com.studentstorefront.entity.Seller
+import com.studentstorefront.entity.User
 import com.studentstorefront.enums.Role
-import com.studentstorefront.repository.SellerRepository
+import com.studentstorefront.repository.UserRepository
 import com.studentstorefront.repository.WhatsAppLoginSessionRepository
 import org.hamcrest.Matchers.containsString
 import org.junit.jupiter.api.BeforeEach
@@ -52,14 +52,14 @@ class WhatsAppQrLoginControllerTest {
     }
 
     @Autowired lateinit var webApplicationContext: WebApplicationContext
-    @Autowired lateinit var sellerRepository: SellerRepository
+    @Autowired lateinit var sellerRepository: UserRepository
     @Autowired lateinit var sessionRepository: WhatsAppLoginSessionRepository
     @Autowired lateinit var passwordEncoder: PasswordEncoder
 
     private val objectMapper = ObjectMapper().registerKotlinModule()
 
     private lateinit var mockMvc: MockMvc
-    private lateinit var testSeller: Seller
+    private lateinit var testSeller: User
 
     @BeforeEach
     fun setup() {
@@ -69,12 +69,12 @@ class WhatsAppQrLoginControllerTest {
             .build()
 
         testSeller = sellerRepository.save(
-            Seller(
-                name = "QR Test Seller",
+            User(
+                name = "QR Test User",
                 email = "qrtest@constructor.university",
                 phoneNumber = "+15559876543",
                 password = passwordEncoder.encode("password") ?: "",
-                role = Role.SELLER,
+                role = Role.USER,
                 isEnabled = true
             )
         )
@@ -153,7 +153,7 @@ class WhatsAppQrLoginControllerTest {
     }
 
     @Test
-    fun `POST confirm returns PHONE_NOT_LINKED when phone has no registered seller`() {
+    fun `POST confirm returns PHONE_NOT_LINKED when phone has no registered user`() {
         val session = createSession()
 
         botConfirm(session.loginToken, "99999999999")
@@ -216,8 +216,8 @@ class WhatsAppQrLoginControllerTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.token").isString)
             .andExpect(jsonPath("$.type").value("Bearer"))
-            .andExpect(jsonPath("$.seller.email").value(testSeller.email))
-            .andExpect(jsonPath("$.seller.phoneNumber").value(testSeller.phoneNumber))
+            .andExpect(jsonPath("$.user.email").value(testSeller.email))
+            .andExpect(jsonPath("$.user.phoneNumber").value(testSeller.phoneNumber))
     }
 
     @Test
