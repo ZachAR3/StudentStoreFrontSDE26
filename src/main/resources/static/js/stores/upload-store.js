@@ -10,7 +10,7 @@
                 view: "listings",
                 listingId: null,
                 previousView: "listings",
-                sellerId: null
+                userId: null
             }
         };
     };

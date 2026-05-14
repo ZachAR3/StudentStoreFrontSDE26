@@ -34,7 +34,7 @@
     <script defer src="/js/services/auth-service.js"></script>
     <script defer src="/js/services/whatsapp-login-service.js"></script>
     <script defer src="/js/services/post-service.js"></script>
-    <script defer src="/js/services/seller-service.js"></script>
+    <script defer src="/js/services/user-service.js"></script>
     <script defer src="/js/services/review-service.js"></script>
     <script defer src="/js/services/favourite-service.js"></script>
     <script defer src="/js/builder/palette.js"></script>
@@ -79,14 +79,14 @@
                     </template>
                     <template x-if="isLoggedIn">
                         <li class="shell-user-actions">
-                            <a href="#" @click.prevent="viewProfile(user.sellerId)" class="seller-link shell-link-button" x-text="'Hi, ' + user.name"></a>
+                            <a href="#" @click.prevent="viewProfile(user.userId)" class="user-link shell-link-button" x-text="'Hi, ' + user.name"></a>
                             <button class="fav-nav-btn" @click="navigateTo('favourites')" aria-label="Open favourites">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
                                 <span>Saved</span>
                                 <span class="fav-badge" x-show="favouriteCount > 0" x-text="favouriteCount"></span>
                             </button>
                             <button class="shell-pill-button" @click="openCreateListingForm()">Create Listing</button>
-                            <a href="#" @click.prevent="handleLogout()" class="seller-link shell-link-button">Log Out</a>
+                            <a href="#" @click.prevent="handleLogout()" class="user-link shell-link-button">Log Out</a>
                         </li>
                     </template>
                 </ul>
@@ -258,11 +258,11 @@
 
                                     <template x-if="element.type === 'profile.summary'">
                                         <div class="profile-header">
-                                            <div class="profile-avatar" :style="{ '--profile-avatar-bg': getProfileAvatarColor(element.data?.sellerId) }" x-text="getInitials(element.data?.name)"></div>
+                                            <div class="profile-avatar" :style="{ '--profile-avatar-bg': getProfileAvatarColor(element.data?.userId) }" x-text="getInitials(element.data?.name)"></div>
                                             <div>
-                                                <h2 x-text="element.data?.name || 'Sample Seller'"></h2>
+                                                <h2 x-text="element.data?.name || 'Sample User'"></h2>
                                                 <div class="profile-meta">
-                                                    <span class="profile-meta-item" x-text="element.data?.email || 'seller@constructor.university'"></span>
+                                                    <span class="profile-meta-item" x-text="element.data?.email || 'user@constructor.university'"></span>
                                                     <span class="profile-meta-item" x-show="element.data?.phoneNumber" x-text="element.data?.phoneNumber"></span>
                                                 </div>
                                             </div>
@@ -330,7 +330,7 @@
                                                         <footer class="item-footer">
                                                             <div class="item-price-block">
                                                                 <div class="item-price" x-text="formatPrice(item.price)"></div>
-                                                                <div class="item-meta" x-show="element.props.itemElement === 'restaurant.menuItemCard'" x-text="item.seller?.name"></div>
+                                                                <div class="item-meta" x-show="element.props.itemElement === 'restaurant.menuItemCard'" x-text="item.user?.name"></div>
                                                             </div>
                                                             <div class="item-actions-block">
                                                                 <button
@@ -341,11 +341,11 @@
                                                                     @click.prevent.stop="toggleCartItem(item)"
                                                                     x-text="cart.isSelected(item.id) ? 'Selected' : (element.props.cartButtonLabel || 'Add')">
                                                                 </button>
-                                                                <div class="listing-contact-actions" x-show="item.seller && element.props.itemElement !== 'restaurant.menuItemCard'">
-                                                                    <a class="listing-contact-button listing-contact-button-email" :href="'mailto:' + item.actions.email" @click.stop aria-label="Email seller" title="Email seller">
+                                                                <div class="listing-contact-actions" x-show="item.user && element.props.itemElement !== 'restaurant.menuItemCard'">
+                                                                    <a class="listing-contact-button listing-contact-button-email" :href="'mailto:' + item.actions.email" @click.stop aria-label="Email user" title="Email user">
                                                                         <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
                                                                     </a>
-                                                                    <a class="listing-contact-button listing-contact-button-whatsapp" x-show="item.actions.whatsappPhone" :href="whatsappHref(item)" target="_blank" @click.stop aria-label="Contact seller on WhatsApp" title="Contact seller on WhatsApp">
+                                                                    <a class="listing-contact-button listing-contact-button-whatsapp" x-show="item.actions.whatsappPhone" :href="whatsappHref(item)" target="_blank" @click.stop aria-label="Contact user on WhatsApp" title="Contact user on WhatsApp">
                                                                         <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.46 1.34 4.97L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2Zm5.78 14.16c-.24.68-1.39 1.3-1.95 1.35-.5.05-1.13.07-1.83-.11-.42-.11-.97-.31-1.66-.61-2.92-1.26-4.83-4.2-4.98-4.4-.15-.19-1.19-1.58-1.19-3.02s.75-2.14 1.02-2.44c.27-.3.59-.37.78-.37h.56c.18.01.42-.07.66.5.24.58.84 2.01.91 2.16.07.15.12.33.02.52-.1.2-.15.32-.3.5-.15.17-.32.38-.45.51-.15.15-.31.31-.13.61.18.3.78 1.29 1.68 2.09 1.15 1.03 2.13 1.35 2.43 1.5.3.15.48.13.66-.08.19-.22.76-.88.96-1.18.2-.3.4-.25.68-.15.28.1 1.77.83 2.07.98.3.15.5.23.58.35.07.12.07.71-.17 1.39Z"/></svg>
                                                                     </a>
                                                                 </div>
@@ -414,12 +414,12 @@
                             <div class="listing-detail-actions">
                                 <button class="outline" :class="{ 'contrast': isFavourite(selectedListing.id) }" @click="toggleFavourite(selectedListing.id)" x-text="isFavourite(selectedListing.id) ? 'Saved' : 'Save'"></button>
                                 <button class="outline" x-show="isListingOwner(selectedListing)" @click="startEditingPost(selectedListing.id)">Edit Listing</button>
-                                <a role="button" class="outline contrast" x-show="selectedListing.actions.email" :href="'mailto:' + selectedListing.actions.email">Email Seller</a>
+                                <a role="button" class="outline contrast" x-show="selectedListing.actions.email" :href="'mailto:' + selectedListing.actions.email">Email User</a>
                                 <a role="button" class="outline is-whatsapp" x-show="selectedListing.actions.whatsappPhone" :href="whatsappHref(selectedListing)" target="_blank">WhatsApp</a>
                             </div>
-                            <div x-show="selectedListing.seller">
-                                <p class="item-meta">Seller</p>
-                                <a href="#" class="seller-link" @click.prevent="viewProfile(selectedListing.seller.sellerId)" x-text="selectedListing.seller?.name"></a>
+                            <div x-show="selectedListing.user">
+                                <p class="item-meta">User</p>
+                                <a href="#" class="user-link" @click.prevent="viewProfile(selectedListing.user.userId)" x-text="selectedListing.user?.name"></a>
                             </div>
                             <div class="listing-detail-description">
                                 <p x-text="selectedListing.description"></p>
@@ -439,7 +439,7 @@
             <div class="selected-cart-view">
                 <div class="section-heading">
                     <div>
-                        <p class="item-meta" x-text="cart.seller?.name || 'No seller selected'"></p>
+                        <p class="item-meta" x-text="cart.user?.name || 'No user selected'"></p>
                         <h2>Selected Items</h2>
                     </div>
                     <div class="cart-summary-actions" x-show="cart.count > 0">
@@ -475,12 +475,12 @@
 
         <div class="view-container" x-show="currentView === 'profile'">
             <div class="loading-state" x-show="profile.profileLoading"><span aria-busy="true">Loading profile...</span></div>
-            <div class="empty-state" x-show="!profile.profileLoading && !profile.profileSeller && errorMessage">
+            <div class="empty-state" x-show="!profile.profileLoading && !profile.profileUser && errorMessage">
                 <h3>Profile not found</h3>
                 <p x-text="errorMessage"></p>
                 <button class="outline" @click="navigateTo('listings')">Back to Listings</button>
             </div>
-            <template x-if="currentLayout && profile.profileSeller && !profile.profileLoading">
+            <template x-if="currentLayout && profile.profileUser && !profile.profileLoading">
                 <div class="layout-page">
                     <template x-for="region in currentLayout.regions" :key="region.id">
                         <section class="layout-region" :data-layout-kind="region.layout.kind">
@@ -488,29 +488,29 @@
                                 <div>
                                     <template x-if="element.type === 'profile.summary'">
                                         <div class="profile-header">
-                                            <div class="profile-avatar" :style="{ '--profile-avatar-bg': getProfileAvatarColor(profile.profileSeller.sellerId) }" x-text="getInitials(profile.profileSeller.name)"></div>
+                                            <div class="profile-avatar" :style="{ '--profile-avatar-bg': getProfileAvatarColor(profile.profileUser.userId) }" x-text="getInitials(profile.profileUser.name)"></div>
                                             <div>
                                                 <h2>
-                                                    <span x-text="profile.profileSeller.name"></span>
+                                                    <span x-text="profile.profileUser.name"></span>
                                                     <span class="profile-badge" x-show="profile.isOwnProfile">
                                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
                                                         You
                                                     </span>
                                                 </h2>
                                                 <div class="profile-meta">
-                                                    <span class="profile-meta-item">
+                                                    <span class="profile-meta-item" x-show="profile.isOwnProfile && profile.profileUser.email">
                                                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-                                                        <span x-text="profile.profileSeller.email"></span>
+                                                        <span x-text="profile.profileUser.email"></span>
                                                     </span>
-                                                    <span class="profile-meta-item" x-show="profile.profileSeller.phoneNumber">
+                                                    <span class="profile-meta-item" x-show="profile.isOwnProfile && profile.profileUser.phoneNumber">
                                                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                                                        <span x-text="profile.profileSeller.phoneNumber"></span>
+                                                        <span x-text="profile.profileUser.phoneNumber"></span>
                                                     </span>
                                                     <span class="profile-meta-item" x-text="profile.profilePosts.length + ' listing' + (profile.profilePosts.length !== 1 ? 's' : '')"></span>
                                                 </div>
                                                 <div class="profile-rating-strip" x-show="profile.profileReviews">
                                                     <span class="profile-rating-pill">
-                                                        Seller rating:
+                                                        User rating:
                                                         <strong x-text="profile.profileReviews?.sellerRating.count ? `${profile.profileReviews.sellerRating.average} / 5` : 'No reviews yet'"></strong>
                                                     </span>
                                                     <span class="profile-rating-pill">
@@ -525,7 +525,7 @@
                                     <template x-if="element.type === 'profile.listingList'">
                                         <div class="layout-page">
                                             <div class="section-heading">
-                                                <h3 x-text="profile.isOwnProfile ? 'Your Listings' : `${profile.profileSeller.name}'s Listings`"></h3>
+                                                <h3 x-text="profile.isOwnProfile ? 'Your Listings' : `${profile.profileUser.name}'s Listings`"></h3>
                                             </div>
                                             <div class="empty-state" x-show="profile.profilePosts.length === 0">
                                                 <h3>No listings yet</h3>
@@ -539,7 +539,7 @@
                                                 <template x-for="review in profile.pendingReviews" :key="review.postId + review.direction">
                                                     <article class="profile-review-card">
                                                         <div>
-                                                            <strong x-text="review.direction === 'BUYER_TO_SELLER' ? 'Review the seller' : 'Review the buyer'"></strong>
+                                                            <strong x-text="review.direction === 'BUYER_TO_SELLER' ? 'Review the user' : 'Review the buyer'"></strong>
                                                             <p x-text="`${review.postTitle} · ${review.reviewee.name}`"></p>
                                                         </div>
                                                         <button class="outline" @click="openReviewModal(review.postId)">Leave Review</button>
@@ -846,7 +846,7 @@
                 <div class="support-hero">
                     <p class="item-meta">Help desk</p>
                     <h1>Support</h1>
-                    <p>Get help with listings, seller accounts, saved items, WhatsApp login, or layout-builder pages for your campus sales.</p>
+                    <p>Get help with listings, user accounts, saved items, WhatsApp login, or layout-builder pages for your campus sales.</p>
                     <div class="support-actions">
                         <a role="button" href="mailto:support@student-storefront.local">Email Support</a>
                         <button class="outline" @click="navigateTo('listings')">Back to Marketplace</button>
@@ -1025,7 +1025,7 @@
                                                                     <footer class="item-footer">
                                                                         <div>
                                                                             <div class="item-price" x-text="formatPrice(item.price)"></div>
-                                                                            <div class="item-meta" x-text="item.seller?.name"></div>
+                                                                            <div class="item-meta" x-text="item.user?.name"></div>
                                                                         </div>
                                                                         <button class="restaurant-add-button" x-show="element.props.enableCart" x-text="element.props.cartButtonLabel || 'Add'"></button>
                                                                     </footer>
@@ -1041,11 +1041,11 @@
                                                     </template>
                                                     <template x-if="element.type === 'profile.summary'">
                                                         <div class="profile-header">
-                                                            <div class="profile-avatar" :style="{ '--profile-avatar-bg': getProfileAvatarColor(element.data?.sellerId) }" x-text="getInitials(element.data?.name)"></div>
+                                                            <div class="profile-avatar" :style="{ '--profile-avatar-bg': getProfileAvatarColor(element.data?.userId) }" x-text="getInitials(element.data?.name)"></div>
                                                             <div>
-                                                                <h2 x-text="element.data?.name || 'Sample Seller'"></h2>
+                                                                <h2 x-text="element.data?.name || 'Sample User'"></h2>
                                                                 <div class="profile-meta">
-                                                                    <span class="profile-meta-item" x-text="element.data?.email || 'seller@constructor.university'"></span>
+                                                                    <span class="profile-meta-item" x-text="element.data?.email || 'user@constructor.university'"></span>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -1150,14 +1150,13 @@
         <div class="modal-card">
             <h3>Mark Listing Sold</h3>
             <p>Select the registered buyer who purchased this item. They will receive a quick review request.</p>
-            <label>Buyer name or email
+            <label>Buyer name
                 <input type="search" x-model="profile.buyerSearchQuery" @input.debounce.300ms="searchBuyerCandidates()" placeholder="Search registered buyers">
             </label>
             <div class="buyer-search-results" x-show="profile.buyerSearchResults.length > 0">
-                <template x-for="buyer in profile.buyerSearchResults" :key="buyer.sellerId">
+                <template x-for="buyer in profile.buyerSearchResults" :key="buyer.userId">
                     <button type="button" class="buyer-result-button outline" @click="selectBuyerCandidate(buyer)">
                         <strong x-text="buyer.name"></strong>
-                        <span x-text="buyer.email"></span>
                     </button>
                 </template>
             </div>

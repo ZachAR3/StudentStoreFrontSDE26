@@ -198,8 +198,8 @@ document.addEventListener("alpine:init", () => {
                     this.builder.activeCreatedSiteId = route.siteId;
                 }
                 this.navigateTo(route?.view || "listings", { skipHistory: true });
-                if (route?.view === "profile" && this.isLoggedIn && this.user?.sellerId) {
-                    this.viewProfile(this.user.sellerId, { skipHistory: true });
+                if (route?.view === "profile" && this.isLoggedIn && this.user?.userId) {
+                    this.viewProfile(this.user.userId, { skipHistory: true });
                 }
                 if (options.replaceMissing) {
                     this.syncBrowserHistory(this.currentView, { replace: true });
@@ -222,7 +222,7 @@ document.addEventListener("alpine:init", () => {
                     this.auth.whatsappLogin.interval = null;
                 }
                 if (view !== "profile") {
-                    this.profile.profileSeller = null;
+                    this.profile.profileUser = null;
                     this.profile.profilePosts = [];
                     this.profile.profileReviews = null;
                     this.profile.pendingReviews = [];
@@ -517,14 +517,14 @@ document.addEventListener("alpine:init", () => {
                 this.navigateTo("listingDetail");
             },
             isListingOwner(post) {
-                return this.isLoggedIn && post?.seller?.sellerId === this.user?.sellerId;
+                return this.isLoggedIn && post?.user?.userId === this.user?.userId;
             },
             defaultListingEditorContext() {
                 return {
                     view: "listings",
                     listingId: null,
                     previousView: "listings",
-                    sellerId: null
+                    userId: null
                 };
             },
             setListingEditorContext(overrides = {}) {
@@ -568,7 +568,7 @@ document.addEventListener("alpine:init", () => {
                     this.currentView === "profile"
                         ? {
                             view: "profile",
-                            sellerId: post.seller?.sellerId || null
+                            userId: post.user?.userId || null
                         }
                         : {
                             view: "listingDetail",
@@ -655,7 +655,7 @@ document.addEventListener("alpine:init", () => {
                     price: this.upload.newPost.price,
                     description: this.upload.newPost.description,
                     category: this.upload.newPost.category,
-                    sellerId: this.user.sellerId
+                    userId: this.user.userId
                 };
                 const newFiles = [];
 
@@ -699,7 +699,7 @@ document.addEventListener("alpine:init", () => {
 
                 this.marketplace.posts = replaceOrInsert(this.marketplace.posts);
 
-                if (this.profile.profileSeller?.sellerId === savedPost.seller?.sellerId || this.profile.isOwnProfile) {
+                if (this.profile.profileUser?.userId === savedPost.user?.userId || this.profile.isOwnProfile) {
                     this.profile.profilePosts = replaceOrInsert(this.profile.profilePosts);
                 }
             },
@@ -714,8 +714,8 @@ document.addEventListener("alpine:init", () => {
                     return;
                 }
 
-                if (nextContext.view === "profile" && nextContext.sellerId) {
-                    await this.viewProfile(nextContext.sellerId);
+                if (nextContext.view === "profile" && nextContext.userId) {
+                    await this.viewProfile(nextContext.userId);
                     return;
                 }
 
@@ -780,15 +780,15 @@ document.addEventListener("alpine:init", () => {
                 this.upload.dragStartIndex = null;
             },
 
-            async viewProfile(sellerId, options = {}) {
+            async viewProfile(userId, options = {}) {
                 this.navigateTo("profile", { skipHistory: options.skipHistory });
                 this.profile.profileLoading = true;
-                this.profile.isOwnProfile = this.isLoggedIn && this.user?.sellerId === sellerId;
+                this.profile.isOwnProfile = this.isLoggedIn && this.user?.userId === userId;
                 try {
-                    this.profile.profileSeller = await services.sellers.get(sellerId, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
-                    const postsData = await services.posts.bySeller(sellerId);
+                    this.profile.profileUser = await services.users.get(userId, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
+                    const postsData = await services.posts.bySeller(userId);
                     this.profile.profilePosts = postsData.content;
-                    this.profile.profileReviews = await services.reviews.byProfile(sellerId, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
+                    this.profile.profileReviews = await services.reviews.byProfile(userId, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
                     this.profile.pendingReviews = this.profile.isOwnProfile
                         ? await services.reviews.pending(this.auth.token).catch((error) => this.rethrowUnauthorized(error))
                         : [];
@@ -839,7 +839,7 @@ document.addEventListener("alpine:init", () => {
                 }
                 this.profile.buyerSearchLoading = true;
                 try {
-                    const data = await services.sellers.search(query, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
+                    const data = await services.users.search(query, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
                     this.profile.buyerSearchResults = data.content;
                 } catch (error) {
                     this.setError(error.message);
@@ -849,18 +849,18 @@ document.addEventListener("alpine:init", () => {
             },
             selectBuyerCandidate(buyer) {
                 this.profile.selectedBuyer = buyer;
-                this.profile.buyerSearchQuery = `${buyer.name} (${buyer.email})`;
+                this.profile.buyerSearchQuery = `${buyer.name}`;
                 this.profile.buyerSearchResults = [];
             },
             async markProfilePostSold() {
                 const postId = this.profile.soldModalPostId;
-                const buyerId = this.profile.selectedBuyer?.sellerId;
-                if (!postId || !buyerId) {
+                const buyerUserId = this.profile.selectedBuyer?.userId;
+                if (!postId || !buyerUserId) {
                     this.setError("Choose the registered buyer before marking this listing as sold.");
                     return;
                 }
                 try {
-                    const updated = await services.posts.markSold(postId, buyerId, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
+                    const updated = await services.posts.markSold(postId, buyerUserId, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
                     this.profile.profilePosts = this.profile.profilePosts.map((post) => post.postId === postId ? updated : post);
                     this.marketplace.posts = this.marketplace.posts.map((post) => post.postId === postId ? updated : post);
                     this.resetSoldModal();
@@ -895,13 +895,13 @@ document.addEventListener("alpine:init", () => {
                 if (!context) return;
                 try {
                     await services.reviews.create({
-                        postId: context.postId,
+                        saleId: context.saleId,
                         rating: Number(this.profile.reviewForm.rating),
                         comment: this.profile.reviewForm.comment
                     }, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
                     this.closeReviewModal();
-                    if (this.profile.profileSeller) {
-                        this.profile.profileReviews = await services.reviews.byProfile(this.profile.profileSeller.sellerId, this.auth.token)
+                    if (this.profile.profileUser) {
+                        this.profile.profileReviews = await services.reviews.byProfile(this.profile.profileUser.userId, this.auth.token)
                             .catch((error) => this.rethrowUnauthorized(error));
                     }
                     this.profile.pendingReviews = this.profile.isOwnProfile
@@ -918,7 +918,7 @@ document.addEventListener("alpine:init", () => {
                     return;
                 }
                 try {
-                    await services.sellers.deleteMe(this.profile.deleteAccountConfirmPassword, this.auth.token)
+                    await services.users.deleteMe(this.profile.deleteAccountConfirmPassword, this.auth.token)
                         .catch((error) => this.rethrowUnauthorized(error));
                     this.profile.showDeleteAccountModal = false;
                     this.profile.deleteAccountConfirmPassword = "";
@@ -932,7 +932,7 @@ document.addEventListener("alpine:init", () => {
                 if (!name) return "?";
                 return name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase();
             },
-            getProfileAvatarColor(sellerId) {
+            getProfileAvatarColor(userId) {
                 const colors = [
                     "var(--sf-avatar-1)",
                     "var(--sf-avatar-2)",
@@ -941,7 +941,7 @@ document.addEventListener("alpine:init", () => {
                     "var(--sf-avatar-5)",
                     "var(--sf-avatar-6)"
                 ];
-                return colors[(sellerId || 0) % colors.length];
+                return colors[(userId || 0) % colors.length];
             },
 
             async toggleFavourite(postId) {
@@ -996,7 +996,7 @@ document.addEventListener("alpine:init", () => {
             sendCartWhatsapp() {
                 const href = this.cart.whatsappHref();
                 if (!href) {
-                    this.setError("This seller does not have a WhatsApp number.");
+                    this.setError("This user does not have a WhatsApp number.");
                     return;
                 }
                 window.open(href, "_blank", "noopener");
@@ -1130,7 +1130,7 @@ document.addEventListener("alpine:init", () => {
                 if (type === "catalog.grid") return "builder.sampleCatalog";
                 if (type === "restaurant.menuGrid") return "restaurant.sampleMenu";
                 if (type === "restaurant.menuHero") return "";
-                if (type.startsWith("profile.")) return type === "profile.summary" ? "profile.seller" : "profile.posts";
+                if (type.startsWith("profile.")) return type === "profile.summary" ? "profile.user" : "profile.posts";
                 return "";
             },
             duplicateBuilderElement(elementId) {
@@ -1435,7 +1435,7 @@ document.addEventListener("alpine:init", () => {
             },
 
             whatsappHref(item) {
-                const phone = item?.actions?.whatsappPhone || item?.seller?.phoneNumber || "";
+                const phone = item?.actions?.whatsappPhone || item?.user?.phoneNumber || "";
                 if (!phone) return "";
                 const digits = phone.replace(/[^0-9]/g, "");
                 return `https://wa.me/${digits}?text=${encodeURIComponent(`Hi, I am interested in your listing: ${item.title}`)}`;

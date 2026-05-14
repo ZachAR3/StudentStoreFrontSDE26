@@ -14,8 +14,8 @@
         pending(token) {
             return api.json("/api/reviews/pending", {}, token, "Failed to load pending reviews");
         },
-        byProfile(sellerId, token) {
-            return api.json(`/api/reviews/profile/${sellerId}`, {}, token, "Failed to load profile reviews");
+        byProfile(userId, token) {
+            return api.json(`/api/reviews/profile/${userId}`, {}, token, "Failed to load profile reviews");
         }
     };
 })();

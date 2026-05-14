@@ -9,7 +9,7 @@
             mediaUrls: ["https://placehold.co/800x600?text=Desk+Lamp"],
             isSold: false,
             createdAt: "2026-03-18T10:30:00.000Z",
-            seller: { sellerId: 51, name: "Mila Kramer", email: "mila@constructor.university", phoneNumber: "+491761234567" }
+            user: { userId: 51, name: "Mila Kramer", email: "mila@constructor.university", phoneNumber: "+491761234567" }
         },
         {
             postId: 9002,
@@ -23,7 +23,7 @@
             ],
             isSold: false,
             createdAt: "2026-03-24T09:15:00.000Z",
-            seller: { sellerId: 52, name: "Nils Weber", email: "nils@constructor.university", phoneNumber: "+491751112233" }
+            user: { userId: 52, name: "Nils Weber", email: "nils@constructor.university", phoneNumber: "+491751112233" }
         },
         {
             postId: 9003,
@@ -34,12 +34,12 @@
             mediaUrls: ["https://placehold.co/800x600?text=Campus+Bike"],
             isSold: true,
             createdAt: "2026-03-10T17:45:00.000Z",
-            seller: { sellerId: 53, name: "Amira Hassan", email: "amira@constructor.university", phoneNumber: "" }
+            user: { userId: 53, name: "Amira Hassan", email: "amira@constructor.university", phoneNumber: "" }
         }
     ];
 
     const restaurantSeller = {
-        sellerId: "north-hall-kitchen",
+        userId: "north-hall-kitchen",
         phoneNumber: "+491234567890"
     };
 
@@ -94,12 +94,12 @@
 
     window.Storefront.data.samplePosts = samplePosts;
     window.Storefront.data.sampleCatalogItems = samplePosts.map(adapters.catalogItemFromPost);
-    window.Storefront.data.sampleProfileSeller = samplePosts[1].seller;
+    window.Storefront.data.sampleProfileUser = samplePosts[1].user;
     window.Storefront.data.sampleProfileCatalogItems = samplePosts
-        .filter((post) => post.seller.sellerId === samplePosts[1].seller.sellerId || post.postId === 9001)
+        .filter((post) => post.user.userId === samplePosts[1].user.userId || post.postId === 9001)
         .map((post) => adapters.catalogItemFromPost({
             ...post,
-            seller: samplePosts[1].seller
+            user: samplePosts[1].user
         }));
     window.Storefront.data.restaurantSampleMenu = restaurantMenu;
     window.Storefront.data.restaurantCatalogItems = restaurantMenu.map(adapters.restaurantMenuItemFromSample);

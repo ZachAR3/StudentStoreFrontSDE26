@@ -1,22 +1,22 @@
 (function registerCartStore() {
     function normalizeSeller(item) {
-        const seller = item?.seller || {};
+        const user = item?.user || {};
         return {
-            sellerId: seller.sellerId || item?.sellerId || "",
-            name: seller.name || item?.kitchen || "Seller",
-            phoneNumber: seller.phoneNumber || item?.phoneNumber || item?.actions?.whatsappPhone || ""
+            userId: user.userId || item?.userId || "",
+            name: user.name || item?.kitchen || "User",
+            phoneNumber: user.phoneNumber || item?.phoneNumber || item?.actions?.whatsappPhone || ""
         };
     }
 
     function normalizeItem(item) {
-        const seller = normalizeSeller(item);
+        const user = normalizeSeller(item);
         return {
             id: item?.id,
             title: item?.title || "Untitled item",
             description: item?.description || "",
             price: Number(item?.price) || 0,
             quantity: 1,
-            seller,
+            user,
             raw: item
         };
     }
@@ -29,7 +29,7 @@
     window.Storefront.stores.createCartStore = function createCartStore() {
         return {
             items: [],
-            seller: null,
+            user: null,
 
             get count() {
                 return this.items.reduce((total, item) => total + (Number(item.quantity) || 1), 0);
@@ -42,17 +42,17 @@
             },
 
             sellerKeyFor(item) {
-                const seller = item?.seller || {};
-                return String(seller.sellerId || seller.phoneNumber || seller.name || "");
+                const user = item?.user || {};
+                return String(user.userId || user.phoneNumber || user.name || "");
             },
             canAdd(item) {
                 const normalized = normalizeItem(item);
                 const key = this.sellerKeyFor(normalized);
                 if (!key) {
-                    return { ok: false, message: "This item is missing seller information." };
+                    return { ok: false, message: "This item is missing user information." };
                 }
-                if (this.items.length && key !== this.sellerKeyFor({ seller: this.seller })) {
-                    return { ok: false, message: "Selected items must come from the same seller." };
+                if (this.items.length && key !== this.sellerKeyFor({ user: this.user })) {
+                    return { ok: false, message: "Selected items must come from the same user." };
                 }
                 return { ok: true };
             },
@@ -70,18 +70,18 @@
                 const result = this.canAdd(normalized);
                 if (!result.ok) return result;
                 this.items.push(normalized);
-                this.seller = normalized.seller;
+                this.user = normalized.user;
                 return { ok: true };
             },
             remove(itemId) {
                 this.items = this.items.filter((item) => String(item.id) !== String(itemId));
                 if (!this.items.length) {
-                    this.seller = null;
+                    this.user = null;
                 }
             },
             clear() {
                 this.items = [];
-                this.seller = null;
+                this.user = null;
             },
             buildMessage() {
                 if (!this.items.length) return "";
@@ -95,8 +95,8 @@
                 return lines.join("\n");
             },
             whatsappHref() {
-                if (!this.seller?.phoneNumber) return "";
-                const digits = this.seller.phoneNumber.replace(/[^0-9]/g, "");
+                if (!this.user?.phoneNumber) return "";
+                const digits = this.user.phoneNumber.replace(/[^0-9]/g, "");
                 if (!digits) return "";
                 return `https://wa.me/${digits}?text=${encodeURIComponent(this.buildMessage())}`;
             }

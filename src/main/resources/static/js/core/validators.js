@@ -12,7 +12,7 @@
         "marketplace.filteredPosts",
         "marketplace.favouritePosts",
         "marketplace.filters",
-        "profile.seller",
+        "profile.user",
         "profile.posts",
         "builder.sampleCatalog",
         "builder.sampleLayout",

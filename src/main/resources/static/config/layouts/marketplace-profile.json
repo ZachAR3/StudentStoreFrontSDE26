@@ -21,7 +21,7 @@
         {
           "id": "profile-summary",
           "type": "profile.summary",
-          "dataSource": "profile.seller",
+          "dataSource": "profile.user",
           "props": {}
         },
         {

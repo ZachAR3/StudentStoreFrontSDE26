@@ -13,20 +13,20 @@
                 alt: `${post.title} photo ${index + 1}`
             })),
             status: { sold: Boolean(post.isSold) },
-            seller: post.seller || null,
+            user: post.user || null,
             createdAt: post.createdAt,
             actions: {
                 favouriteId: post.postId,
-                email: post.seller?.email || "",
-                whatsappPhone: post.seller?.phoneNumber || ""
+                email: "",
+                whatsappPhone: ""
             },
             raw: post
         };
     }
 
     function restaurantMenuItemFromSample(item) {
-        const seller = {
-            sellerId: item.sellerId || "north-hall-kitchen",
+        const user = {
+            userId: item.userId || "north-hall-kitchen",
             name: item.kitchen || "Campus Kitchen",
             phoneNumber: item.phoneNumber || item.whatsappPhone || "+491234567890"
         };
@@ -39,10 +39,10 @@
             price: item.price,
             media: [{ url: item.imageUrl || placeholder, alt: item.title }],
             status: { sold: false },
-            seller,
+            user,
             createdAt: item.availableFrom || new Date().toISOString(),
             actions: {
-                whatsappPhone: seller.phoneNumber
+                whatsappPhone: user.phoneNumber
             },
             raw: item
         };

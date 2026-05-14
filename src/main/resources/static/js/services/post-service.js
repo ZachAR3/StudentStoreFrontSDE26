@@ -6,8 +6,8 @@
             const endpoint = category ? `/api/posts/category/${category}` : "/api/posts";
             return api.page(endpoint);
         },
-        bySeller(sellerId) {
-            return api.page(`/api/posts/seller/${sellerId}`);
+        bySeller(userId) {
+            return api.page(`/api/posts/user/${userId}`);
         },
         create(formData, token) {
             return api.json("/api/posts/upload", { method: "POST", body: formData }, token, "Failed to create item.");
@@ -18,10 +18,10 @@
         delete(postId, token) {
             return api.empty(`/api/posts/${postId}`, { method: "DELETE" }, token, "Failed to delete listing");
         },
-        markSold(postId, buyerId, token) {
+        markSold(postId, buyerUserId, token) {
             return api.json(`/api/posts/${postId}/mark-sold`, {
                 method: "PATCH",
-                body: JSON.stringify({ buyerId })
+                body: JSON.stringify({ buyerUserId })
             }, token, "Failed to mark as sold");
         }
     };

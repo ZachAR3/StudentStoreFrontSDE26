@@ -144,7 +144,7 @@ main {
 .theme-switcher,
 .section-heading,
 .card-footer,
-.seller-stats {
+.user-stats {
     display: flex;
     align-items: center;
 }
@@ -359,7 +359,7 @@ p {
 
 .filter-bar,
 .listing-card,
-.seller-panel,
+.user-panel,
 .form-panel {
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
@@ -492,12 +492,12 @@ textarea:focus {
     margin-top: 30px;
 }
 
-.seller-panel,
+.user-panel,
 .form-panel {
     padding: 20px;
 }
 
-.seller-panel {
+.user-panel {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     gap: 16px;
@@ -515,13 +515,13 @@ textarea:focus {
     font-weight: 900;
 }
 
-.seller-stats {
+.user-stats {
     grid-column: 1 / -1;
     gap: 10px;
     flex-wrap: wrap;
 }
 
-.seller-stats span {
+.user-stats span {
     min-width: 110px;
     padding: 12px;
     border: 1px solid var(--border);
@@ -530,7 +530,7 @@ textarea:focus {
     color: var(--muted);
 }
 
-.seller-stats strong {
+.user-stats strong {
     display: block;
     color: var(--text);
     font-size: 1.35rem;

@@ -14,7 +14,7 @@
             value.badge,
             value.category,
             value.kitchen,
-            value.seller?.name,
+            value.user?.name,
             value.raw?.title,
             value.raw?.description,
             value.raw?.category,
@@ -53,8 +53,8 @@
                     sortBy: state.marketplace.sortBy,
                     searchQuery: state.marketplace.searchQuery
                 };
-            case "profile.seller":
-                return useSampleData ? window.Storefront.data.sampleProfileSeller : state.profile.profileSeller;
+            case "profile.user":
+                return useSampleData ? window.Storefront.data.sampleProfileUser : state.profile.profileUser;
             case "profile.posts":
                 return filterByHeaderSearch(
                     useSampleData ? window.Storefront.data.sampleProfileCatalogItems : state.profile.profileCatalogItems,

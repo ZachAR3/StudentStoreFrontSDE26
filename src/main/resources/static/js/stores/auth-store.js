@@ -17,10 +17,10 @@
 
             saveAuth(data) {
                 this.token = data.token;
-                this.user = data.seller;
+                this.user = data.user;
                 this.isLoggedIn = true;
                 storage.setText("token", data.token);
-                storage.setJson("user", data.seller);
+                storage.setJson("user", data.user);
             },
 
             clearAuth() {

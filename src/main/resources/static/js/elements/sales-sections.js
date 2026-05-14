@@ -31,7 +31,7 @@
         accepts: [],
         defaultProps: {
             featureOneTitle: "Fast pickup",
-            featureOneText: "Coordinate collection directly with the seller.",
+            featureOneText: "Coordinate collection directly with the user.",
             featureTwoTitle: "Verified campus",
             featureTwoText: "Built for Constructor University buyers and sellers.",
             featureThreeTitle: "Simple contact",
@@ -59,8 +59,8 @@
         defaultProps: {
             eyebrow: "Questions",
             title: "Contact before pickup",
-            message: "Add direct seller or shop contact details for custom orders, pickup windows, and availability.",
-            email: "seller@constructor.university",
+            message: "Add direct user or shop contact details for custom orders, pickup windows, and availability.",
+            email: "user@constructor.university",
             whatsapp: "+491234567890"
         },
         editor: {

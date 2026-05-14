@@ -1,7 +1,7 @@
 (function registerProfileStore() {
     window.Storefront.stores.createProfileStore = function createProfileStore() {
         return {
-            profileSeller: null,
+            profileUser: null,
             profilePosts: [],
             profileReviews: null,
             pendingReviews: [],

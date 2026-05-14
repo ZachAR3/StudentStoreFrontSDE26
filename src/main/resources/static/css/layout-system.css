@@ -247,7 +247,7 @@
     color: var(--sf-color-muted);
 }
 
-.listing-detail-panel .seller-link {
+.listing-detail-panel .user-link {
     color: var(--sf-color-primary);
     font-weight: 800;
 }
