@@ -69,8 +69,7 @@ class ListingSubmissionService {
         this.persistConsentedUsers = options.persistConsentedUsers
         this.uploadImage = options.uploadImage
         this.createPost = options.createPost
-        this.resolveMediaUrlsByHash = options.resolveMediaUrlsByHash
-        this.getSellerByPhone = options.getSellerByPhone
+                this.getSellerByPhone = options.getSellerByPhone
         this.messageParser = options.messageParser
         this.contextClassifier = options.contextClassifier
         this.langfuse = options.langfuse
@@ -139,9 +138,9 @@ class ListingSubmissionService {
 
             console.log(`Parsed ${validListings.listings.length} listing candidate(s):`, validListings.listings)
 
-            const seller = await this.getSellerByPhone(contact.number)
-            if (!seller) {
-                safeTraceUpdate(trace, { level: 'WARNING', statusMessage: 'Seller not found' })
+            const user = await this.getSellerByPhone(contact.number)
+            if (!user) {
+                safeTraceUpdate(trace, { level: 'WARNING', statusMessage: 'User not found' })
                 return null
             }
 
@@ -165,7 +164,7 @@ class ListingSubmissionService {
                     description: listing.description,
                     category: listing.category
                 }
-                results.push(await this.createPost(listingPayload, listingMedia.urls, seller.sellerId, listingMedia.hashes))
+                results.push(await this.createPost(listingPayload, listingMedia.urls, user.userId, listingMedia.hashes))
             }
 
             const successfulCount = results.filter(result => result?.ok).length
@@ -257,9 +256,7 @@ class ListingSubmissionService {
 
     async resolveDraftMedia(images = []) {
         const hashes = images.map(imageHash)
-        const existingByHash = this.resolveMediaUrlsByHash
-            ? await this.resolveMediaUrlsByHash(hashes)
-            : {}
+        const existingByHash = {}
         const uploadedByHash = {}
         const urls = []
         const resolvedHashes = []

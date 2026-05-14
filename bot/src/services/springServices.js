@@ -12,7 +12,7 @@ const POST_EXPIRY_HOURS = 48
 const DEFAULT_POST_SORT = 'createdAt,desc'
 const AXIOS_TIMEOUT = 10000
 
-async function createPost(geminiListing, cloudinaryUrls, sellerId, imageHashes = []) {
+async function createPost(geminiListing, cloudinaryUrls, userId) {
     try {
         const response = await axios.post(`${process.env.SPRING_BASE_URL}/api/posts/bot`, {
             title: geminiListing.title,
@@ -20,8 +20,7 @@ async function createPost(geminiListing, cloudinaryUrls, sellerId, imageHashes =
             description: geminiListing.description,
             category: geminiListing.category?.toUpperCase(),
             imageUrlList: cloudinaryUrls,
-            imageHashList: imageHashes,
-            sellerId: sellerId,
+                        userId: userId,
             isSold: false,
             expiresAt: new Date(Date.now() + POST_EXPIRY_HOURS * 60 * 60 * 1000).toISOString().slice(0, 19)
 
@@ -50,23 +49,6 @@ async function createPost(geminiListing, cloudinaryUrls, sellerId, imageHashes =
     }
 }
 
-async function resolveMediaUrlsByHash(imageHashes = []) {
-    const uniqueHashes = [...new Set(imageHashes.filter(Boolean))]
-    if (uniqueHashes.length === 0) return {}
-
-    try {
-        const response = await axios.post(
-            `${process.env.SPRING_BASE_URL}/api/posts/bot/media/resolve`,
-            uniqueHashes,
-            { headers: { 'X-Bot-Api-Key': process.env.BOT_API_KEY } }
-        )
-        return response.data || {}
-    } catch (error) {
-        console.error('Media hash lookup failed:', error.message)
-        return {}
-    }
-}
-
 async function getSellerByPhone(phoneNumber) {
     if (!phoneNumber) return null
 
@@ -80,7 +62,7 @@ async function getSellerByPhone(phoneNumber) {
 
     try {
         // Try searching with '+' prefix first (matching your current DB/DataLoader format)
-        let response = await axios.get(`${process.env.SPRING_BASE_URL}/api/sellers/by-phone`, {
+        let response = await axios.get(`${process.env.SPRING_BASE_URL}/api/users/by-phone`, {
             params: { phone: `+${digitsOnly}` },
             headers: { 'X-Bot-Api-Key': process.env.BOT_API_KEY },
             timeout: AXIOS_TIMEOUT
@@ -88,7 +70,7 @@ async function getSellerByPhone(phoneNumber) {
 
         // If not found with '+', try the raw digits (in case backend is updated)
         if (!response.data && digitsOnly !== phoneNumber) {
-            response = await axios.get(`${process.env.SPRING_BASE_URL}/api/sellers/by-phone`, {
+            response = await axios.get(`${process.env.SPRING_BASE_URL}/api/users/by-phone`, {
                 params: { phone: digitsOnly },
                 headers: { 'X-Bot-Api-Key': process.env.BOT_API_KEY },
                 timeout: AXIOS_TIMEOUT
@@ -97,9 +79,9 @@ async function getSellerByPhone(phoneNumber) {
 
         return response.data
     } catch (error) {
-        // Only log if it's not a 404 (404 is expected if seller isn't registered)
+        // Only log if it's not a 404 (404 is expected if user isn't registered)
         if (error.response?.status !== 404) {
-            console.error('Seller lookup error:', error.message)
+            console.error('User lookup error:', error.message)
         }
         return null
     }
@@ -168,14 +150,14 @@ async function getPostById(postId) {
     }
 }
 
-async function getPostsBySeller(sellerId, { page = 0, size = 50, sort = DEFAULT_POST_SORT } = {}) {
+async function getPostsBySeller(userId, { page = 0, size = 50, sort = DEFAULT_POST_SORT } = {}) {
     try {
-        const response = await axios.get(`${process.env.SPRING_BASE_URL}/api/posts/seller/${sellerId}`, {
+        const response = await axios.get(`${process.env.SPRING_BASE_URL}/api/posts/user/${userId}`, {
             params: { page, size, sort }
         })
         return response.data
     } catch (error) {
-        console.error('Seller posts lookup failed:', error.message)
+        console.error('User posts lookup failed:', error.message)
         return null
     }
 }

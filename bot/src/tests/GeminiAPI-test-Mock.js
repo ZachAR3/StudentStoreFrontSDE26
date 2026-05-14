@@ -8,8 +8,8 @@ const mockUploadImage = async (base64) => {
 };
 
 const mockGetSellerByPhone = async (phone) => {
-    console.log(`[Mock Spring] Getting seller for: ${phone}`);
-    return { sellerId: 'mock-seller-id', name: 'Test Seller' };
+    console.log(`[Mock Spring] Getting user for: ${phone}`);
+    return { userId: 'mock-user-id', name: 'Test User' };
 };
 
 const mockCreatePost = async (listing, urls, id) => {
@@ -91,8 +91,8 @@ async function runProcessListing(phoneNumber) {
         return;
     }
 
-    const seller = await mockGetSellerByPhone(phoneNumber);
-    const success = await mockCreatePost(parsed, cloudinaryUrls, seller.sellerId);
+    const user = await mockGetSellerByPhone(phoneNumber);
+    const success = await mockCreatePost(parsed, cloudinaryUrls, user.userId);
     
     if (success) {
         console.log('[Success] Listing uploaded to Mock Spring!');

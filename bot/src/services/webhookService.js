@@ -29,7 +29,7 @@ function startWebhookServer(stateStore, listingSubmissionService, client) {
         }
     })
 
-    app.post('/webhook/seller-registered', async (req, res) => {
+    app.post('/webhook/user-registered', async (req, res) => {
         const apiKey = req.headers['x-bot-api-key']
         if (!apiKey || apiKey !== process.env.BOT_API_KEY) {
             return res.status(401).json({ error: 'Unauthorized' })

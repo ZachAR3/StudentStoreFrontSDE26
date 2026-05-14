@@ -131,7 +131,7 @@ class WhatsAppShoppingChat {
         const detailsMatch = normalized.match(/^\/?(details|detail|item)\s+(\d+)$/i)
         if (detailsMatch) return { type: 'details', itemRef: detailsMatch[2] }
 
-        const contactMatch = normalized.match(/^\/?(contact|seller|buy)\s+(\d+)$/i)
+        const contactMatch = normalized.match(/^\/?(contact|user|buy)\s+(\d+)$/i)
         if (contactMatch) return { type: 'select', itemRef: contactMatch[2] }
 
         if (/^\d+$/.test(normalized)) return { type: 'select', itemRef: normalized }
@@ -154,7 +154,7 @@ class WhatsAppShoppingChat {
             'category electronics - browse a category',
             'categories - list categories',
             'details 1 - view more about an item',
-            '1 - get a seller WhatsApp link',
+            '1 - get a user WhatsApp link',
             'n / p - change page',
             'stop - close this shopping session'
         ].join('\n'))
@@ -278,7 +278,7 @@ class WhatsAppShoppingChat {
         session.items.forEach((item, index) => lines.push(this.formatItemSummary(item, index + 1)))
 
         lines.push('')
-        lines.push('Reply 1-5 for a seller link, or "details 1" for more info.')
+        lines.push('Reply 1-5 for a user link, or "details 1" for more info.')
 
         const controls = this.getPageControls(session)
         if (controls.length > 0) lines.push(`Reply ${controls.join(' / ')} to browse.`)
@@ -290,7 +290,7 @@ class WhatsAppShoppingChat {
         const description = this.truncate(item.description || '', 90)
         return [
             `${index}. ${item.title} - ${this.formatPrice(item.price)}`,
-            `   ${this.formatCategory(item.category)} | ${item.seller?.name || 'Unknown seller'}`,
+            `   ${this.formatCategory(item.category)} | ${item.user?.name || 'Unknown user'}`,
             description ? `   ${description}` : null
         ].filter(Boolean).join('\n')
     }
@@ -304,11 +304,11 @@ class WhatsAppShoppingChat {
             `${item.title}`,
             `Price: ${this.formatPrice(item.price)}`,
             `Category: ${this.formatCategory(item.category)}`,
-            `Seller: ${item.seller?.name || 'Unknown seller'}`,
+            `User: ${item.user?.name || 'Unknown user'}`,
             '',
             item.description || 'No description provided.',
             '',
-            `Reply ${itemRef} for the seller WhatsApp link.`
+            `Reply ${itemRef} for the user WhatsApp link.`
         ].filter(Boolean).join('\n')
 
         if (!imageUrl) {
@@ -331,12 +331,12 @@ class WhatsAppShoppingChat {
 
         const sellerLink = this.buildSellerWhatsAppLink(item)
         if (!sellerLink) {
-            await this.client.sendMessage(chatId, 'This seller does not have a usable WhatsApp number.')
+            await this.client.sendMessage(chatId, 'This user does not have a usable WhatsApp number.')
             return
         }
 
         await this.client.sendMessage(chatId, [
-            `Message ${item.seller?.name || 'the seller'} about "${item.title}":`,
+            `Message ${item.user?.name || 'the user'} about "${item.title}":`,
             sellerLink
         ].join('\n'))
     }
@@ -365,7 +365,7 @@ class WhatsAppShoppingChat {
     }
 
     buildSellerWhatsAppLink(item) {
-        const phoneNumber = item?.seller?.phoneNumber || ''
+        const phoneNumber = item?.user?.phoneNumber || ''
         const digits = phoneNumber.replace(/\D/g, '')
         if (digits.length < 10) return null
 
