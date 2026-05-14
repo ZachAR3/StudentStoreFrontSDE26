@@ -126,7 +126,7 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 | `GET` | `/api/posts/available` | Public | Get only unsold listings |
 | `GET` | `/api/posts/search?q={text}&category={name}` | Public | Search unsold listings by title/description with optional category filter; supports pageable `page`, `size`, and `sort` params |
 | `GET` | `/api/posts/category/{name}`| Public | Filter posts by category (e.g., ELECTRONICS, BOOKS) |
-| `GET` | `/api/posts/seller/{id}` | Public | Get all posts by a specific user (legacy endpoint name kept for compatibility) |
+| `GET` | `/api/posts/user/{userId}`| Public | Get all posts by a specific user |
 
 ### **User Management** (`/api/users`)
 
