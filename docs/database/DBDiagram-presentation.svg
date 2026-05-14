@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2200" height="1500" viewBox="0 0 2200 1500">
+  <style>
+    .table { fill: #ffffff; stroke: #1f2937; stroke-width: 3; rx: 14; ry: 14; }
+    .head { fill: #2f5aa6; }
+    .title { font: 700 34px Arial, sans-serif; fill: #ffffff; }
+    .body { font: 25px Arial, sans-serif; fill: #111827; }
+    .pk { font-weight: 700; }
+    .fk { fill: #9a3412; }
+    .line { stroke: #475569; stroke-width: 4; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .label { font: 20px Arial, sans-serif; fill: #334155; }
+  </style>
+
+  <g transform="translate(800,60)">
+    <rect class="table" width="600" height="260" />
+    <rect class="table head" width="600" height="58" />
+    <text class="title" x="22" y="40">sellers</text>
+    <text class="body pk" x="22" y="108">PK seller_id</text>
+    <text class="body" x="22" y="146">name</text>
+    <text class="body" x="22" y="184">email [unique]</text>
+    <text class="body" x="22" y="222">phone_number [unique]</text>
+    <text class="body" x="320" y="146">password, role</text>
+    <text class="body" x="320" y="184">is_enabled</text>
+    <text class="body" x="320" y="222">created_at</text>
+  </g>
+
+  <g transform="translate(640,410)">
+    <rect class="table" width="920" height="350" />
+    <rect class="table head" width="920" height="58" />
+    <text class="title" x="22" y="40">posts</text>
+    <text class="body pk" x="22" y="108">PK post_id</text>
+    <text class="body" x="22" y="146">title, price, description</text>
+    <text class="body" x="22" y="184">category, is_sold, status</text>
+    <text class="body" x="22" y="222">created_at, expires_at</text>
+    <text class="body" x="22" y="260">reminder_sent_at, sold_at</text>
+    <text class="body fk" x="22" y="308">FK seller_id → sellers.seller_id</text>
+    <text class="body fk" x="470" y="308">FK buyer_id → sellers.seller_id</text>
+    <text class="body" x="470" y="146">Indexes: public listing</text>
+    <text class="body" x="470" y="184">category filter</text>
+    <text class="body" x="470" y="222">expiration window</text>
+  </g>
+
+  <g transform="translate(1120,1100)">
+    <rect class="table" width="860" height="310" />
+    <rect class="table head" width="860" height="58" />
+    <text class="title" x="22" y="40">reviews</text>
+    <text class="body pk" x="22" y="108">PK review_id</text>
+    <text class="body fk" x="22" y="146">FK post_id → posts.post_id</text>
+    <text class="body fk" x="22" y="184">FK reviewer_id → sellers.seller_id</text>
+    <text class="body fk" x="22" y="222">FK reviewee_id → sellers.seller_id</text>
+    <text class="body" x="470" y="146">direction, rating</text>
+    <text class="body" x="470" y="184">comment, created_at</text>
+    <text class="body" x="470" y="222">Unique: (post_id, direction)</text>
+  </g>
+
+  <g transform="translate(80,450)">
+    <rect class="table" width="470" height="250" />
+    <rect class="table head" width="470" height="58" />
+    <text class="title" x="22" y="40">favourites</text>
+    <text class="body pk" x="22" y="108">PK id</text>
+    <text class="body fk" x="22" y="146">FK seller_id → sellers.seller_id</text>
+    <text class="body fk" x="22" y="184">FK post_id → posts.post_id</text>
+    <text class="body" x="22" y="222">Unique: (seller_id, post_id)</text>
+  </g>
+
+  <g transform="translate(80,80)">
+    <rect class="table" width="500" height="215" />
+    <rect class="table head" width="500" height="58" />
+    <text class="title" x="22" y="40">password_reset_tokens</text>
+    <text class="body pk" x="22" y="108">PK id</text>
+    <text class="body" x="22" y="146">token [unique]</text>
+    <text class="body fk" x="22" y="184">FK seller_id → sellers.seller_id</text>
+  </g>
+
+  <g transform="translate(80,930)">
+    <rect class="table" width="560" height="215" />
+    <rect class="table head" width="560" height="58" />
+    <text class="title" x="22" y="40">email_verification_tokens</text>
+    <text class="body pk" x="22" y="108">PK id</text>
+    <text class="body" x="22" y="146">code, expires_at, used</text>
+    <text class="body fk" x="22" y="184">FK seller_id → sellers.seller_id</text>
+  </g>
+
+  <g transform="translate(1650,120)">
+    <rect class="table" width="500" height="300" />
+    <rect class="table head" width="500" height="58" />
+    <text class="title" x="22" y="40">whatsapp_login_sessions</text>
+    <text class="body pk" x="22" y="108">PK id (UUID)</text>
+    <text class="body" x="22" y="146">session_id, login_token</text>
+    <text class="body" x="22" y="184">claim_token, status</text>
+    <text class="body" x="22" y="222">phone_number, creator_ip</text>
+    <text class="body fk" x="22" y="260">FK seller_id → sellers.seller_id</text>
+  </g>
+
+  <g transform="translate(1660,540)">
+    <rect class="table" width="480" height="250" />
+    <rect class="table head" width="480" height="58" />
+    <text class="title" x="22" y="40">post_media</text>
+    <text class="body pk" x="22" y="108">PK id</text>
+    <text class="body fk" x="22" y="146">FK post_id → posts.post_id</text>
+    <text class="body" x="22" y="184">media_url, image_hash</text>
+    <text class="body" x="22" y="222">Unique: (post_id, display_order)</text>
+  </g>
+
+  <path class="line" d="M1100 320 L1100 410" />
+  <text class="label" x="1120" y="378">seller_id / buyer_id</text>
+
+  <path class="line" d="M580 188 L690 188 L690 190 L800 190" />
+  <text class="label" x="610" y="176">seller_id</text>
+
+  <path class="line" d="M640 1038 L720 1038 L720 230 L800 230" />
+  <text class="label" x="650" y="1016">seller_id</text>
+
+  <path class="line" d="M550 575 L640 575" />
+  <text class="label" x="570" y="560">post_id</text>
+
+  <path class="line" d="M1650 270 L1520 270 L1520 555 L1560 555" />
+  <text class="label" x="1540" y="255">seller_id</text>
+
+  <path class="line" d="M1560 610 L1660 610" />
+  <text class="label" x="1580" y="595">post_id</text>
+
+  <path class="line" d="M1100 760 L1100 930 L1550 930 L1550 1100" />
+  <text class="label" x="1120" y="918">post_id</text>
+
+  <path class="line" d="M840 320 L620 320 L620 1040 L1120 1040 L1120 1100" />
+  <text class="label" x="800" y="1018">reviewer / reviewee</text>
+</svg>
