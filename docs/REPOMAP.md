@@ -18,6 +18,7 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 .
 ├── docs/                      # Project documentation
 │   ├── architecture.md        # System design and layers
+│   ├── database/              # Database course deliverables: requirement map, domain description, SQL, DBML, schema images, seed/query/demo packs
 │   ├── frontend-modularity-implementation-plan.md # Frontend refactor/build plan
 │   ├── PROPOSAL.md            # Original project hypothesis
 │   ├── REPOMAP.md             # [This File] Repo map and API spec
@@ -246,7 +247,29 @@ Behavior notes:
 
 ---
 
-## 5. Frontend Architecture
+## 5. Database Course Deliverables
+
+The repository now includes a dedicated `docs/database/` package for database-course submission materials derived from the implemented Spring/JPA model:
+
+- **`docs/database/README.md`**: Requirement checklist mapping the current project to the course deliverables and pointing to the canonical database artifacts.
+- **`docs/database/domain-and-scenarios.md`**: Course-facing domain description written so the schema can be reconstructed from text alone, plus explicit critical user paths such as registration/verification, listing creation, search, sale completion, reviews, and WhatsApp login.
+- **`docs/database/schema.sql`**: PostgreSQL DDL for the implemented entities, constraints, and documented index strategy.
+- **`docs/database/schema.dbml`**: DBML export of the same schema for tools such as dbdiagram.io.
+- **`docs/database/schema.svg` / `schema.png`**: Schema diagram images for submission portals, reports, and presentation decks.
+- **`docs/database/seed.sql`**: Deterministic fake dataset covering enabled and pending sellers, active and archived listings, sold transactions, favourites, reviews, reset tokens, verification tokens, and WhatsApp login sessions.
+- **`docs/database/queries.sql`**: Three course-facing SQL queries aligned with real application behavior: marketplace search, expiration reminder scanning, and profile-review aggregation.
+- **`docs/database/query-results.md`**: Expected outputs for the seeded dataset so the queries can be validated quickly.
+- **`docs/database/demo-and-deployment.md`**: MVP recording script and placeholders for the final deployment URL and demo video URL.
+
+Important implementation alignment:
+
+- The database pack mirrors the Kotlin entities in `src/main/kotlin/com/studentstorefront/entity`.
+- The SQL schema adds explicit indexes for the app’s dominant query paths: active listing reads, category-filtered search, expiration scheduling, per-seller profile lookups, ordered media retrieval, review summaries, and token/session lookups.
+- Seeded demo accounts use a valid BCrypt password hash so the seeded database can support an actual login demo rather than only static schema evaluation.
+
+---
+
+## 6. Frontend Architecture
 
 The frontend is a **Progressive Web App (PWA)** built for speed and simplicity.
 
@@ -323,7 +346,7 @@ The Alpine SPA stores view state in the URL hash (`#view=...`, plus `site=...` f
 
 ---
 
-## 6. Integrations & Special Features
+## 7. Integrations & Special Features
 
 ### **Security & University Verification**
 - Access and registrations enforce `@constructor.university` email domains.

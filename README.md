@@ -28,8 +28,21 @@ The current codebase supports seller accounts, JWT authentication, listing creat
 - [`src/test/kotlin/com/studentstorefront`](/home/zach/Desktop/productivity/Programming/SDE Sales App/src/test/kotlin/com/studentstorefront): backend tests
 - [`bot/`](/home/zach/Desktop/productivity/Programming/SDE Sales App/bot): WhatsApp bot and evaluation tooling
 - [`docs/REPOMAP.md`](/home/zach/Desktop/productivity/Programming/SDE Sales App/docs/REPOMAP.md): repo map and API overview
+- [`docs/database/`](/home/zach/Desktop/productivity/Programming/SDE Sales App/docs/database): database course deliverables (domain description, SQL, DBML, schema image, seed data, queries)
 - [`docs/architecture.md`](/home/zach/Desktop/productivity/Programming/SDE Sales App/docs/architecture.md): high-level architecture notes
 - [`specs/requirements.md`](/home/zach/Desktop/productivity/Programming/SDE Sales App/specs/requirements.md): requirements reference
+
+## Database Course Deliverables
+
+For the database-focused course submission, start with:
+
+- [`docs/database/README.md`](/home/zach/Desktop/productivity/Programming/SDE Sales App/docs/database/README.md)
+- [`docs/database/domain-and-scenarios.md`](/home/zach/Desktop/productivity/Programming/SDE Sales App/docs/database/domain-and-scenarios.md)
+- [`docs/database/schema.sql`](/home/zach/Desktop/productivity/Programming/SDE Sales App/docs/database/schema.sql)
+- [`docs/database/schema.dbml`](/home/zach/Desktop/productivity/Programming/SDE Sales App/docs/database/schema.dbml)
+- [`docs/database/schema.svg`](/home/zach/Desktop/productivity/Programming/SDE Sales App/docs/database/schema.svg)
+- [`docs/database/seed.sql`](/home/zach/Desktop/productivity/Programming/SDE Sales App/docs/database/seed.sql)
+- [`docs/database/queries.sql`](/home/zach/Desktop/productivity/Programming/SDE Sales App/docs/database/queries.sql)
 
 ## Core Features
 
