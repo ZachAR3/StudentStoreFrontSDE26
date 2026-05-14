@@ -18,7 +18,7 @@
             actions: {
                 favouriteId: post.postId,
                 email: "",
-                whatsappPhone: ""
+                whatsappPhone: post.whatsappPhone || ""
             },
             raw: post
         };

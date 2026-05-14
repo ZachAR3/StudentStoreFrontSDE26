@@ -109,6 +109,18 @@ class PostSearchControllerTest {
     }
 
     @Test
+    fun `search responses include seller phone number for whatsapp contact`() {
+        mockMvc.perform(
+            get("/api/posts/search")
+                .param("q", "standing")
+                .param("size", "10")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.totalElements").value(1))
+            .andExpect(jsonPath("$.content[0].whatsappPhone").value("15550001111"))
+    }
+
+    @Test
     fun `search returns bad request for invalid category`() {
         mockMvc.perform(get("/api/posts/search").param("category", "cars"))
             .andExpect(status().isBadRequest)

@@ -18,6 +18,7 @@ data class PostResponseDTO(
     val expiresAt: LocalDateTime?,
     val soldAt: LocalDateTime?,
     val user: PublicUserResponseDTO,
+    val whatsappPhone: String? = null,
     val buyer: PublicUserResponseDTO? = null,
     val isFavourited: Boolean = false
 )

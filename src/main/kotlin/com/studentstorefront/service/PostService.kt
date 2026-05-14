@@ -374,6 +374,7 @@ class PostService(
             expiresAt = post.expiresAt,
             soldAt = post.soldAt,
             user = mapUserToPublicResponseDTO(post.user!!),
+            whatsappPhone = post.user?.phoneNumber?.ifBlank { null },
             buyer = if (canViewBuyer) post.buyer?.let { mapUserToPublicResponseDTO(it) } else null,
             isFavourited = currentUserId != null &&
                 favouriteRepository.existsByUserUserIdAndPostPostId(currentUserId, post.postId!!)
