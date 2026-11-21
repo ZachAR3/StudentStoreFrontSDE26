@@ -8,6 +8,12 @@
         search(query, token) {
             return api.page(`/api/users/search?q=${encodeURIComponent(query)}&size=10`, {}, token);
         },
+        update(userId, payload, token) {
+            return api.json(`/api/users/${userId}`, {
+                method: "PUT",
+                body: JSON.stringify(payload)
+            }, token, "Failed to update profile");
+        },
         deleteMe(password, token) {
             return api.empty("/api/users/me", {
                 method: "DELETE",

@@ -6,6 +6,7 @@
     <title>Student-Store Front</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
     <link rel="stylesheet" href="/css/custom.css">
+    <link rel="icon" href="data:,">
     <script defer src="/js/core/namespace.js"></script>
     <script defer src="/js/core/storage.js"></script>
     <script defer src="/js/core/router.js"></script>
@@ -36,6 +37,7 @@
     <script defer src="/js/services/post-service.js"></script>
     <script defer src="/js/services/user-service.js"></script>
     <script defer src="/js/services/review-service.js"></script>
+    <script defer src="/js/services/sale-service.js"></script>
     <script defer src="/js/services/favourite-service.js"></script>
     <script defer src="/js/builder/palette.js"></script>
     <script defer src="/js/builder/drag-drop.js"></script>
@@ -55,12 +57,12 @@
     <header class="app-header">
         <nav class="container">
             <a href="#" class="shell-brand" @click.prevent="navigateTo('listings')">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
                 <strong>Student-Store Front</strong>
             </a>
 
             <div class="search-container" x-show="headerProps.showSearch">
-                <input type="search" x-model="marketplace.searchQuery" placeholder="Search items, descriptions, or tags...">
+                <input type="search" x-model="marketplace.searchQuery" placeholder="Search items, descriptions, or tags..." aria-label="Search items, descriptions, or tags">
             </div>
 
             <div class="shell-actions">
@@ -81,12 +83,12 @@
                         <li class="shell-user-actions">
                             <a href="#" @click.prevent="viewProfile(user.userId)" class="user-link shell-link-button" x-text="'Hi, ' + user.name"></a>
                             <button class="fav-nav-btn" @click="navigateTo('favourites')" aria-label="Open favourites">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
                                 <span>Saved</span>
                                 <span class="fav-badge" x-show="favouriteCount > 0" x-text="favouriteCount"></span>
                             </button>
                             <button class="shell-pill-button" @click="openCreateListingForm()">Create Listing</button>
-                            <a href="#" @click.prevent="handleLogout()" class="user-link shell-link-button">Log Out</a>
+                            <a href="#" @click.prevent="handleLogout()" class="user-link shell-link-button shell-logout">Log Out</a>
                         </li>
                     </template>
                 </ul>
@@ -100,24 +102,32 @@
                 <section class="site-sidebar-section">
                     <p class="site-sidebar-kicker">Browse</p>
                     <button class="site-nav-item" :class="{ 'is-active': currentView === 'listings' }" @click="navigateTo('listings')">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
                         <span>Marketplace</span>
                     </button>
+                    <button class="site-nav-item" x-show="isLoggedIn" :class="{ 'is-active': currentView === 'profile' && profile.isOwnProfile }" @click="viewProfile(user.userId)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        <span>My Profile</span>
+                    </button>
                     <button class="site-nav-item" :class="{ 'is-active': currentView === 'favourites' }" @click="navigateTo('favourites')">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
                         <span>Saved Items</span>
                     </button>
                     <button class="site-nav-item" :class="{ 'is-active': currentView === 'layoutBuilder' }" @click="navigateTo('layoutBuilder')">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
                         <span>Layout Builder</span>
                     </button>
                     <button class="site-nav-item" :class="{ 'is-active': currentView === 'support' }" @click="navigateTo('support')">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 1 1 5.82 1c-.55 1.1-1.91 1.64-2.4 2.78"/><path d="M12 17h.01"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 1 1 5.82 1c-.55 1.1-1.91 1.64-2.4 2.78"/><path d="M12 17h.01"/></svg>
                         <span>Support</span>
+                    </button>
+                    <button class="site-nav-item site-nav-compact-only" x-show="isLoggedIn" @click="handleLogout()">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+                        <span>Log Out</span>
                     </button>
                 </section>
 
-                <section class="site-sidebar-section">
+                <section class="site-sidebar-section site-sites-section">
                     <div class="site-sidebar-heading">
                         <p class="site-sidebar-kicker">Sites</p>
                         <button class="icon-button site-create-button" @click="navigateTo('layoutBuilder')" aria-label="Create site" title="Create site">
@@ -143,8 +153,8 @@
     <main class="app-main">
         <div class="view-container" x-show="successMessage || errorMessage">
             <div class="message-stack">
-                <article class="feedback-banner success" x-show="successMessage"><p x-text="successMessage"></p></article>
-                <article class="feedback-banner error" x-show="errorMessage"><p x-text="errorMessage"></p></article>
+                <article class="feedback-banner success" role="status" tabindex="-1" x-show="successMessage"><p x-text="successMessage"></p></article>
+                <article class="feedback-banner error" role="alert" tabindex="-1" x-show="errorMessage"><p x-text="errorMessage"></p></article>
             </div>
         </div>
 
@@ -191,7 +201,7 @@
                                                 </select>
                                             </div>
                                             <div class="filter-group" x-show="element.props.showSearch">
-                                                <input type="search" x-model="marketplace.searchQuery" placeholder="Search this layout">
+                                                <input type="search" x-model="marketplace.searchQuery" placeholder="Search this layout" aria-label="Search this layout">
                                             </div>
                                             <button class="outline" @click="clearFilters()">Clear Filters</button>
                                         </div>
@@ -260,9 +270,11 @@
                                         <div class="profile-header">
                                             <div class="profile-avatar" :style="{ '--profile-avatar-bg': getProfileAvatarColor(element.data?.userId) }" x-text="getInitials(element.data?.name)"></div>
                                             <div>
-                                                <h2 x-text="element.data?.name || 'Sample User'"></h2>
+                                                <h2 x-show="element.data?.name" x-text="element.data?.name"></h2>
+                                                <span class="skeleton-line skeleton-title" x-show="!element.data?.name" aria-hidden="true"></span>
                                                 <div class="profile-meta">
-                                                    <span class="profile-meta-item" x-text="element.data?.email || 'user@constructor.university'"></span>
+                                                    <span class="profile-meta-item" x-show="element.data?.email" x-text="element.data?.email"></span>
+                                                    <span class="skeleton-line" x-show="!element.data" aria-hidden="true"></span>
                                                     <span class="profile-meta-item" x-show="element.data?.phoneNumber" x-text="element.data?.phoneNumber"></span>
                                                 </div>
                                             </div>
@@ -342,7 +354,10 @@
                                                                     x-text="cart.isSelected(item.id) ? 'Selected' : (element.props.cartButtonLabel || 'Add')">
                                                                 </button>
                                                                 <div class="listing-contact-actions" x-show="item.user && element.props.itemElement !== 'restaurant.menuItemCard'">
-                                                                    <a class="listing-contact-button listing-contact-button-email" :href="'mailto:' + item.actions.email" @click.stop aria-label="Email user" title="Email user">
+                                                                    <button type="button" class="listing-contact-button listing-contact-button-login" x-show="!isLoggedIn" @click.stop="navigateTo('login')" aria-label="Log in to contact the seller" title="Log in to contact the seller">
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                                                                    </button>
+                                                                    <a class="listing-contact-button listing-contact-button-email" x-show="item.actions.email" :href="'mailto:' + item.actions.email" @click.stop aria-label="Email user" title="Email user">
                                                                         <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
                                                                     </a>
                                                                     <a class="listing-contact-button listing-contact-button-whatsapp" x-show="item.actions.whatsappPhone" :href="whatsappHref(item)" target="_blank" @click.stop aria-label="Contact user on WhatsApp" title="Contact user on WhatsApp">
@@ -407,7 +422,7 @@
                         </div>
                         <aside class="listing-detail-panel">
                             <div>
-                                <p class="item-meta" x-text="selectedListing.badge + ' · ' + new Date(selectedListing.createdAt).toLocaleDateString()"></p>
+                                <p class="item-meta" x-text="selectedListing.badge + ' · ' + formatDate(selectedListing.createdAt)"></p>
                                 <h1 x-text="selectedListing.title"></h1>
                             </div>
                             <div class="listing-detail-price" x-text="formatPrice(selectedListing.price)"></div>
@@ -416,6 +431,7 @@
                                 <button class="outline" x-show="isListingOwner(selectedListing)" @click="startEditingPost(selectedListing.id)">Edit Listing</button>
                                 <a role="button" class="outline contrast" x-show="selectedListing.actions.email" :href="'mailto:' + selectedListing.actions.email">Email User</a>
                                 <a role="button" class="outline is-whatsapp" x-show="selectedListing.actions.whatsappPhone" :href="whatsappHref(selectedListing)" target="_blank">WhatsApp</a>
+                                <button class="outline contrast" x-show="!isLoggedIn && selectedListing.user" @click="navigateTo('login')">Log in to contact</button>
                             </div>
                             <div x-show="selectedListing.user">
                                 <p class="item-meta">User</p>
@@ -498,13 +514,13 @@
                                                     </span>
                                                 </h2>
                                                 <div class="profile-meta">
-                                                    <span class="profile-meta-item" x-show="profile.isOwnProfile && profile.profileUser.email">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-                                                        <span x-text="profile.profileUser.email"></span>
+                                                    <span class="profile-meta-item" x-show="profile.isOwnProfile && user?.email">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                                                        <span x-text="user?.email"></span>
                                                     </span>
-                                                    <span class="profile-meta-item" x-show="profile.isOwnProfile && profile.profileUser.phoneNumber">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                                                        <span x-text="profile.profileUser.phoneNumber"></span>
+                                                    <span class="profile-meta-item" x-show="profile.isOwnProfile && user?.phoneNumber">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                                                        <span x-text="user?.phoneNumber"></span>
                                                     </span>
                                                     <span class="profile-meta-item" x-text="profile.profilePosts.length + ' listing' + (profile.profilePosts.length !== 1 ? 's' : '')"></span>
                                                 </div>
@@ -532,6 +548,21 @@
                                                 <p x-text="profile.isOwnProfile ? `You haven't posted any listings yet.` : 'No listings yet.'"></p>
                                                 <button x-show="profile.isOwnProfile" @click="openCreateListingForm()">Create Your First Listing</button>
                                             </div>
+                                            <div class="profile-review-panel" x-show="profile.isOwnProfile && profile.pendingConfirmations.length > 0">
+                                                <div class="section-heading">
+                                                    <h3>Confirm Purchases</h3>
+                                                </div>
+                                                <template x-for="sale in profile.pendingConfirmations" :key="sale.saleId">
+                                                    <article class="profile-review-card">
+                                                        <div>
+                                                            <strong x-text="sale.title"></strong>
+                                                            <p x-text="`Purchase recorded by ${sale.sellerName} · ${formatDate(sale.soldAt)}`"></p>
+                                                        </div>
+                                                        <button class="outline" @click="confirmPurchase(sale.postId)">Confirm Purchase</button>
+                                                        <button class="outline secondary" @click="declinePurchase(sale.postId)">Not Me</button>
+                                                    </article>
+                                                </template>
+                                            </div>
                                             <div class="profile-review-panel" x-show="profile.isOwnProfile && profile.pendingReviews.length > 0">
                                                 <div class="section-heading">
                                                     <h3>Pending Reviews</h3>
@@ -552,20 +583,23 @@
                                                     <div class="profile-listing-info">
                                                         <h4>
                                                             <span x-text="post.title"></span>
-                                                            <span class="sold-badge" x-show="post.isSold">SOLD</span>
+                                                            <span class="sold-badge" x-show="post.isSold ?? post.sold ?? post.status === 'SOLD'">SOLD</span>
                                                         </h4>
                                                         <div class="item-meta">
                                                             <span x-text="post.category"></span>
                                                             <span> · </span>
-                                                            <span x-text="new Date(post.createdAt).toLocaleDateString()"></span>
+                                                            <span x-text="formatDate(post.createdAt)"></span>
                                                         </div>
                                                         <strong x-text="formatPrice(post.price)"></strong>
+                                                        <p class="item-meta listing-status" x-show="profile.isOwnProfile" x-text="listingStatusText(post)"></p>
                                                     </div>
                                                     <div class="profile-listing-actions" x-show="profile.isOwnProfile">
-                                                        <button class="outline" @click="startEditingPost(post.postId)">Edit</button>
-                                                        <button class="outline" @click="promptMarkSold(post.postId)" x-show="!post.isSold">Sold</button>
-                                                        <button class="outline" @click="openReviewModal(post.postId)" x-show="post.isSold && post.buyer">Review Buyer</button>
-                                                        <button class="outline secondary" @click="promptDeletePost(post.postId)">Delete</button>
+                                                        <button class="outline" @click="startEditingPost(post.postId)" x-show="!(post.isSold ?? post.sold ?? post.status === 'SOLD')">Edit</button>
+                                                        <button class="outline" @click="renewProfilePost(post.postId)" x-show="canRenewPost(post)">Renew</button>
+                                                        <button class="outline" @click="promptMarkSold(post.postId)" x-show="!(post.isSold ?? post.sold ?? post.status === 'SOLD') && post.status === 'ACTIVE'">Sold</button>
+                                                        <button class="outline secondary" @click="undoSale(post.postId)" x-show="post.awaitingBuyerConfirmation">Undo Sale</button>
+                                                        <button class="outline" @click="openReviewModal(post.postId)" x-show="(post.isSold ?? post.sold ?? post.status === 'SOLD') && post.buyer">Review Buyer</button>
+                                                        <button class="outline secondary" @click="promptDeletePost(post.postId)" x-show="!(post.isSold ?? post.sold ?? post.status === 'SOLD')">Delete</button>
                                                     </div>
                                                 </article>
                                             </template>
@@ -582,6 +616,11 @@
                                                         </div>
                                                     </article>
                                                 </template>
+                                            </div>
+                                            <div class="profile-settings" x-show="profile.isOwnProfile">
+                                                <h4>Account</h4>
+                                                <p>Change your name, phone number, email or password.</p>
+                                                <button class="outline" @click="openEditProfile()">Edit Profile</button>
                                             </div>
                                             <div class="danger-zone" x-show="profile.isOwnProfile">
                                                 <h4>Danger Zone</h4>
@@ -606,12 +645,12 @@
                         <label>Title
                             <input type="text" placeholder="What are you offering?" x-model="upload.newPost.title" required>
                         </label>
-                        <label>Price ($)
+                        <label>Price (€)
                             <input type="number" step="0.01" placeholder="0.00" x-model.number="upload.newPost.price" required>
                         </label>
                     </div>
                     <div>
-                        <label>Photos (Up to 10)</label>
+                        <label>Photos (Up to 5)</label>
                         <div class="upload-dropzone" :class="{ 'is-active': upload.uploadDragActive }" @dragover.prevent="upload.uploadDragActive = true" @dragleave.prevent="upload.uploadDragActive = false" @drop.prevent="handleDrop($event)">
                             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                             <p>Drag and drop images here, or</p>
@@ -639,7 +678,7 @@
                         </label>
                     </div>
                     <label>Description
-                        <textarea rows="5" x-model="upload.newPost.description" placeholder="Provide details about the condition, pickup location, or ingredients..." required></textarea>
+                        <textarea rows="5" minlength="10" maxlength="1000" x-model="upload.newPost.description" placeholder="Provide details about the condition, pickup location, or ingredients..." required></textarea>
                     </label>
                     <div class="form-actions">
                         <button type="button" class="outline secondary" @click="cancelListingEditor()">Cancel</button>
@@ -660,14 +699,14 @@
                         <input type="password" x-model="auth.loginForm.password" placeholder="••••••••" required>
                     </label>
                     <div class="auth-forgot-row">
-                        <small><a href="#" @click.prevent="navigateTo('forgotPassword')">Forgot your password?</a></small>
+                        <small><a class="auth-inline-link" href="#" @click.prevent="navigateTo('forgotPassword')">Forgot your password?</a></small>
                     </div>
                     <button type="submit" class="sf-u-full-width" :aria-busy="isLoading">Log In</button>
                 </form>
                 <hr>
                 <button class="outline contrast sf-u-full-width" @click="initWhatsappLogin()">Login with WhatsApp</button>
                 <div class="auth-link-row">
-                    <small>Don't have an account? <a href="#" @click.prevent="navigateTo('register')">Sign up</a></small>
+                    <small>Don't have an account? <a class="auth-inline-link" href="#" @click.prevent="navigateTo('register')">Sign up</a></small>
                 </div>
             </article>
         </div>
@@ -723,7 +762,7 @@
                 <h2>Login with WhatsApp</h2>
                 <div x-show="!auth.whatsappLogin.sessionId" aria-busy="true">Initializing session...</div>
                 <div x-show="auth.whatsappLogin.sessionId">
-                    <p>Scan the QR code below with your phone's camera to log in via WhatsApp.</p>
+                    <p>Scan the QR code below with your phone's camera, send the prefilled WhatsApp message, then reply <strong>YES</strong> when the bot asks you to confirm.</p>
                     <img class="qr-code-image" :src="'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' + encodeURIComponent(auth.whatsappLogin.qrContent)" alt="WhatsApp Login QR Code">
                     <p><a :href="auth.whatsappLogin.qrContent" target="_blank" x-text="auth.whatsappLogin.qrContent"></a></p>
                     <span aria-busy="true" x-show="auth.whatsappLogin.status === 'PENDING'">Waiting for you to scan...</span>
@@ -828,7 +867,7 @@
                         <div class="created-site-card-body">
                             <p class="item-meta" x-text="site.context"></p>
                             <h3 x-text="site.name"></h3>
-                            <p class="item-meta" x-text="'Updated ' + new Date(site.updatedAt).toLocaleString()"></p>
+                            <p class="item-meta" x-text="'Updated ' + formatDateTime(site.updatedAt)"></p>
                             <div class="builder-inline-actions">
                                 <button @click="openCreatedSite(site.id)">View</button>
                                 <button class="outline" @click="editCreatedSite(site.id)">Edit</button>
@@ -924,7 +963,7 @@
                     </div>
 
                     <div class="builder-toolbar builder-toolbar-regions">
-                        <template x-for="region in builder.draftLayout.regions" :key="region.id">
+                        <template x-for="region in (builder.draftLayout?.regions || [])" :key="region.id">
                             <button class="outline" :class="{ secondary: builder.selectedRegionId === region.id }" @click="selectBuilderRegion(region.id)" x-text="region.id"></button>
                         </template>
                     </div>
@@ -1014,7 +1053,7 @@
                                                         <div class="layout-card-grid" :style="{ '--grid-min-item-width': element.props.minItemWidth }">
                                                             <template x-for="item in element.data || []" :key="item.id">
                                                                 <article class="item-card" :class="{ 'restaurant-menu-card': element.type === 'restaurant.menuGrid' }">
-                                                                    <div class="item-card-media" :style="{ '--item-media-ratio': element.props.itemElement === 'restaurant.menuItemCard' ? '1 / 1' : '4 / 3' }">
+                                                                    <div class="item-card-media" :style="{ '--item-media-ratio': Storefront.core.elementRegistry.get(element.props.itemElement)?.defaultProps?.mediaRatio || '4 / 3' }">
                                                                         <img class="item-image" :src="item.media && item.media.length ? item.media[0].url : 'https://placehold.co/600x400?text=No+Image'" :alt="item.title">
                                                                         <span class="item-badge" x-text="item.badge"></span>
                                                                     </div>
@@ -1135,9 +1174,11 @@
     </main>
     </div>
 
-    <div class="modal-overlay" x-show="confirmDeletePostId" x-transition>
-        <div class="modal-card">
-            <h3>Delete Listing</h3>
+    <div class="modal-overlay" x-show="confirmDeletePostId" x-transition
+         @keydown.escape.window="if (confirmDeletePostId) { cancelDeletePost() }"
+         x-effect="if (confirmDeletePostId) $nextTick(() => $el.querySelector('input, select, textarea, button:not([disabled])')?.focus())">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-delete-listing-title">
+            <h3 id="modal-delete-listing-title">Delete Listing</h3>
             <p>This cannot be undone. Delete this listing?</p>
             <div class="form-actions">
                 <button class="outline secondary" @click="cancelDeletePost()">Cancel</button>
@@ -1146,10 +1187,12 @@
         </div>
     </div>
 
-    <div class="modal-overlay" x-show="profile.soldModalPostId" x-transition @click.self="resetSoldModal()">
-        <div class="modal-card">
-            <h3>Mark Listing Sold</h3>
-            <p>Select the registered buyer who purchased this item. They will receive a quick review request.</p>
+    <div class="modal-overlay" x-show="profile.soldModalPostId" x-transition @click.self="resetSoldModal()"
+         @keydown.escape.window="if (profile.soldModalPostId) { resetSoldModal() }"
+         x-effect="if (profile.soldModalPostId) $nextTick(() => $el.querySelector('input, select, textarea, button:not([disabled])')?.focus())">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-mark-sold-title">
+            <h3 id="modal-mark-sold-title">Mark Listing Sold</h3>
+            <p>Select the registered buyer who purchased this item. They will confirm the purchase before either account can leave a review.</p>
             <label>Buyer name
                 <input type="search" x-model="profile.buyerSearchQuery" @input.debounce.300ms="searchBuyerCandidates()" placeholder="Search registered buyers">
             </label>
@@ -1157,11 +1200,13 @@
                 <template x-for="buyer in profile.buyerSearchResults" :key="buyer.userId">
                     <button type="button" class="buyer-result-button outline" @click="selectBuyerCandidate(buyer)">
                         <strong x-text="buyer.name"></strong>
+                        <span class="item-meta" x-show="buyer.emailHint" x-text="buyer.emailHint"></span>
                     </button>
                 </template>
             </div>
             <p class="item-meta" x-show="profile.buyerSearchLoading">Searching buyers...</p>
-            <p class="item-meta" x-show="profile.selectedBuyer" x-text="`Selected buyer: ${profile.selectedBuyer?.name}`"></p>
+            <p class="item-meta" x-show="profile.selectedBuyer" x-text="`Selected buyer: ${profile.selectedBuyer?.name}${profile.selectedBuyer?.emailHint ? ` (${profile.selectedBuyer.emailHint})` : ''}`"></p>
+            <p class="item-meta" x-show="profile.selectedBuyer">The buyer gets 7 days to confirm. Until then you can undo this from your listings, and if they don't confirm, the listing goes back on the market.</p>
             <div class="form-actions">
                 <button class="outline secondary" @click="resetSoldModal()">Cancel</button>
                 <button :disabled="!profile.selectedBuyer" @click="markProfilePostSold()">Mark Sold</button>
@@ -1169,9 +1214,11 @@
         </div>
     </div>
 
-    <div class="modal-overlay" x-show="profile.showReviewModal" x-transition @click.self="closeReviewModal()">
-        <div class="modal-card">
-            <h3>Leave a Review</h3>
+    <div class="modal-overlay" x-show="profile.showReviewModal" x-transition @click.self="closeReviewModal()"
+         @keydown.escape.window="if (profile.showReviewModal) { closeReviewModal() }"
+         x-effect="if (profile.showReviewModal) $nextTick(() => $el.querySelector('input, select, textarea, button:not([disabled])')?.focus())">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-review-title">
+            <h3 id="modal-review-title">Leave a Review</h3>
             <p x-show="profile.reviewContext" x-text="`Review ${profile.reviewContext?.reviewee.name} for ${profile.reviewContext?.postTitle}.`"></p>
             <label>Rating
                 <select x-model.number="profile.reviewForm.rating">
@@ -1192,10 +1239,12 @@
         </div>
     </div>
 
-    <div class="modal-overlay" x-show="profile.showDeleteAccountModal" x-transition @click.self="profile.showDeleteAccountModal = false">
-        <div class="modal-card">
-            <h3>Delete Account</h3>
-            <p>This action is permanent. All your listings will be deleted.</p>
+    <div class="modal-overlay" x-show="profile.showDeleteAccountModal" x-transition @click.self="profile.showDeleteAccountModal = false"
+         @keydown.escape.window="if (profile.showDeleteAccountModal) { profile.showDeleteAccountModal = false; profile.deleteAccountConfirmPassword = '' }"
+         x-effect="if (profile.showDeleteAccountModal) $nextTick(() => $el.querySelector('input, select, textarea, button:not([disabled])')?.focus())">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-delete-account-title">
+            <h3 id="modal-delete-account-title">Delete Account</h3>
+            <p>This action is permanent. Your listings and photos will be deleted. Completed sales stay in the other person's history under "Deleted user".</p>
             <label>Enter your password to confirm
                 <input type="password" x-model="profile.deleteAccountConfirmPassword">
             </label>
@@ -1203,6 +1252,49 @@
                 <button class="outline secondary" @click="profile.showDeleteAccountModal = false; profile.deleteAccountConfirmPassword = ''">Cancel</button>
                 <button :disabled="!profile.deleteAccountConfirmPassword" @click="deleteAccount()">Delete Forever</button>
             </div>
+        </div>
+    </div>
+    <div class="modal-overlay" x-show="profile.showEditProfileModal" x-transition @click.self="closeEditProfile()"
+         @keydown.escape.window="if (profile.showEditProfileModal) closeEditProfile()"
+         x-effect="if (profile.showEditProfileModal) $nextTick(() => $el.querySelector('input')?.focus())">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-edit-profile-title">
+            <h3 id="modal-edit-profile-title">Edit Profile</h3>
+            <form @submit.prevent="saveProfile()">
+                <label>Name
+                    <input type="text" x-model="profile.editProfileForm.name" minlength="2" maxlength="100" autocomplete="name">
+                </label>
+                <label>Phone number
+                    <input type="tel" x-model="profile.editProfileForm.phoneNumber" autocomplete="tel" placeholder="+491234567890">
+                    <small>Changing your phone signs you out and the WhatsApp bot will need to see the new number again.</small>
+                </label>
+                <label>Email
+                    <input type="email" x-model="profile.editProfileForm.email" autocomplete="email">
+                    <small>We email a code to the new address. Your email only changes once you enter it.</small>
+                </label>
+                <label>New password
+                    <input type="password" x-model="profile.editProfileForm.password" autocomplete="new-password" placeholder="Leave blank to keep your current password">
+                </label>
+                <label x-show="profile.editProfileForm.password">Confirm new password
+                    <input type="password" x-model="profile.editProfileForm.confirmPassword" autocomplete="new-password">
+                </label>
+                <label x-show="editProfileNeedsCurrentPassword()">Current password
+                    <input type="password" x-model="profile.editProfileForm.currentPassword" autocomplete="current-password">
+                    <small>Required to change your phone, email or password.</small>
+                </label>
+                <div class="form-actions">
+                    <button type="button" class="outline secondary" @click="closeEditProfile()">Cancel</button>
+                    <button type="submit" :aria-busy="profile.editProfileSaving" :disabled="profile.editProfileSaving">Save Changes</button>
+                </div>
+            </form>
+            <form x-show="profile.emailChange.pendingEmail" @submit.prevent="confirmEmailChange()">
+                <hr>
+                <label>Code sent to <strong x-text="profile.emailChange.pendingEmail"></strong>
+                    <input type="text" inputmode="numeric" autocomplete="one-time-code" x-model="profile.emailChange.code">
+                </label>
+                <div class="form-actions">
+                    <button type="submit" class="outline">Confirm New Email</button>
+                </div>
+            </form>
         </div>
     </div>
 </body>

@@ -24,15 +24,13 @@
             searchQuery: "",
             sortBy: "newest",
             get filteredPosts() {
-                let result = [...this.posts];
-                if (this.searchQuery.trim()) {
-                    const query = this.searchQuery.toLowerCase();
-                    result = result.filter((post) =>
-                        post.title.toLowerCase().includes(query) ||
-                        post.description.toLowerCase().includes(query)
-                    );
-                }
-                return sortPosts(result, this.sortBy);
+                const query = this.searchQuery.trim().toLowerCase();
+                const posts = query
+                    ? this.posts.filter((post) =>
+                        String(post.title || "").toLowerCase().includes(query) ||
+                        String(post.description || "").toLowerCase().includes(query))
+                    : this.posts;
+                return sortPosts(posts, this.sortBy);
             }
         };
     };

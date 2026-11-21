@@ -348,6 +348,11 @@
     }
 }
 
+/* Items that duplicate header actions; only shown once the header collapses. */
+.site-nav-compact-only {
+    display: none;
+}
+
 @media (max-width: 1080px) {
     .app-body-shell {
         width: min(calc(100% - (var(--sf-space-md) * 2)), var(--sf-content-max));
@@ -401,6 +406,17 @@
 }
 
 @media (max-width: 880px) {
+    /* Log Out and Saved move to the sidebar row so the header never needs a
+       hidden horizontal scroll to reach them. */
+    .shell-user-actions .shell-logout,
+    .shell-user-actions .fav-nav-btn {
+        display: none !important;
+    }
+
+    .site-nav-compact-only {
+        display: grid;
+    }
+
     .app-header {
         min-height: 0;
         background: color-mix(in srgb, var(--sf-color-surface) 96%, transparent);
@@ -548,5 +564,43 @@
         width: 1.85rem;
         height: 1.85rem;
         padding: 0.4rem;
+    }
+}
+
+/* Short landscape screens: a sticky header would cover ~40% of the viewport,
+   and the empty "Sites" builder row pushes listings below the fold (FE-07). */
+@media (max-width: 1080px) {
+    .site-sidebar-empty {
+        display: none;
+    }
+}
+
+@media (max-height: 500px) {
+    .app-header {
+        position: static;
+    }
+
+    .site-sidebar-section.site-sites-section {
+        display: none;
+    }
+}
+
+/* Touch screens: keep interactive targets at least 44px (FE-10). */
+@media (pointer: coarse) {
+    .site-nav-item,
+    .icon-button,
+    .shell-pill-button,
+    .fav-nav-btn,
+    .shell-link-button,
+    .fav-btn,
+    .listing-contact-button {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    .auth-inline-link {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
     }
 }

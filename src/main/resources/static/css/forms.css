@@ -126,10 +126,27 @@
     border-radius: var(--sf-radius-sm);
     cursor: grab;
     background: var(--sf-color-surface);
+    transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease, opacity 0.16s ease;
+}
+
+.image-preview-card:active {
+    cursor: grabbing;
+    opacity: 0.76;
+    transform: scale(0.98);
+    box-shadow: var(--sf-shadow-sm);
+}
+
+.image-preview-card:hover {
+    border-color: var(--sf-color-border-strong);
+    box-shadow: var(--sf-shadow-xs);
 }
 
 .image-preview-card.is-cover {
     border-color: var(--sf-color-primary);
+}
+
+.image-preview-card.is-cover:hover {
+    border-color: var(--sf-color-primary-strong);
 }
 
 .image-preview-card img {

@@ -183,6 +183,13 @@
     background: var(--sf-color-danger-soft);
 }
 
+.profile-settings {
+    margin-bottom: var(--sf-space-lg);
+    padding: var(--sf-space-xl);
+    border: 1px solid var(--sf-color-border);
+    border-radius: var(--sf-radius-md);
+}
+
 .danger-zone h4 {
     color: var(--sf-color-danger);
 }
@@ -192,8 +199,12 @@
     inset: 0;
     z-index: 500;
     display: flex;
-    align-items: center;
+    /* flex-start + auto margins on the card centre short modals but let tall
+       ones (or short landscape screens) scroll instead of being clipped. */
+    align-items: flex-start;
     justify-content: center;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     padding: var(--sf-space-lg);
     background: var(--sf-color-scrim);
     backdrop-filter: blur(8px);
@@ -201,11 +212,22 @@
 
 .modal-card {
     width: min(100%, 30rem);
+    margin-block: auto;
     padding: var(--sf-space-xl);
     border: 1px solid var(--sf-border-color);
     border-radius: var(--sf-radius-lg);
     background: var(--sf-color-surface);
     box-shadow: var(--sf-shadow-md);
+}
+
+@media (max-height: 600px) {
+    .modal-overlay {
+        padding: var(--sf-space-sm);
+    }
+
+    .modal-card {
+        padding: var(--sf-space-md);
+    }
 }
 
 @media (max-width: 768px) {
@@ -238,6 +260,7 @@
     .profile-header,
     .profile-review-panel,
     .danger-zone,
+    .profile-settings,
     .modal-card {
         padding: var(--sf-space-md);
     }
@@ -278,4 +301,40 @@
         padding: var(--sf-space-md);
         overflow: auto;
     }
+}
+
+/* Placeholder shown while profile data loads, instead of fake values (FE-13). */
+.skeleton-line {
+    display: block;
+    width: 12rem;
+    max-width: 100%;
+    height: 0.9rem;
+    margin-block: 0.35rem;
+    border-radius: 999px;
+    background: linear-gradient(90deg,
+        color-mix(in srgb, var(--sf-color-border, #ccc) 70%, transparent) 25%,
+        color-mix(in srgb, var(--sf-color-border, #ccc) 35%, transparent) 50%,
+        color-mix(in srgb, var(--sf-color-border, #ccc) 70%, transparent) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+.skeleton-line.skeleton-title {
+    width: 9rem;
+    height: 1.4rem;
+}
+
+@keyframes skeleton-shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .skeleton-line { animation: none; }
+}
+
+.listing-status {
+    margin: 0.25rem 0;
+    font-size: 0.85rem;
+    color: var(--sf-color-text-muted, var(--pico-muted-color));
 }

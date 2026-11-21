@@ -5,6 +5,10 @@ document.addEventListener("alpine:init", () => {
     const services = window.Storefront.services;
 
     const deepClone = (value) => JSON.parse(JSON.stringify(value));
+    // Listings are priced in euros (Bremen campus); the bot uses the same format.
+    const EUR_PRICE_FORMAT = new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" });
+    const DATE_FORMAT = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" });
+    const DATE_TIME_FORMAT = new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
     function replaceElementInLayout(layout, elementId, updater) {
         const next = deepClone(layout);
@@ -64,7 +68,10 @@ document.addEventListener("alpine:init", () => {
                     if (this.auth.isLoggedIn) {
                         await this.syncFavourites();
                     }
-                    const resetToken = new URLSearchParams(window.location.search).get("token");
+                    // Reset links carry the token in the fragment (#reset-token=...);
+                    // ?token= is still read for links sent before that change.
+                    const resetToken = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("reset-token")
+                        || new URLSearchParams(window.location.search).get("token");
                     if (resetToken) {
                         this.auth.resetPasswordForm.token = resetToken;
                         this.navigateTo("resetPassword");
@@ -163,10 +170,33 @@ document.addEventListener("alpine:init", () => {
             setError(message) {
                 this.errorMessage = message;
                 this.successMessage = "";
+                this.revealFeedbackBanner(".feedback-banner.error");
             },
             setSuccess(message) {
                 this.successMessage = message;
                 this.errorMessage = "";
+                this.revealFeedbackBanner(".feedback-banner.success");
+            },
+            // The banner sits at the top of the page; on phones the user is
+            // usually at the submit button far below it, so bring it into view.
+            revealFeedbackBanner(selector) {
+                // The banner's container is shown by x-show, which may not have
+                // applied yet on the next tick, so retry for a few frames.
+                const reveal = (framesLeft = 20) => {
+                    const banner = document.querySelector(selector);
+                    if (!banner) return;
+                    if (banner.offsetParent === null) {
+                        if (framesLeft > 0) window.requestAnimationFrame(() => reveal(framesLeft - 1));
+                        return;
+                    }
+                    const rect = banner.getBoundingClientRect();
+                    if (rect.top < 0 || rect.bottom > window.innerHeight) {
+                        banner.scrollIntoView({ block: "center", behavior: "smooth" });
+                    }
+                    banner.focus({ preventScroll: true });
+                };
+                if (typeof this.$nextTick === "function") this.$nextTick(() => reveal());
+                else window.requestAnimationFrame(() => reveal());
             },
 
             readBrowserRoute() {
@@ -229,6 +259,7 @@ document.addEventListener("alpine:init", () => {
                     this.profile.isOwnProfile = false;
                     this.profile.showDeleteAccountModal = false;
                     this.profile.deleteAccountConfirmPassword = "";
+                    this.closeEditProfile();
                     this.resetSoldModal();
                     this.closeReviewModal();
                     this.confirmDeletePostId = null;
@@ -292,6 +323,9 @@ document.addEventListener("alpine:init", () => {
             },
             getRegisterValidationError() {
                 const f = this.auth.registerForm;
+                if (f.phoneNumber) {
+                    f.phoneNumber = f.phoneNumber.replace(/[\s\-\(\)]/g, "");
+                }
                 if (!f.name || f.name.length < 2 || f.name.length > 100) {
                     return "Name must be between 2 and 100 characters.";
                 }
@@ -613,7 +647,6 @@ document.addEventListener("alpine:init", () => {
                 if (post.price && post.price < 0.01) errors.push("Price must be greater than 0");
                 if (!post.category) errors.push("Category is required");
                 if (!post.description?.trim()) errors.push("Description is required");
-                if (this.upload.mediaItems.length === 0) errors.push("At least one image is required");
                 return errors;
             },
 
@@ -756,8 +789,8 @@ document.addEventListener("alpine:init", () => {
             },
             addFiles(files) {
                 const imageFiles = files.filter((file) => file.type.startsWith("image/"));
-                if (this.upload.mediaItems.length + imageFiles.length > 10) {
-                    this.setError("You can only upload up to 10 images.");
+                if (this.upload.mediaItems.length + imageFiles.length > 5) {
+                    this.setError("You can only upload up to 5 images.");
                     return;
                 }
                 imageFiles.forEach((file) => {
@@ -786,9 +819,12 @@ document.addEventListener("alpine:init", () => {
                 this.profile.isOwnProfile = this.isLoggedIn && this.user?.userId === userId;
                 try {
                     this.profile.profileUser = await services.users.get(userId, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
-                    const postsData = await services.posts.bySeller(userId);
+                    const postsData = await services.posts.bySeller(userId, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
                     this.profile.profilePosts = postsData.content;
                     this.profile.profileReviews = await services.reviews.byProfile(userId, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
+                    this.profile.pendingConfirmations = this.profile.isOwnProfile
+                        ? await services.sales.pendingConfirmations(this.auth.token).catch((error) => this.rethrowUnauthorized(error))
+                        : [];
                     this.profile.pendingReviews = this.profile.isOwnProfile
                         ? await services.reviews.pending(this.auth.token).catch((error) => this.rethrowUnauthorized(error))
                         : [];
@@ -864,11 +900,73 @@ document.addEventListener("alpine:init", () => {
                     this.profile.profilePosts = this.profile.profilePosts.map((post) => post.postId === postId ? updated : post);
                     this.marketplace.posts = this.marketplace.posts.map((post) => post.postId === postId ? updated : post);
                     this.resetSoldModal();
+                    this.profile.pendingConfirmations = await services.sales.pendingConfirmations(this.auth.token).catch((error) => this.rethrowUnauthorized(error));
                     this.profile.pendingReviews = await services.reviews.pending(this.auth.token).catch((error) => this.rethrowUnauthorized(error));
-                    this.setSuccess("Listing marked as sold. The buyer has been asked for a quick review.");
+                    this.setSuccess("Listing marked as sold. The selected buyer must confirm the purchase before reviews are available.");
                 } catch (error) {
                     this.setError(error.message);
                 }
+            },
+            async confirmPurchase(postId) {
+                try {
+                    await services.sales.confirm(postId, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
+                    this.profile.pendingConfirmations = this.profile.pendingConfirmations.filter((sale) => sale.postId !== postId);
+                    this.profile.pendingReviews = await services.reviews.pending(this.auth.token).catch((error) => this.rethrowUnauthorized(error));
+                    this.setSuccess("Purchase confirmed. You can now leave a review.");
+                } catch (error) {
+                    this.setError(error.message);
+                }
+            },
+            async declinePurchase(postId) {
+                if (!window.confirm("Tell the seller this wasn't your purchase? The listing goes back on the market.")) return;
+                try {
+                    await services.sales.decline(postId, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
+                    this.profile.pendingConfirmations = this.profile.pendingConfirmations.filter((sale) => sale.postId !== postId);
+                    this.setSuccess("Purchase declined. The listing is back on the market.");
+                } catch (error) {
+                    this.setError(error.message);
+                }
+            },
+            async undoSale(postId) {
+                if (!window.confirm("Undo this sale? The listing goes back on the market and the buyer can no longer confirm it.")) return;
+                try {
+                    await services.sales.cancel(postId, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
+                    await this.reloadProfilePost(postId);
+                    this.setSuccess("Sale undone. The listing is active again.");
+                } catch (error) {
+                    this.setError(error.message);
+                }
+            },
+            async renewProfilePost(postId) {
+                try {
+                    const renewed = await services.posts.renew(postId, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
+                    this.replacePostEverywhere(renewed);
+                    this.setSuccess(`Listing renewed until ${this.formatDateTime(renewed.expiresAt)}.`);
+                } catch (error) {
+                    this.setError(error.message);
+                }
+            },
+            async reloadProfilePost(postId) {
+                const fresh = await services.posts.get(postId, this.auth.token).catch((error) => this.rethrowUnauthorized(error));
+                this.replacePostEverywhere(fresh);
+            },
+            replacePostEverywhere(updated) {
+                const swap = (post) => post.postId === updated.postId ? updated : post;
+                this.profile.profilePosts = this.profile.profilePosts.map(swap);
+                this.marketplace.posts = this.marketplace.posts.map(swap);
+            },
+            canRenewPost(post) {
+                if (!post || post.isSold || post.status === "SOLD") return false;
+                if (post.status === "ARCHIVED") return true;
+                const expiresAt = this.parseServerDate(post.expiresAt);
+                return post.status === "ACTIVE" && expiresAt !== null && expiresAt.getTime() - Date.now() <= 12 * 3600 * 1000;
+            },
+            listingStatusText(post) {
+                if (post.isSold || post.status === "SOLD") {
+                    return post.awaitingBuyerConfirmation ? "Sold · waiting for buyer to confirm" : "Sold";
+                }
+                if (post.status === "ARCHIVED") return "Expired · renew to show it again";
+                return post.expiresAt ? `Active · expires ${this.formatDateTime(post.expiresAt)}` : "Active";
             },
             async openReviewModal(postId) {
                 try {
@@ -908,6 +1006,117 @@ document.addEventListener("alpine:init", () => {
                         ? await services.reviews.pending(this.auth.token).catch((error) => this.rethrowUnauthorized(error))
                         : [];
                     this.setSuccess("Review submitted. Thanks for helping keep the marketplace trustworthy.");
+                } catch (error) {
+                    this.setError(error.message);
+                }
+            },
+            openEditProfile() {
+                const current = this.auth.user || {};
+                this.profile.editProfileForm = {
+                    name: current.name || "",
+                    phoneNumber: current.phoneNumber || "",
+                    email: current.email || "",
+                    password: "",
+                    confirmPassword: "",
+                    currentPassword: ""
+                };
+                this.profile.emailChange = { pendingEmail: current.pendingEmail || "", code: "" };
+                this.profile.showEditProfileModal = true;
+            },
+            closeEditProfile() {
+                this.profile.showEditProfileModal = false;
+                this.profile.editProfileSaving = false;
+                this.profile.editProfileForm.password = "";
+                this.profile.editProfileForm.confirmPassword = "";
+                this.profile.editProfileForm.currentPassword = "";
+                this.profile.emailChange.code = "";
+            },
+            editProfileChanges() {
+                const form = this.profile.editProfileForm;
+                const current = this.auth.user || {};
+                const name = form.name.trim();
+                const phoneNumber = form.phoneNumber.trim();
+                const email = form.email.trim().toLowerCase();
+                return {
+                    name: name && name !== current.name ? name : null,
+                    phoneNumber: phoneNumber && phoneNumber !== current.phoneNumber ? phoneNumber : null,
+                    email: email && email !== (current.email || "").toLowerCase() ? email : null,
+                    password: form.password || null
+                };
+            },
+            editProfileNeedsCurrentPassword() {
+                const changes = this.editProfileChanges();
+                return Boolean(changes.phoneNumber || changes.email || changes.password);
+            },
+            async saveProfile() {
+                const form = this.profile.editProfileForm;
+                const changes = this.editProfileChanges();
+                if (!changes.name && !changes.phoneNumber && !changes.email && !changes.password) {
+                    this.closeEditProfile();
+                    return;
+                }
+                if (changes.password && changes.password !== form.confirmPassword) {
+                    this.setError("The new passwords do not match.");
+                    return;
+                }
+                if (changes.email && !changes.email.endsWith("@constructor.university")) {
+                    this.setError("Email must end with @constructor.university");
+                    return;
+                }
+                const needsCurrentPassword = this.editProfileNeedsCurrentPassword();
+                if (needsCurrentPassword && !form.currentPassword) {
+                    this.setError("Enter your current password to change your phone, email or password.");
+                    return;
+                }
+                const payload = Object.fromEntries(Object.entries(changes).filter(([, value]) => value !== null));
+                if (needsCurrentPassword) payload.currentPassword = form.currentPassword;
+
+                this.profile.editProfileSaving = true;
+                try {
+                    const updated = await services.users.update(this.auth.user.userId, payload, this.auth.token)
+                        .catch((error) => {
+                            if (error.status === 403) throw new Error("Your current password is incorrect.");
+                            return this.rethrowUnauthorized(error);
+                        });
+                    // A phone or password change bumps the token version, so the
+                    // current session token is no longer valid (FE-08).
+                    if (changes.phoneNumber || changes.password) {
+                        this.closeEditProfile();
+                        this.handleLogout();
+                        this.setSuccess("Profile updated. Please log in again with your new details.");
+                        return;
+                    }
+                    this.auth.saveAuth({ token: this.auth.token, user: { ...this.auth.user, ...updated } });
+                    if (this.profile.profileUser) {
+                        this.profile.profileUser = { ...this.profile.profileUser, name: updated.name };
+                    }
+                    if (changes.email) {
+                        this.profile.emailChange = { pendingEmail: updated.pendingEmail || changes.email, code: "" };
+                        form.currentPassword = "";
+                        this.setSuccess(`We sent a code to ${this.profile.emailChange.pendingEmail}. Enter it below to finish changing your email.`);
+                    } else {
+                        this.closeEditProfile();
+                        this.setSuccess("Profile updated.");
+                    }
+                } catch (error) {
+                    this.setError(error.message);
+                } finally {
+                    this.profile.editProfileSaving = false;
+                }
+            },
+            async confirmEmailChange() {
+                const { pendingEmail, code } = this.profile.emailChange;
+                if (!pendingEmail || !code.trim()) {
+                    this.setError("Enter the code we emailed to your new address.");
+                    return;
+                }
+                try {
+                    const data = await services.auth.verifyEmail({ email: pendingEmail, code: code.trim() });
+                    // Verifying the new email issues a fresh token (the old one is revoked).
+                    this.auth.saveAuth(data);
+                    this.closeEditProfile();
+                    this.profile.emailChange = { pendingEmail: "", code: "" };
+                    this.setSuccess("Your email address has been changed.");
                 } catch (error) {
                     this.setError(error.message);
                 }
@@ -1440,8 +1649,28 @@ document.addEventListener("alpine:init", () => {
                 const digits = phone.replace(/[^0-9]/g, "");
                 return `https://wa.me/${digits}?text=${encodeURIComponent(`Hi, I am interested in your listing: ${item.title}`)}`;
             },
+            // The API sends UTC wall-clock times without an offset
+            // ("2026-11-21T09:30:00"); read them as UTC, not local time (X-03).
+            parseServerDate(value) {
+                if (!value) return null;
+                const text = String(value);
+                const hasOffset = /([zZ]|[+-]\d{2}:?\d{2})$/.test(text);
+                const date = new Date(hasOffset || !text.includes("T") ? text : `${text}Z`);
+                return Number.isNaN(date.getTime()) ? null : date;
+            },
+            formatDate(value) {
+                const date = this.parseServerDate(value);
+                return date ? DATE_FORMAT.format(date) : "";
+            },
+            formatDateTime(value) {
+                const date = this.parseServerDate(value);
+                return date ? DATE_TIME_FORMAT.format(date) : "";
+            },
             formatPrice(value) {
-                return `$${value}`;
+                if (value === null || value === undefined || value === "") return "Price not listed";
+                const amount = Number(value);
+                if (!Number.isFinite(amount)) return String(value);
+                return EUR_PRICE_FORMAT.format(amount);
             }
         };
         return app;

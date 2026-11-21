@@ -6,8 +6,11 @@
             const endpoint = category ? `/api/posts/category/${category}` : "/api/posts";
             return api.page(endpoint);
         },
-        bySeller(userId) {
-            return api.page(`/api/posts/user/${userId}`);
+        get(postId, token) {
+            return api.json(`/api/posts/${postId}`, {}, token, "Failed to load listing");
+        },
+        bySeller(userId, token) {
+            return api.page(`/api/posts/user/${userId}`, {}, token);
         },
         create(formData, token) {
             return api.json("/api/posts/upload", { method: "POST", body: formData }, token, "Failed to create item.");
@@ -23,6 +26,9 @@
                 method: "PATCH",
                 body: JSON.stringify({ buyerUserId })
             }, token, "Failed to mark as sold");
+        },
+        renew(postId, token) {
+            return api.json(`/api/posts/${postId}/renew`, { method: "POST" }, token, "Failed to renew listing");
         }
     };
 })();

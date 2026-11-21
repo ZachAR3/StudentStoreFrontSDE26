@@ -23,17 +23,21 @@
         } else if (details.errors && typeof details.errors === "object") {
             Object.entries(details.errors).forEach(([field, value]) => {
                 const text = Array.isArray(value) ? value.join(", ") : String(value);
-                messages.push(`${field}: ${text}`);
+                // Backend messages usually name the field already; only
+                // prefix it when they don't ("must not be blank").
+                messages.push(text.toLowerCase().includes(field.toLowerCase()) ? text : `${field}: ${text}`);
             });
         }
-        if (details.detail) messages.push(`Detail: ${details.detail}`);
-        if (details.code) messages.push(`Code: ${details.code}`);
+        if (details.detail && details.detail !== details.message) messages.push(details.detail);
+        // The machine-readable code stays on error.code / error.details for
+        // callers; it is not shown to users.
 
         const message = messages.length > 0
             ? messages.join(" ")
             : `${fallbackMessage || "Request failed"} (${response.status} ${response.statusText || "HTTP error"})`;
         const error = new Error(message);
         error.status = response.status;
+        error.code = details.code;
         error.details = details;
         return error;
     }

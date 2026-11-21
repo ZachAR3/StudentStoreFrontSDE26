@@ -43,6 +43,13 @@
             (region.elements || []).forEach((element) => {
                 if (!registry.get(element.type)) {
                     errors.push(`Unknown element type: ${element.type}`);
+                } else if (element.props) {
+                    const propValidation = registry.validateProps(element.type, element.props);
+                    if (!propValidation.isValid) {
+                        propValidation.errors.forEach((err) => {
+                            errors.push(`Element "${element.id || element.type}" validation error: ${err}`);
+                        });
+                    }
                 }
                 if (element.dataSource && !KNOWN_DATA_SOURCES.has(element.dataSource)) {
                     errors.push(`Unknown data source: ${element.dataSource}`);

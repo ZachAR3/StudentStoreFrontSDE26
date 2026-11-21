@@ -2,6 +2,7 @@
     const placeholder = "https://placehold.co/600x400?text=No+Image";
 
     function catalogItemFromPost(post) {
+        const sold = post.isSold ?? post.sold ?? post.status === "SOLD";
         return {
             id: post.postId,
             title: post.title,
@@ -12,12 +13,12 @@
                 url,
                 alt: `${post.title} photo ${index + 1}`
             })),
-            status: { sold: Boolean(post.isSold) },
+            status: { sold: Boolean(sold) },
             user: post.user || null,
             createdAt: post.createdAt,
             actions: {
                 favouriteId: post.postId,
-                email: "",
+                email: post.email || "",
                 whatsappPhone: post.whatsappPhone || ""
             },
             raw: post

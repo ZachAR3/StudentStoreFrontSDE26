@@ -21,9 +21,10 @@
         };
     }
 
+    const EUR_PRICE_FORMAT = new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" });
+
     function formatCartPrice(value) {
-        const amount = Number(value) || 0;
-        return `$${amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(2)}`;
+        return EUR_PRICE_FORMAT.format(Number(value) || 0);
     }
 
     window.Storefront.stores.createCartStore = function createCartStore() {
