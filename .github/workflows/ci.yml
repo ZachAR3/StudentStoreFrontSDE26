@@ -13,7 +13,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:15
+        image: postgres:15.13
         env:
           POSTGRES_DB: studentstorefront
           POSTGRES_USER: student
@@ -49,13 +49,24 @@ jobs:
         env:
           DB_USERNAME: student
           DB_PASSWORD: ci-password
+          FLYWAY_USERNAME: student
+          FLYWAY_PASSWORD: ci-password
         run: ./gradlew test
 
       - name: Build JAR
         env:
           DB_USERNAME: student
           DB_PASSWORD: ci-password
+          FLYWAY_USERNAME: student
+          FLYWAY_PASSWORD: ci-password
         run: ./gradlew build -x test
+
+      - name: Validate frontend contracts
+        run: node scripts/validate-frontend-contracts.js
+
+      - name: Test bot contracts
+        working-directory: bot
+        run: npm ci && npm test
 
       - name: Upload test results
         if: always()

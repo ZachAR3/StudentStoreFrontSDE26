@@ -78,7 +78,8 @@ start_spring() {
     local app_jar
     app_jar="$(find "$ROOT_DIR/build/libs" -maxdepth 1 -type f -name '*.jar' ! -name '*plain.jar' | sort | tail -n 1)"
     [[ -n "$app_jar" ]] || { echo "No Spring Boot jar found in $ROOT_DIR/build/libs" >>"$SPRING_LOG"; exit 1; }
-    nohup setsid java -jar "$app_jar" --server.address="${bind_address}" --server.port="${spring_port}" \
+    # Pin the JVM zone: stored timestamps depend on it (see build.gradle.kts).
+    nohup setsid java -Duser.timezone="${APP_TIMEZONE:-Europe/Berlin}" -jar "$app_jar" --server.address="${bind_address}" --server.port="${spring_port}" \
       >>"$SPRING_LOG" 2>&1 < /dev/null &
     echo $! >"$SPRING_PID_FILE"
   )

@@ -128,8 +128,7 @@ npm install
 The included [`docker-compose.yaml`](/home/zach/Desktop/productivity/Programming/SDE Sales App/docker-compose.yaml) starts PostgreSQL with:
 
 - Database: `studentstorefront`
-- Username: `student`
-- Password: `CHANGE_THIS`
+- Bootstrap credentials: `POSTGRES_ADMIN_USER` / `POSTGRES_ADMIN_PASSWORD` from `.env`
 - Port: `5432`
 
 Run:
@@ -138,7 +137,10 @@ Run:
 docker compose up -d db
 ```
 
-If you change the DB credentials in Docker, keep the backend env vars aligned.
+The compose file requires `POSTGRES_ADMIN_USER` and `POSTGRES_ADMIN_PASSWORD` for
+the local PostgreSQL bootstrap account. Keep the backend `DB_USERNAME` and
+`DB_PASSWORD` aligned with the database role used by your deployment; do not use
+the old placeholder values from earlier versions of this project.
 
 ## Environment Configuration
 
@@ -159,8 +161,10 @@ Start from [`.env.example`](/home/zach/Desktop/productivity/Programming/SDE Sale
 Recommended variables:
 
 ```env
-DB_USERNAME=student
-DB_PASSWORD=CHANGE_THIS
+DB_USERNAME=student_app
+DB_PASSWORD=replace-with-a-long-local-db-password
+FLYWAY_USERNAME=student_migrations
+FLYWAY_PASSWORD=replace-with-a-long-migration-password
 JWT_SECRET=replace-with-a-long-random-secret
 MAIL_HOST=smtp.gmail.com
 MAIL_USERNAME=your-email@example.com
@@ -176,7 +180,8 @@ CLOUDINARY_API_SECRET=your-cloudinary-secret
 
 Backend variable notes:
 
-- `DB_USERNAME`, `DB_PASSWORD`: PostgreSQL credentials
+- `DB_USERNAME`, `DB_PASSWORD`: runtime PostgreSQL credentials; this role receives DML access only
+- `FLYWAY_USERNAME`, `FLYWAY_PASSWORD`: migration-owner credentials used by Flyway and kept separate from the runtime role
 - `JWT_SECRET`: secret used to sign bearer tokens
 - `MAIL_*`: SMTP settings for password reset and verification email flows
 - `APP_BASE_URL`: public base URL used in generated links
@@ -321,7 +326,7 @@ The main backend areas are:
 - Auth: registration, login, password reset, WhatsApp login session flow
 - Posts: create, update, search, archive, mark sold
 - Sellers: profile management and seller lookup
-- Reviews: transaction review workflow
+- Sales/reviews: buyer-confirmed transaction workflow and directional reviews
 - Favourites: save/remove favourite listings
 
 For a more detailed endpoint and entity reference, see [`docs/REPOMAP.md`](/home/zach/Desktop/productivity/Programming/SDE Sales App/docs/REPOMAP.md).

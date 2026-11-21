@@ -38,6 +38,8 @@ bot/node_modules
 bot/LANGFUSE_DOCUMENTATION.md
 consentedUsersPersistence.json
 userStatePersistence.json
+declinedUsersPersistence.json
+processedMessageIds.json
 .junie/
 .gemini/
 # VSCode
@@ -47,3 +49,7 @@ userStatePersistence.json
 .codex
 
 /.claude/settings.local.json
+
+# Local AI tool state
+.antigravitycli/
+.commandcode/

@@ -28,15 +28,15 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 ├── src/
 │   ├── main/
 │   │   ├── kotlin/com/studentstorefront/
-│   │   │   ├── config/        # Security (JWT, Spring Security), OpenApi, and DataLoader legacy repairs
-│   │   │   ├── controller/    # REST Endpoints (Auth, Favourite, Post, Review, User, WhatsAppQrLogin)
+│   │   │   ├── config/        # Security (JWT, Spring Security), secrets, time, OpenApi, and DataLoader
+│   │   │   ├── controller/    # REST Endpoints (Auth, Favourite, Post, Review, Sale, User, WhatsAppQrLogin)
 │   │   │   ├── dto/           # Data Transfer Objects (request, response, update)
-│   │   │   ├── entity/        # JPA Entities (Favourite, PasswordResetToken, Post, PostMedia, Review, User, Sale, WhatsAppLoginSession)
-│   │   │   ├── enums/         # Enums (Category, PostStatus, ReviewDirection, Role, WhatsAppSessionStatus)
+│   │   │   ├── entity/        # JPA Entities (Favourite, NotificationOutbox, PasswordResetToken, Post, PostMedia, Review, User, Sale, WhatsAppLoginSession)
+│   │   │   ├── enums/         # Enums (Category, NotificationType, PostStatus, ReviewDirection, Role, WhatsAppSessionStatus)
 │   │   │   ├── exception/     # Global Exception Handling
-│   │   │   ├── repository/    # Database Access Layers (EmailVerificationToken, Favourite, PasswordResetToken, Post, PostMedia, Review, User, Sale, WhatsAppLoginSession)
-│   │   │   ├── scheduler/     # Listing expiration reminders and archival jobs
-│   │   │   └── service/       # Business Logic (BotNotificationService, CloudinaryService, EmailService, FavouriteService, JwtService, PasswordResetService, PostService, ReviewService, UserService, WhatsAppQrLoginService)
+│   │   │   ├── repository/    # Database Access Layers (EmailVerificationToken, Favourite, NotificationOutbox, PasswordResetToken, Post, PostMedia, Review, User, Sale, WhatsAppLoginSession)
+│   │   │   ├── scheduler/     # Credential cleanup, listing lifecycle, and notification outbox jobs
+│   │   │   └── service/       # Business Logic (auth, identity/media policy, media cleanup, notifications, posts, reviews, sales, users, WhatsApp)
 │   │   └── resources/
 │   │       ├── db/
 │   │       │   └── migration/ # Flyway database migration scripts
@@ -76,7 +76,7 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 │   │   │   ├── imagePreprocessor.js  # Downscales images before LLM parsing to reduce latency and payload size
 │   │   │   ├── langfuseService.js    # Shared Langfuse client for LLM observability
 │   │   │   ├── springServices.js     # Spring Boot REST API calls for listing creation, lookup, search, and WhatsApp login
-│   │   │   ├── webhookService.js     # Express webhook server (user-registered and outbound send-message bridge)
+│   │   │   ├── webhookService.js     # Express webhook server (registration, account cleanup, and outbound send-message bridge)
 │   │   │   ├── claudinary.js         # Cloudinary image upload helper
 │   │   │   └── Prompt-File.js        # Prompt templates (classification, parsing, image description)
 │   │   └── tests/
@@ -112,21 +112,28 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 
 | Method | Endpoint | Auth | Description |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/api/posts` | Public | Fetch paginated list of all posts |
+| `GET` | `/api/posts` | Public | Fetch paginated active, unsold listings; results are bounded and stably sorted |
 | `POST` | `/api/posts` | USER/ADMIN | Create a new listing (JSON) |
 | `POST` | `/api/posts/upload` | USER/ADMIN | Create a new listing with multiple image file uploads (multipart/form-data) |
 | `POST` | `/api/posts/bot` | `X-Bot-Api-Key` | Bot-only: Create one marketplace listing from parsed WhatsApp output, including reusable image hashes |
-| `POST` | `/api/posts/bot/media/resolve` | `X-Bot-Api-Key` | Bot-only: Resolve known media URLs by SHA-256 image hash so duplicate image bytes can be reused |
-| `POST` | `/api/posts/bot/renew/{id}` | `X-Bot-Api-Key` | Bot-only: Renew an archived/expired post, set it `ACTIVE`, extend `expiresAt`, and clear reminder state |
-| `GET` | `/api/posts/{id}` | Public | Get details of a specific post |
+| `GET` | `/api/posts/bot/media/resolve` | `X-Bot-Api-Key` | Bot-only: Resolve known media URLs by SHA-256 image hash so duplicate image bytes can be reused |
+| `POST` | `/api/posts/bot/renew/{id}` | `X-Bot-Api-Key` + sender phone | Bot-only: Renew an archived or currently expiring unsold post, set it `ACTIVE`, extend `expiresAt`, and clear reminder state |
+| `GET` | `/api/posts/{id}` | Public/participant | Get an active public post; archived/sold records are visible only to the owner, buyer, or admin |
 | `PUT` | `/api/posts/{id}` | USER/ADMIN | Update an existing post; service-layer ownership rules allow only the original poster or an admin |
 | `PUT` | `/api/posts/{id}/upload` | USER/ADMIN | Update an existing post with multipart form data, including keeping, removing, reordering, and uploading listing images |
-| `PATCH` | `/api/posts/{id}/mark-sold`| USER/ADMIN | Mark a post as sold with a required registered `buyerId`, store sale metadata, and request a buyer review |
+| `PATCH` | `/api/posts/{id}/mark-sold`| USER/ADMIN | Seller-recorded pending sale with a required enabled registered `buyerId`; stores immutable sale metadata and waits for buyer confirmation |
 | `DELETE` | `/api/posts/{id}` | USER/ADMIN | Delete a post |
 | `GET` | `/api/posts/available` | Public | Get only unsold listings |
 | `GET` | `/api/posts/search?q={text}&category={name}` | Public | Search unsold listings by title/description with optional category filter; supports pageable `page`, `size`, and `sort` params |
 | `GET` | `/api/posts/category/{name}`| Public | Filter posts by category (e.g., ELECTRONICS, BOOKS) |
-| `GET` | `/api/posts/user/{userId}`| Public | Get all posts by a specific user |
+| `GET` | `/api/posts/user/{userId}`| Public | Get active, unsold posts by a user; the owner/admin can see their full history |
+
+### **Sale Management** (`/api/sales`)
+
+| Method | Endpoint | Auth | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/sales/pending-confirmations` | USER/ADMIN | Return the authenticated buyer's pending seller-recorded purchases |
+| `POST` | `/api/sales/posts/{postId}/confirm` | USER/ADMIN buyer | Confirm a seller-recorded sale; this gates both directional reviews and the buyer review notification |
 
 ### **User Management** (`/api/users`)
 
@@ -134,13 +141,13 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/users` | ADMIN | Fetch paginated list of all users |
 | `POST` | `/api/users` | ADMIN | Create a new user directly; phone uniqueness uses normalized `+digits` storage just like self-registration |
-| `GET` | `/api/users/{id}` | USER/ADMIN | Get details of a specific user |
+| `GET` | `/api/users/{id}` | Public | Get the public display name of a specific user |
 | `GET` | `/api/users/email/{email}`| ADMIN | Get details of a specific user by email |
-| `GET` | `/api/users/by-phone` | Public* | Bot-specific: Lookup an enabled registered user by phone number; unverified accounts are treated as not registered |
-| `GET` | `/api/users/search?q={text}` | USER/ADMIN | Search enabled registered users by name/email for buyer selection when marking a listing sold |
+| `GET` | `/api/users/by-phone` | `X-Bot-Api-Key` | Bot-specific: Lookup an enabled registered user by phone number; unverified accounts are treated as not registered |
+| `GET` | `/api/users/search?q={text}` | USER/ADMIN | Search enabled registered users by name for buyer selection when marking a listing sold |
 | `PUT` | `/api/users/{id}` | USER/ADMIN | Update an existing user |
-| `DELETE` | `/api/users/me` | USER/ADMIN | Self-service account deletion (requires password re-entry) and clears tokens, QR login sessions, user-owned favourites, favourites/reviews attached to the user's posts, buyer links, and owned posts before removing the user |
-| `DELETE` | `/api/users/{id}` | ADMIN | Delete a user with the same dependency cleanup used by self-service deletion |
+| `DELETE` | `/api/users/me` | USER/ADMIN | Self-service account deletion (requires password re-entry), clears bot-local phone state through the notification outbox, and removes/anonymizes database data according to sale history |
+| `DELETE` | `/api/users/{id}` | ADMIN | Delete a user with the same dependency cleanup and bot-local state notification used by self-service deletion |
 
 ### **Review Management** (`/api/reviews`)
 
@@ -172,7 +179,9 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 - `isSold`: Boolean status flag
 - `createdAt`: Timestamp
 - `expiresAt`: Optional expiration timestamp; new posts default to two days from creation
-- `status`: Lifecycle Enum (`ACTIVE`, `ARCHIVED`). Public/search queries use `ACTIVE`; expired posts are archived, not hard-deleted.
+- `status`: Lifecycle Enum (`ACTIVE`, `ARCHIVED`, `SOLD`). Public/search queries use active unsold rows; expired posts are archived, not hard-deleted.
+- `version`: Optimistic-lock version for concurrent edits.
+- `idempotencyKey`: Optional per-seller bot retry key.
 - `reminderSentAt`: Timestamp marking that the pre-expiration WhatsApp reminder was sent
 - `soldAt`: Timestamp when the seller recorded the sale
 - `user`: Reference to a `User` (the seller)
@@ -185,12 +194,15 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 - `seller`: Reference to the `User` who sold the item
 - `buyer`: Reference to the `User` who bought the item
 - `soldAt`: Timestamp when the sale occurred
+- `buyerConfirmedAt`: Timestamp when the selected buyer confirmed the sale; review eligibility starts here
+- `titleSnapshot` / `priceSnapshot`: Immutable listing values at the time of sale
 - `createdAt`: Record creation timestamp
 
 ### **PostMedia**
 - `id`: Primary Key (Long)
 - `mediaUrl`: URL to the hosted image (String)
 - `imageHash`: Optional SHA-256 hash of the original image bytes, used by the bot/backend to reuse stored URLs for duplicate images
+- `cloudinaryPublicId`: Optional provider asset identity used to compensate failed uploads and clean up removed media only when no database row still references it
 - `displayOrder`: User-defined order for image display (Integer)
 - `isCover`: Flag indicating the primary thumbnail (Boolean)
 - `post`: Reference to the parent `Post`
@@ -203,35 +215,38 @@ A campus-specific marketplace designed to move student sales from chaotic WhatsA
 - `password`: Encrypted password
 - `role`: Enum role (USER, ADMIN)
 - `isEnabled`: Boolean active status flag
+- `version`: optimistic-lock version for concurrent account/security changes
+- `registrationPending`, `tokenVersion`, `pendingEmail`, `phoneVerifiedAt`: registration and credential lifecycle state
 - `createdAt`: Timestamp
 
 Lifecycle notes:
 - Public registration creates or refreshes a disabled user record until email verification completes.
 - Re-registering with the same unverified email or phone refreshes that pending account instead of permanently burning the identifier after an abandoned or failed signup.
-- User deletion clears dependent tokens, WhatsApp QR sessions, user-owned favourites, favourites/reviews attached to the user's listings, buyer references, and owned posts before the user row is removed, allowing the same email/phone to be reused later.
+- User deletion removes an account only when it has no sale history. Users with sales are anonymized in place so transaction and review history remains valid; credentials and active sessions are revoked.
+- Sale policy: seller selection creates a pending sale; only the selected buyer can confirm it. Review eligibility and the buyer notification require confirmation, and the sale/review slots cannot be edited after completion.
 
 ### **Favourite**
 - `id`: Primary Key (Long)
 - `user`: Reference to the owning `User`
 - `post`: Reference to the favourited `Post`
-- Uniqueness is enforced per user/post pair at the service layer and repository level
+- Uniqueness is enforced by the database per user/post pair and insertion uses `ON CONFLICT DO NOTHING` for retry-safe requests.
 
 ### **Review**
 - `reviewId`: Primary Key (Long)
-- `post`: Reference to the sold `Post`
+- `sale`: Reference to the completed `Sale`
 - `reviewer`: Reference to the account submitting the review
 - `reviewee`: Reference to the account being reviewed
 - `direction`: Enum (`BUYER_TO_SELLER`, `SELLER_TO_BUYER`)
 - `rating`: Integer rating from 1 to 5
 - `comment`: Optional written review, capped at 500 characters
 - `createdAt`: Review creation timestamp
-- Uniqueness is enforced per post/direction so each transaction can have at most one buyer review and one seller review
+- Uniqueness is enforced per sale/direction so each transaction can have at most one buyer review and one seller review
 
 ### **PasswordResetToken**
 - `id`: Primary Key (Long)
-- `token`: Unique reset token (String)
+- `tokenHash`: Unique SHA-256 reset-token hash (String)
 - `user`: Reference to the `User`
-- `expiryDate`: Timestamp after which token is invalid
+- `expiresAt`: Timestamp after which token is invalid
 
 ### **WhatsAppLoginSession** (table: `whatsapp_login_sessions`)
 - `id`: Primary Key (UUID)
@@ -246,6 +261,17 @@ Lifecycle notes:
 - `expiresAt`: `createdAt + 5 minutes`
 - `completedAt`: Timestamp when bot confirmed the login
 - `claimedAt`: Timestamp when frontend exchanged claimToken for JWT
+
+### **NotificationOutbox** (table: `notification_outbox`)
+- Stores email and bot notification intents in the same transaction as the
+  domain change that caused them.
+- `dedupeKey` prevents repeated registration, review, and renewal triggers;
+  `claimedAt`, `attempts`, `nextAttemptAt`, and `sentAt` provide leased,
+  retryable delivery for multiple workers.
+- Account deletion notifications clear phone-keyed bot drafts and consent state
+  after the database transaction commits.
+- Verification codes and reset links are purged shortly after successful
+  delivery because the payload is sensitive.
 
 ---
 
