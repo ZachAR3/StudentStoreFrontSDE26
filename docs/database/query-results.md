@@ -24,7 +24,7 @@ Question: which listings need an expiration reminder if the scheduler runs at `2
 
 Question: what is seller `1`'s review summary as both seller and buyer?
 
-| reviewee_id | direction | average_rating | review_count |
+| reviewee_user_id | direction | average_rating | review_count |
 | --- | --- | ---: | ---: |
 | 1 | BUYER_TO_SELLER | 5.0 | 1 |
 | 1 | SELLER_TO_BUYER | 4.0 | 1 |

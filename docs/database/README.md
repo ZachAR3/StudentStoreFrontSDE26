@@ -33,6 +33,7 @@ This folder collects the database-focused submission artifacts for the Student S
 
 ## Notes
 
-- The schema mirrors the implemented Kotlin/JPA entities in `src/main/kotlin/com/studentstorefront/entity`.
+- `schema.sql`, `schema.dbml`, `seed.sql`, and `queries.sql` describe the current `users`/`sales` model and match the Flyway clean-install shape, including the durable notification outbox and provider media identity. `src/main/resources/db/migration/` remains authoritative for upgrades.
+- Seeded enabled users use the BCrypt hash for `Password123!`; reset and verification examples are already hashed and are not raw credentials.
 - The course brief suggests React and FastAPI, but the current Kotlin/Spring/PostgreSQL stack is already a working database-backed MVP and satisfies the actual database deliverables.
 - The only items that cannot be completed purely by editing the repository are the external artifacts: a recorded demo and a live deployed URL.

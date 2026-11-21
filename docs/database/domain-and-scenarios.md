@@ -1,144 +1,138 @@
 # Student Storefront Domain And Critical Scenarios
 
-## Domain Summary
+Student Storefront is a verified campus marketplace. The Spring application owns
+the PostgreSQL database; the browser and WhatsApp bot use the HTTP API and never
+write database rows directly.
 
-Student Storefront is a campus-only marketplace for Constructor University students. It replaces unstructured WhatsApp selling with a verified web platform where students can post listings, browse current offers, mark completed sales, and leave transaction reviews.
+## Domain model
 
-To reconstruct the database schema from this description, you need to know the system has four core business concepts and four supporting auth/session concepts:
+1. `User` — a normalized email/phone account with a BCrypt password hash, role
+   (`USER` or `ADMIN`), enabled/registration state, optimistic-lock version, JWT
+   token version, and phone verification timestamp. Public user responses contain
+   only the display name.
+2. `Post` — one listing owned by a user. Its price is stored with two decimal
+   places. `status` (`ACTIVE`, `ARCHIVED`, `SOLD`) and `is_sold` are kept in sync
+   by a database check; `version` protects concurrent edits and
+   `idempotency_key` makes bot retries safe per seller.
+3. `PostMedia` — ordered HTTPS media references with optional SHA-256 hashes and
+   provider asset identities used for rollback and reference-aware cleanup.
+   Media are optional; each post has at most five rows and at most one cover row.
+   An empty media collection has no cover.
+4. `Sale` — the transaction record for a sold post. It stores the seller, buyer,
+   buyer-confirmation time, and title/price snapshots so later listing edits
+   cannot rewrite transaction history.
+5. `Review` — a review of a completed sale. Each sale allows one review in each
+   direction (`BUYER_TO_SELLER` and `SELLER_TO_BUYER`), with a rating from 1 to 5.
+6. `Favourite` — a unique `(user_id, post_id)` relationship.
+7. `PasswordResetToken` and `EmailVerificationToken` — one-time credentials
+   stored as hashes, with expiry, usage state, and failed verification attempts.
+8. `WhatsAppLoginSession` — a short-lived QR challenge with separate polling,
+   login, and claim UUIDs. Claiming is row-locked and changes the state once.
+9. `api_rate_limit_windows` — a shared per-IP/per-route minute window used when
+   multiple backend instances share PostgreSQL.
+10. `notification_outbox` — transactionally recorded email/bot intents with
+    deduplication, leases, retry backoff, and short payload retention.
 
-1. `Seller`
-   Every account belongs to one person in the university community. Sellers have a university email, a phone number used for WhatsApp contact, a password hash, an enabled/disabled flag, and a role (`SELLER` or `ADMIN`).
+Migration-only quarantine tables retain legacy sold posts or reviews that cannot
+be mapped safely. They are deliberately not exposed through the application API.
 
-2. `Post`
-   A post is one marketplace listing created by one seller. Each listing has a title, price, description, category, lifecycle status, creation timestamp, expiration timestamp, sold flag, and optional buyer reference once the sale is completed.
+## Invariants and visibility rules
 
-3. `PostMedia`
-   A post can have zero or more images. Each image belongs to exactly one post, has a hosted media URL, an optional source-image hash for deduplication, a display order, and a cover-image flag.
+- Emails are trimmed/lowercased and phone numbers use a canonical `+digits`
+  form before uniqueness checks.
+- An anonymous reader sees only active, unsold listings and never seller contact
+  details or buyer identity. Sellers, buyers, and admins can see the private
+  details needed for their own transaction/profile flows.
+- A sale must have distinct enabled users and one post. Sold posts cannot be
+  edited, deleted, or renewed.
+- The seller selects an enabled, registered buyer when completing the listing,
+  which creates a pending sale. The selected buyer must confirm it through the
+  authenticated API before either account can submit a review. Once confirmed,
+  the sale and its two directional reputation slots are immutable.
+- Account deletion is physical only when the user has no sale history. A user
+  with sale history is anonymized in place so sales and reviews remain valid.
+  A durable bot cleanup notification removes phone-keyed drafts and consent
+  state after the database transaction commits.
+- Expired credentials and QR sessions are cleaned by a scheduled job; stale
+  completed QR challenges cannot be claimed.
+- Flyway migrations are the upgrade path. `schema.sql` is a clean-install
+  reference and must remain aligned with the runtime entities and migrations.
 
-4. `Review`
-   Reviews are tied to completed sales. Each review belongs to one sold post, one reviewer, and one reviewee. A review stores the direction of the review (`BUYER_TO_SELLER` or `SELLER_TO_BUYER`), a 1-5 rating, an optional comment, and a creation timestamp. Each transaction can produce at most two reviews: one in each direction.
+## Critical scenarios
 
-5. `Favourite`
-   A favourite connects one seller account to one post they want to save. The same seller cannot favourite the same post twice.
+### 1. Registration and email verification
 
-6. `PasswordResetToken`
-   Password resets are handled with time-limited tokens linked to sellers. A token can be used at most once.
+1. Normalize the email and phone and create or refresh a pending user.
+2. Hash a six-digit code and store it with a 15-minute deadline.
+3. Lock the code row during verification, count failed attempts, and consume it
+   once. A successful initial verification enables the user and revokes old JWTs.
+4. Email changes use `pending_email`; the current email is not replaced until a
+   fresh code is verified.
 
-7. `EmailVerificationToken`
-   New registrations are verified by a 6-digit code linked to a seller. The code expires and can be marked as used.
+Database impact: `users` insert/update, `email_verification_tokens` insert,
+lock, consume, and scheduled cleanup, plus a durable verification-email and
+bot-registration outbox row.
 
-8. `WhatsAppLoginSession`
-   QR-based WhatsApp login is modeled as a short-lived session with UUID-based identifiers and a status lifecycle (`PENDING`, `COMPLETED`, `CLAIMED`, `PHONE_NOT_LINKED`, `EXPIRED`). A session may later be linked to a seller once the phone number is matched.
+### 2. Browse and search
 
-## Rules That Shape The Schema
+1. Read active, unsold posts using bounded pages and a stable `(created_at,
+   post_id)` tie-breaker.
+2. Load ordered media and favourites in batches for the page.
+3. Return public user names only; contact fields are returned only to the seller,
+   buyer, or admin.
 
-- Each seller email is unique.
-- Each seller phone number is unique.
-- Every post has exactly one seller.
-- A post may optionally have one buyer after it is sold.
-- A post can have many media rows, ordered by `display_order`.
-- A favourite is unique per `(seller_id, post_id)`.
-- A review is unique per `(post_id, direction)`.
-- `posts.status` is separate from `posts.is_sold`.
-  This lets the app distinguish listing visibility (`ACTIVE` vs `ARCHIVED`) from transaction completion (`is_sold`).
-- Unverified or abandoned signups can exist as disabled seller rows.
-- Password-reset tokens, verification codes, and WhatsApp login sessions are stored as first-class tables because they have expiry and one-time-use behavior.
+Database impact: `posts`, `users`, `post_media`, and optional `favourites` reads.
 
-## Critical Scenarios
+### 3. Create or edit a listing
 
-### 1. Seller Registration And Verification
+1. Validate title, description, price precision, category, URL scheme/host, image
+   count, and image hashes before persistence.
+2. For uploads, use generated temporary filenames, compensate provider assets on
+   rollback, and reject partial upload results. For bot submissions, reuse
+   matching SHA-256 media and send a stable idempotency key.
+3. Preserve retained `post_media.id` rows when reordering; replace only removed
+   or new media.
 
-1. A student submits name, `@constructor.university` email, phone number, and password.
-2. The system creates or refreshes a disabled seller row.
-3. A verification-code row is inserted into `email_verification_tokens`.
-4. Once the student confirms the code, the seller becomes enabled and can log in.
+Database impact: one `posts` row plus ordered `post_media` rows in one transaction.
 
-Database impact:
+### 4. Complete a sale
 
-- Insert into `sellers`
-- Insert into `email_verification_tokens`
-- Update `sellers.is_enabled`
-- Update `email_verification_tokens.used`
+1. Lock the post row, verify ownership, active state, enabled distinct buyer,
+   and absence of an existing sale.
+2. Update the post to `SOLD` and insert one pending `sales` row with snapshots.
+   A unique post constraint and database checks protect retries and raw SQL paths.
+3. The selected buyer confirms the sale through the authenticated API.
+4. Record the buyer notification in the same transaction and deliver it after
+   commit with bounded retries; an unavailable bot cannot roll back the sale.
 
-### 2. Buyer Browsing And Search
+### 5. Reviews and reputation
 
-1. A student visits the marketplace.
-2. The app reads active, unsold posts with seller data and ordered media.
-3. The student filters by category or searches by title/description.
-4. Optionally, the student favourites a listing for later.
+1. The buyer or seller can review only a participant in a completed sale.
+2. The `(sale_id, direction)` unique key prevents duplicates.
+3. Profile summaries are SQL aggregates; recent reviews and pending review
+   contexts are bounded.
 
-Database impact:
+### 6. WhatsApp QR login
 
-- Read from `posts`, `sellers`, `post_media`
-- Optional insert or delete in `favourites`
+1. Create a five-minute pending session and display its login UUID in a QR code.
+2. The bot authenticates with its scoped key and confirms the sender's canonical
+   phone. A successful confirmation marks the phone verified and creates one
+   short-lived claim token.
+3. A pessimistic row lock allows exactly one claim to issue a JWT; later claims
+   return no token. Scheduled cleanup expires and deletes old sessions.
 
-### 3. Seller Creates Or Edits A Listing
+### 7. Listing renewal
 
-1. An authenticated seller submits title, price, description, category, and images.
-2. One `posts` row is inserted.
-3. One or more `post_media` rows are inserted with stable ordering.
-4. When editing, the same `post_id` is retained and media rows may be reordered or replaced.
+1. The scheduled reminder is sent while a listing is still active but within its
+   final hour, or after the scheduler archives it.
+2. A renewal request must carry the seller's sender-bound phone number. The
+   backend locks the post, rejects sold/unrelated listings, and allows only an
+   archived or currently expiring listing to move back to active for two days.
 
-Database impact:
+## Index strategy
 
-- Insert or update `posts`
-- Insert, delete, and reorder `post_media`
-
-### 4. Seller Marks A Listing Sold
-
-1. The listing owner selects the buyer from registered accounts.
-2. The post is updated with `is_sold = true`, `buyer_id`, and `sold_at`.
-3. This creates the context needed for both review directions.
-
-Database impact:
-
-- Update `posts.is_sold`
-- Update `posts.buyer_id`
-- Update `posts.sold_at`
-
-### 5. Both Sides Leave Reviews
-
-1. The buyer reviews the seller.
-2. The seller reviews the buyer.
-3. Each review is stored once per direction.
-4. Profile pages aggregate rating averages and review counts separately for seller reputation and buyer reputation.
-
-Database impact:
-
-- Insert into `reviews`
-- Read aggregated data from `reviews`
-
-### 6. WhatsApp QR Login
-
-1. The web app creates a short-lived QR login session.
-2. The bot confirms the phone number and updates the session.
-3. If the phone number belongs to an enabled seller, the session becomes claimable.
-4. The frontend exchanges the claim token for a JWT and the session becomes `CLAIMED`.
-
-Database impact:
-
-- Insert into `whatsapp_login_sessions`
-- Update `status`, `seller_id`, `phone_number`, `completed_at`, and `claimed_at`
-
-## Why These Tables Are Indexed
-
-The most important runtime queries in the current app are:
-
-- public marketplace reads of active unsold posts
-- category-filtered marketplace reads
-- scheduler scans for expiring posts
-- per-seller profile listing lookups
-- ordered image lookup per post
-- favourites existence checks and lookups
-- review summary lookups by reviewee and direction
-- exact-token and exact-phone/email lookups in auth flows
-
-The SQL schema therefore adds indexes on:
-
-- active public listing paths in `posts`
-- expiration-window scans in `posts`
-- relationship keys like `seller_id`, `buyer_id`, and `post_id`
-- review summary access paths
-- token/session tables used by one-time auth flows
-
-For larger datasets, PostgreSQL trigram or full-text indexes would be the next optimization step for `LIKE`-based marketplace search, but the checked-in schema stays focused on the query patterns already implemented in the app.
+The runtime schema indexes active marketplace reads, stable expiration scans,
+seller/buyer relationship lookups, ordered media, image-hash reuse, review
+summaries, sale participants, one-time credentials, QR sessions, and favourites.
+Search still uses escaped `LIKE` predicates; a trigram index can be added after a
+measured workload justifies the extension.

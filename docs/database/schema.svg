@@ -1,130 +1,37 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="980" viewBox="0 0 1500 980">
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="980" viewBox="0 0 1600 980" role="img" aria-labelledby="title desc">
+  <title id="title">Student Storefront current database schema</title>
+  <desc id="desc">Users own posts. Posts have media, favourites, sales and reviews. Auth token and WhatsApp session tables reference users.</desc>
   <style>
-    .bg { fill: #f7f8fb; }
-    .table { fill: #ffffff; stroke: #1f2937; stroke-width: 2; rx: 10; ry: 10; }
-    .head { fill: #1f4b99; }
-    .title { font: 700 20px Arial, sans-serif; fill: #ffffff; }
-    .body { font: 14px Arial, sans-serif; fill: #111827; }
-    .pk { font-weight: 700; }
-    .fk { fill: #7c2d12; }
-    .line { stroke: #475569; stroke-width: 2.5; fill: none; }
-    .label { font: 12px Arial, sans-serif; fill: #334155; }
+    text { font-family: Arial, sans-serif; fill: #172033; }
+    .title { font-size: 28px; font-weight: 700; }
+    .subtitle { font-size: 15px; fill: #536174; }
+    .table { fill: #ffffff; stroke: #315a8a; stroke-width: 2; rx: 10; }
+    .head { fill: #315a8a; }
+    .headtext { fill: #ffffff; font-size: 17px; font-weight: 700; }
+    .field { font-size: 13px; }
+    .key { font-weight: 700; }
+    .ref { stroke: #8096b2; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+    .support { fill: #f2f6fb; stroke: #7088a5; stroke-width: 1.5; rx: 10; }
+    .support .headtext { fill: #315a8a; }
   </style>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#8096b2"/></marker>
+  </defs>
+  <text x="40" y="42" class="title">Student Storefront — current runtime schema</text>
+  <text x="40" y="68" class="subtitle">Flyway V2–V6 clean-install model; public reads expose active unsold posts and public user names only.</text>
 
-  <rect class="bg" x="0" y="0" width="1500" height="980" />
+  <g transform="translate(40 105)"><rect class="table" width="270" height="245"/><rect class="head" width="270" height="38" rx="10"/><text class="headtext" x="16" y="25">users</text><text class="field key" x="16" y="62">PK user_id bigint</text><text class="field" x="16" y="84">email varchar(255) unique</text><text class="field" x="16" y="106">phone_number varchar(32) unique</text><text class="field" x="16" y="128">password / role</text><text class="field" x="16" y="150">is_enabled</text><text class="field" x="16" y="172">registration_pending</text><text class="field" x="16" y="194">token_version</text><text class="field" x="16" y="216">pending_email / phone_verified_at</text><text class="field" x="16" y="238">created_at</text></g>
+  <g transform="translate(430 105)"><rect class="table" width="340" height="280"/><rect class="head" width="340" height="38" rx="10"/><text class="headtext" x="16" y="25">posts</text><text class="field key" x="16" y="62">PK post_id bigint</text><text class="field" x="16" y="84">seller_user_id / buyer_user_id</text><text class="field" x="16" y="106">title, description, category</text><text class="field" x="16" y="128">price numeric(10,2)</text><text class="field" x="16" y="150">is_sold / status</text><text class="field" x="16" y="172">version / idempotency_key</text><text class="field" x="16" y="194">created_at / expires_at</text><text class="field" x="16" y="216">reminder_sent_at / sold_at</text><text class="field" x="16" y="238">checks: sale state, buyer distinct</text><text class="field" x="16" y="260">public partial indexes</text></g>
+  <g transform="translate(900 105)"><rect class="table" width="270" height="180"/><rect class="head" width="270" height="38" rx="10"/><text class="headtext" x="16" y="25">post_media</text><text class="field key" x="16" y="62">PK id / FK post_id</text><text class="field" x="16" y="84">media_url / image_hash</text><text class="field" x="16" y="106">cloudinary_public_id</text><text class="field" x="16" y="128">display_order</text><text class="field" x="16" y="150">is_cover (one per post)</text></g>
+  <g transform="translate(1260 105)"><rect class="table" width="280" height="160"/><rect class="head" width="280" height="38" rx="10"/><text class="headtext" x="16" y="25">favourites</text><text class="field key" x="16" y="62">PK id / FK user_id</text><text class="field" x="16" y="84">FK post_id</text><text class="field" x="16" y="106">created_at</text><text class="field" x="16" y="128">unique (user_id, post_id)</text></g>
 
-  <g transform="translate(530,40)">
-    <rect class="table" width="430" height="190" />
-    <rect class="table head" width="430" height="36" />
-    <text class="title" x="18" y="24">sellers</text>
-    <text class="body pk" x="18" y="62">PK seller_id</text>
-    <text class="body" x="18" y="84">name</text>
-    <text class="body" x="18" y="106">email [unique]</text>
-    <text class="body" x="18" y="128">phone_number [unique]</text>
-    <text class="body" x="18" y="150">password, role, is_enabled</text>
-    <text class="body" x="18" y="172">created_at</text>
-  </g>
+  <g transform="translate(430 500)"><rect class="table" width="340" height="190"/><rect class="head" width="340" height="38" rx="10"/><text class="headtext" x="16" y="25">sales</text><text class="field key" x="16" y="62">PK id / unique FK post_id</text><text class="field" x="16" y="84">seller_user_id / buyer_user_id</text><text class="field" x="16" y="106">sold_at / created_at</text><text class="field" x="16" y="128">title_snapshot</text><text class="field" x="16" y="150">price_snapshot numeric(10,2)</text><text class="field" x="16" y="172">distinct participants</text></g>
+  <g transform="translate(900 500)"><rect class="table" width="330" height="190"/><rect class="head" width="330" height="38" rx="10"/><text class="headtext" x="16" y="25">reviews</text><text class="field key" x="16" y="62">PK review_id / FK sale_id</text><text class="field" x="16" y="84">reviewer_user_id / reviewee_user_id</text><text class="field" x="16" y="106">direction / rating 1–5</text><text class="field" x="16" y="128">comment / created_at</text><text class="field" x="16" y="150">unique (sale_id, direction)</text></g>
+  <g transform="translate(1260 500)"><rect class="table" width="280" height="190"/><rect class="head" width="280" height="38" rx="10"/><text class="headtext" x="16" y="25">whatsapp_login_sessions</text><text class="field key" x="16" y="62">PK id / UUID challenges</text><text class="field" x="16" y="84">status / user_id</text><text class="field" x="16" y="106">phone_number / creator_ip</text><text class="field" x="16" y="128">expires_at / completed_at</text><text class="field" x="16" y="150">claimed_at</text></g>
 
-  <g transform="translate(470,290)">
-    <rect class="table" width="560" height="250" />
-    <rect class="table head" width="560" height="36" />
-    <text class="title" x="18" y="24">posts</text>
-    <text class="body pk" x="18" y="62">PK post_id</text>
-    <text class="body" x="18" y="84">title, price, description, category</text>
-    <text class="body" x="18" y="106">is_sold, created_at, expires_at</text>
-    <text class="body" x="18" y="128">status, reminder_sent_at, sold_at</text>
-    <text class="body fk" x="18" y="150">FK seller_id → sellers.seller_id</text>
-    <text class="body fk" x="18" y="172">FK buyer_id → sellers.seller_id</text>
-    <text class="body" x="18" y="194">Indexes: public listing, category, expiration window</text>
-  </g>
+  <g transform="translate(40 500)"><rect class="support" width="270" height="190"/><text class="headtext" x="16" y="28" fill="#315a8a">one-time credentials</text><text class="field" x="16" y="64">password_reset_tokens</text><text class="field" x="16" y="86">token_hash / expires_at</text><text class="field" x="16" y="108">email_verification_tokens</text><text class="field" x="16" y="130">code_hash / target_email</text><text class="field" x="16" y="152">used / attempts</text><text class="field" x="16" y="174">hashed values only</text></g>
+  <g transform="translate(40 785)"><rect class="support" width="500" height="105"/><text class="headtext" x="16" y="28" fill="#315a8a">api_rate_limit_windows</text><text class="field" x="16" y="60">rate_key PK · window_start · request_count</text><text class="field" x="16" y="82">Shared PostgreSQL minute windows, cleaned hourly</text></g>
+  <g transform="translate(600 785)"><rect class="support" width="500" height="105"/><text class="headtext" x="16" y="28" fill="#315a8a">migration quarantine</text><text class="field" x="16" y="60">migration_sale_quarantine</text><text class="field" x="16" y="82">migration_review_quarantine</text></g>
 
-  <g transform="translate(1090,300)">
-    <rect class="table" width="330" height="170" />
-    <rect class="table head" width="330" height="36" />
-    <text class="title" x="18" y="24">post_media</text>
-    <text class="body pk" x="18" y="62">PK id</text>
-    <text class="body fk" x="18" y="84">FK post_id → posts.post_id</text>
-    <text class="body" x="18" y="106">media_url, image_hash</text>
-    <text class="body" x="18" y="128">display_order, is_cover</text>
-    <text class="body" x="18" y="150">Unique: (post_id, display_order)</text>
-  </g>
-
-  <g transform="translate(70,320)">
-    <rect class="table" width="320" height="160" />
-    <rect class="table head" width="320" height="36" />
-    <text class="title" x="18" y="24">favourites</text>
-    <text class="body pk" x="18" y="62">PK id</text>
-    <text class="body fk" x="18" y="84">FK seller_id → sellers.seller_id</text>
-    <text class="body fk" x="18" y="106">FK post_id → posts.post_id</text>
-    <text class="body" x="18" y="128">created_at</text>
-    <text class="body" x="18" y="150">Unique: (seller_id, post_id)</text>
-  </g>
-
-  <g transform="translate(450,640)">
-    <rect class="table" width="600" height="190" />
-    <rect class="table head" width="600" height="36" />
-    <text class="title" x="18" y="24">reviews</text>
-    <text class="body pk" x="18" y="62">PK review_id</text>
-    <text class="body fk" x="18" y="84">FK post_id → posts.post_id</text>
-    <text class="body fk" x="18" y="106">FK reviewer_id → sellers.seller_id</text>
-    <text class="body fk" x="18" y="128">FK reviewee_id → sellers.seller_id</text>
-    <text class="body" x="18" y="150">direction, rating, comment, created_at</text>
-    <text class="body" x="18" y="172">Unique: (post_id, direction)</text>
-  </g>
-
-  <g transform="translate(60,70)">
-    <rect class="table" width="360" height="150" />
-    <rect class="table head" width="360" height="36" />
-    <text class="title" x="18" y="24">password_reset_tokens</text>
-    <text class="body pk" x="18" y="62">PK id</text>
-    <text class="body" x="18" y="84">token [unique]</text>
-    <text class="body fk" x="18" y="106">FK seller_id → sellers.seller_id</text>
-    <text class="body" x="18" y="128">expires_at, used, created_at</text>
-  </g>
-
-  <g transform="translate(60,520)">
-    <rect class="table" width="360" height="150" />
-    <rect class="table head" width="360" height="36" />
-    <text class="title" x="18" y="24">email_verification_tokens</text>
-    <text class="body pk" x="18" y="62">PK id</text>
-    <text class="body" x="18" y="84">code</text>
-    <text class="body fk" x="18" y="106">FK seller_id → sellers.seller_id</text>
-    <text class="body" x="18" y="128">expires_at, used, created_at</text>
-  </g>
-
-  <g transform="translate(1080,80)">
-    <rect class="table" width="350" height="200" />
-    <rect class="table head" width="350" height="36" />
-    <text class="title" x="18" y="24">whatsapp_login_sessions</text>
-    <text class="body pk" x="18" y="62">PK id (UUID)</text>
-    <text class="body" x="18" y="84">session_id, login_token [unique]</text>
-    <text class="body" x="18" y="106">claim_token [unique, nullable]</text>
-    <text class="body" x="18" y="128">status, phone_number, creator_ip</text>
-    <text class="body fk" x="18" y="150">FK seller_id → sellers.seller_id</text>
-    <text class="body" x="18" y="172">created_at, expires_at, completed_at, claimed_at</text>
-  </g>
-
-  <path class="line" d="M745 230 L745 290" />
-  <text class="label" x="756" y="266">seller_id / buyer_id</text>
-
-  <path class="line" d="M1030 405 L1090 385" />
-  <text class="label" x="1060" y="360">post_id</text>
-
-  <path class="line" d="M470 400 L390 400" />
-  <text class="label" x="406" y="388">post_id</text>
-
-  <path class="line" d="M230 320 L230 230 L530 230" />
-  <text class="label" x="244" y="246">seller_id</text>
-
-  <path class="line" d="M230 520 L230 230 L530 230" />
-  <text class="label" x="244" y="500">seller_id</text>
-
-  <path class="line" d="M1080 180 L960 180 L960 230" />
-  <text class="label" x="990" y="168">seller_id</text>
-
-  <path class="line" d="M750 540 L750 640" />
-  <text class="label" x="760" y="610">post_id</text>
-
-  <path class="line" d="M680 640 L680 230" />
-  <text class="label" x="690" y="620">reviewer / reviewee</text>
+  <path class="ref" d="M310 190 C360 190 370 190 430 190"/><path class="ref" d="M770 190 C830 190 840 190 900 190"/><path class="ref" d="M770 245 C980 245 1050 245 1260 190"/><path class="ref" d="M600 385 C600 430 600 450 600 500"/><path class="ref" d="M770 590 C830 590 840 590 900 590"/><path class="ref" d="M770 635 C1000 635 1100 635 1260 590"/><path class="ref" d="M175 350 C175 420 175 440 175 500"/>
 </svg>
