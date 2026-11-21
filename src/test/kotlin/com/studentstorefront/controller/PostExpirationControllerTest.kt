@@ -45,7 +45,7 @@ class PostExpirationControllerTest {
     companion object {
         @Container
         @JvmField
-        val postgres: PostgreSQLContainer<*> = PostgreSQLContainer("postgres:15")
+        val postgres: PostgreSQLContainer<*> = PostgreSQLContainer("postgres:15.13")
 
         @JvmStatic
         @DynamicPropertySource
@@ -53,6 +53,8 @@ class PostExpirationControllerTest {
             registry.add("spring.datasource.url", postgres::getJdbcUrl)
             registry.add("spring.datasource.username", postgres::getUsername)
             registry.add("spring.datasource.password", postgres::getPassword)
+            registry.add("spring.flyway.user", postgres::getUsername)
+            registry.add("spring.flyway.password", postgres::getPassword)
         }
     }
 
@@ -74,7 +76,7 @@ class PostExpirationControllerTest {
         user = sellerRepository.save(User(
             name = "Expiry User",
             email = "expiry@constructor.university",
-            phoneNumber = "15550002222",
+            phoneNumber = "+15550002222",
             password = passwordEncoder.encode("password") ?: "",
             role = Role.USER
         ))
@@ -138,6 +140,7 @@ class PostExpirationControllerTest {
         mockMvc.perform(
             post("/api/posts/bot/renew/${saved.postId}")
                 .header("X-Bot-Api-Key", "test-secret-key")
+                .header("X-Bot-Phone", "15550002222")
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.status").value("ACTIVE"))
@@ -146,11 +149,13 @@ class PostExpirationControllerTest {
     @Test
     fun `renew endpoint resets expiresAt to 2 days from now`() {
         val saved = postRepository.save(buildPost("Expired Jacket", PostStatus.ARCHIVED))
-        val expectedExpiry = LocalDateTime.now().plusDays(2).minusMinutes(1)
+        // PostService uses the UTC application clock, not the JVM zone.
+        val expectedExpiry = LocalDateTime.now(java.time.ZoneOffset.UTC).plusDays(2).minusMinutes(1)
 
         mockMvc.perform(
             post("/api/posts/bot/renew/${saved.postId}")
                 .header("X-Bot-Api-Key", "test-secret-key")
+                .header("X-Bot-Phone", "15550002222")
         ).andExpect(status().isOk)
 
         val renewed = postRepository.findById(saved.postId!!).get()
@@ -166,6 +171,7 @@ class PostExpirationControllerTest {
         mockMvc.perform(
             post("/api/posts/bot/renew/${saved.postId}")
                 .header("X-Bot-Api-Key", "test-secret-key")
+                .header("X-Bot-Phone", "15550002222")
         ).andExpect(status().isOk)
 
         val renewed = postRepository.findById(saved.postId!!).get()
@@ -179,6 +185,7 @@ class PostExpirationControllerTest {
         mockMvc.perform(
             post("/api/posts/bot/renew/${saved.postId}")
                 .header("X-Bot-Api-Key", "test-secret-key")
+                .header("X-Bot-Phone", "15550002222")
         ).andExpect(status().isOk)
 
         mockMvc.perform(get("/api/posts/search").param("q", "calculator").param("size", "10"))

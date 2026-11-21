@@ -1,6 +1,7 @@
 package com.studentstorefront.config
 
 import com.studentstorefront.service.JwtService
+import com.studentstorefront.repository.UserRepository
 import io.jsonwebtoken.ExpiredJwtException
 import io.jsonwebtoken.JwtException
 import jakarta.servlet.FilterChain
@@ -16,7 +17,8 @@ import org.springframework.web.filter.OncePerRequestFilter
 @Component
 class JwtAuthenticationFilter(
     private val jwtService: JwtService,
-    private val userDetailsService: UserDetailsService
+    private val userDetailsService: UserDetailsService,
+    private val userRepository: UserRepository
 ) : OncePerRequestFilter() {
 
     override fun doFilterInternal(
@@ -34,12 +36,17 @@ class JwtAuthenticationFilter(
         val jwt = authHeader.substring(7)
 
         try {
-            val userEmail = jwtService.extractUsername(jwt)
+            val userId = jwtService.extractUserId(jwt)
 
-            if (userEmail != null && SecurityContextHolder.getContext().authentication == null) {
-                val userDetails = userDetailsService.loadUserByUsername(userEmail)
+            if (userId != null && SecurityContextHolder.getContext().authentication == null) {
+                val user = userRepository.findById(userId).orElse(null)
+                    ?: run {
+                        sendErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid token")
+                        return
+                    }
+                val userDetails = userDetailsService.loadUserByUsername(user.email)
 
-                if (jwtService.isTokenValid(jwt, userDetails)) {
+                if (jwtService.isTokenValid(jwt, user, userDetails)) {
                     val authToken = UsernamePasswordAuthenticationToken(
                         userDetails,
                         null,
@@ -64,9 +71,6 @@ class JwtAuthenticationFilter(
     }
 
     private fun sendErrorResponse(response: HttpServletResponse, status: Int, message: String) {
-        response.status = status
-        response.contentType = "application/json"
-        response.characterEncoding = "UTF-8"
-        response.writer.write("""{"message": "$message"}""")
+        com.studentstorefront.exception.ErrorBody.write(response, status, "AUTHENTICATION_FAILED", message)
     }
 }

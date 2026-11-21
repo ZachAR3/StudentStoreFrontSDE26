@@ -10,11 +10,13 @@ import com.studentstorefront.enums.WhatsAppSessionStatus
 import com.studentstorefront.repository.UserRepository
 import com.studentstorefront.repository.WhatsAppLoginSessionRepository
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.scheduling.annotation.Scheduled
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.security.core.userdetails.UserDetailsService
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
+import java.time.Clock
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 
@@ -24,8 +26,12 @@ class WhatsAppQrLoginService(
     private val userRepository: UserRepository,
     private val jwtService: JwtService,
     private val userDetailsService: UserDetailsService,
-    @Value("\${whatsapp.bot.phone}") private val botPhone: String
+    @Value("\${whatsapp.bot.phone}") private val botPhone: String,
+    private val clock: Clock = Clock.systemUTC()
 ) {
+    @Autowired(required = false)
+    private var eventPublisher: ApplicationEventPublisher? = null
+
     companion object {
         private const val CLAIM_TTL_MINUTES = 5L
     }
@@ -45,9 +51,16 @@ class WhatsAppQrLoginService(
     fun pollSession(sessionId: UUID): WhatsAppPollResponseDTO {
         val session = sessionRepository.findBySessionId(sessionId)
             ?: return WhatsAppPollResponseDTO(status = "NOT_FOUND")
+        val now = LocalDateTime.now(clock)
+        val effectiveStatus = when {
+            session.status == WhatsAppSessionStatus.PENDING && now.isAfter(session.expiresAt) -> WhatsAppSessionStatus.EXPIRED
+            session.status == WhatsAppSessionStatus.COMPLETED &&
+                (session.completedAt == null || now.isAfter(session.completedAt!!.plusMinutes(CLAIM_TTL_MINUTES))) -> WhatsAppSessionStatus.EXPIRED
+            else -> session.status
+        }
         return WhatsAppPollResponseDTO(
-            status = session.status.name,
-            claimToken = if (session.status == WhatsAppSessionStatus.COMPLETED) session.claimToken?.toString() else null
+            status = effectiveStatus.name,
+            claimToken = if (effectiveStatus == WhatsAppSessionStatus.COMPLETED) session.claimToken?.toString() else null
         )
     }
 
@@ -61,7 +74,7 @@ class WhatsAppQrLoginService(
             return WhatsAppConfirmResponseDTO(result = result)
         }
 
-        if (LocalDateTime.now().isAfter(session.expiresAt)) {
+        if (LocalDateTime.now(clock).isAfter(session.expiresAt)) {
             session.status = WhatsAppSessionStatus.EXPIRED
             sessionRepository.save(session)
             return WhatsAppConfirmResponseDTO(result = "EXPIRED")
@@ -80,9 +93,18 @@ class WhatsAppQrLoginService(
         session.status = WhatsAppSessionStatus.COMPLETED
         session.userId = user.userId
         session.phoneNumber = normalizedPhone
-        session.completedAt = LocalDateTime.now()
+        session.completedAt = LocalDateTime.now(clock)
         session.claimToken = UUID.randomUUID()
+        user.phoneVerifiedAt = session.completedAt
+        userRepository.save(user)
         sessionRepository.save(session)
+        eventPublisher?.publishEvent(
+            PhoneVerifiedEvent(
+                userId = user.userId!!,
+                phoneNumber = normalizedPhone,
+                verifiedAt = session.completedAt!!
+            )
+        )
 
         return WhatsAppConfirmResponseDTO(result = "OK")
     }
@@ -96,10 +118,15 @@ class WhatsAppQrLoginService(
         if (session.status != WhatsAppSessionStatus.COMPLETED) return null
 
         val completedAt = session.completedAt ?: return null
-        if (LocalDateTime.now().isAfter(completedAt.plusMinutes(CLAIM_TTL_MINUTES))) return null
+        if (LocalDateTime.now(clock).isAfter(completedAt.plusMinutes(CLAIM_TTL_MINUTES))) {
+            session.status = WhatsAppSessionStatus.EXPIRED
+            session.claimToken = null
+            sessionRepository.save(session)
+            return null
+        }
 
         val user = userRepository.findById(session.userId!!).orElse(null)
-        if (user == null || !user.isEnabled) {
+        if (user == null || !user.isEnabled || user.phoneNumber != session.phoneNumber) {
             session.status = WhatsAppSessionStatus.PHONE_NOT_LINKED
             session.claimToken = null
             sessionRepository.save(session)
@@ -110,7 +137,7 @@ class WhatsAppQrLoginService(
         val jwt = jwtService.generateToken(userDetails)
 
         session.status = WhatsAppSessionStatus.CLAIMED
-        session.claimedAt = LocalDateTime.now()
+        session.claimedAt = LocalDateTime.now(clock)
         sessionRepository.save(session)
 
         return AuthResponseDTO(
@@ -124,9 +151,10 @@ class WhatsAppQrLoginService(
         )
     }
 
-    @Scheduled(fixedRate = 300_000)
+    /** Run by CredentialCleanupScheduler, which also clears old sessions. */
     @Transactional
     fun expireStaleSessions() {
-        sessionRepository.expireStaleSessions(LocalDateTime.now())
+        val now = LocalDateTime.now(clock)
+        sessionRepository.expireStaleSessions(now)
     }
 }

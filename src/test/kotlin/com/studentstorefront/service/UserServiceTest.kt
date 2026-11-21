@@ -1,7 +1,9 @@
 package com.studentstorefront.service
 
 import com.studentstorefront.dto.request.UserRequestDTO
+import com.studentstorefront.entity.EmailVerificationToken
 import com.studentstorefront.entity.Post
+import com.studentstorefront.exception.ConflictException
 import com.studentstorefront.entity.User
 import com.studentstorefront.enums.Role
 import com.studentstorefront.repository.EmailVerificationTokenRepository
@@ -24,6 +26,8 @@ import org.junit.jupiter.api.Test
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.crypto.password.PasswordEncoder
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 
 class UserServiceTest {
 
@@ -53,8 +57,8 @@ class UserServiceTest {
     }
 
     @Test
-    fun `createUserWithToken reuses unverified user found by phone`() {
-        val existingSeller = buildSeller(
+    fun `createUserWithToken releases an abandoned pending phone reservation`() {
+        val abandoned = buildSeller(
             userId = 7L,
             email = "wrong@constructor.university",
             phoneNumber = "+49123456789",
@@ -69,26 +73,69 @@ class UserServiceTest {
         )
 
         every { sellerRepository.findByEmail(request.email) } returns null
-        every { sellerRepository.findByPhoneNumber("+49123456789") } returns existingSeller
+        every { sellerRepository.findByPhoneNumber("+49123456789") } returns abandoned
+        every { emailVerificationTokenRepository.findTopByUserEmailAndUsedFalseOrderByCreatedAtDesc(abandoned.email) } returns null
         every { passwordEncoder.encode(request.password) } returns "new-hash"
         every { passwordEncoder.encode(match { it != request.password }) } returns "code-hash"
-        stubSellerDependencyCleanup(existingSeller.userId!!)
+        stubSellerDependencyCleanup(abandoned.userId!!)
+        every { sellerRepository.deleteById(abandoned.userId!!) } just Runs
+        every { sellerRepository.flush() } just Runs
         every { sellerRepository.save(match { candidate ->
-            candidate.userId == existingSeller.userId
+            candidate.userId == null
                 && candidate.name == request.name
                 && candidate.email == request.email
                 && candidate.phoneNumber == "+49123456789"
                 && candidate.password == "new-hash"
-        }) } answers { firstArg() }
+        }) } answers { firstArg<User>().copy(userId = 99L) }
         every { emailVerificationTokenRepository.save(any()) } returnsArgument 0
 
         val (user, _) = service.createUserWithToken(request)
 
+        assertEquals(99L, user.userId)
         assertEquals(request.email, user.email)
-        assertEquals("+49123456789", user.phoneNumber)
-        verify(exactly = 1) { whatsAppLoginSessionRepository.deleteByUserId(existingSeller.userId!!) }
-        verify(exactly = 1) { sellerRepository.save(any()) }
+        verify(exactly = 1) { sellerRepository.deleteById(abandoned.userId!!) }
         verify(exactly = 1) { emailVerificationTokenRepository.save(any()) }
+    }
+
+    @Test
+    fun `createUserWithToken does not take over a pending account whose code is still live`() {
+        val pending = buildSeller(userId = 7L, email = "first@constructor.university", isEnabled = false)
+        val request = UserRequestDTO(
+            name = "Second User",
+            email = "second@constructor.university",
+            phoneNumber = pending.phoneNumber,
+            password = "Password1!"
+        )
+        every { sellerRepository.findByEmail(request.email) } returns null
+        every { sellerRepository.findByPhoneNumber(pending.phoneNumber) } returns pending
+        every { emailVerificationTokenRepository.findTopByUserEmailAndUsedFalseOrderByCreatedAtDesc(pending.email) } returns
+            EmailVerificationToken(
+                codeHash = "hash",
+                user = pending,
+                expiresAt = LocalDateTime.now(ZoneOffset.UTC).plusMinutes(10)
+            )
+
+        assertThrows(ConflictException::class.java) { service.createUserWithToken(request) }
+
+        verify(exactly = 0) { sellerRepository.deleteById(any()) }
+        verify(exactly = 0) { sellerRepository.save(any()) }
+    }
+
+    @Test
+    fun `register does not reveal that a verified account already uses the email`() {
+        val existing = buildSeller(userId = 5L, email = "taken@constructor.university", isEnabled = true)
+        val request = UserRequestDTO(
+            name = "Someone",
+            email = "Taken@constructor.university",
+            phoneNumber = "49111222333",
+            password = "Password1!"
+        )
+        every { sellerRepository.findByEmail("taken@constructor.university") } returns existing
+
+        assertEquals("taken@constructor.university", service.register(request))
+
+        verify(exactly = 0) { sellerRepository.save(any()) }
+        verify(exactly = 0) { emailVerificationTokenRepository.save(any()) }
     }
 
     @Test
@@ -120,7 +167,9 @@ class UserServiceTest {
         every { passwordEncoder.encode(match { it != request.password }) } returns "code-hash"
         stubSellerDependencyCleanup(emailOwner.userId!!)
         stubSellerDependencyCleanup(phoneOwner.userId!!)
+        every { emailVerificationTokenRepository.findTopByUserEmailAndUsedFalseOrderByCreatedAtDesc(phoneOwner.email) } returns null
         every { sellerRepository.deleteById(phoneOwner.userId!!) } just Runs
+        every { sellerRepository.flush() } just Runs
         every { sellerRepository.save(match { candidate ->
             candidate.userId == emailOwner.userId
                 && candidate.name == request.name
@@ -155,11 +204,11 @@ class UserServiceTest {
             phoneNumber = "+49123456789"
         )
 
-        val error = assertThrows(IllegalArgumentException::class.java) {
+        val error = assertThrows(ConflictException::class.java) {
             service.createUser(request)
         }
 
-        assertEquals("Phone number already registered: ${request.phoneNumber}", error.message)
+        assertEquals(UserService.PHONE_IN_USE_MESSAGE, error.message)
     }
 
     @Test
@@ -240,6 +289,25 @@ class UserServiceTest {
         verify(exactly = 1) { reviewRepository.deleteBySalePostPostId(13L) }
         verify(exactly = 1) { reviewRepository.deleteBySalePostPostId(14L) }
         verify(exactly = 1) { postRepository.deleteAll(posts) }
+    }
+
+    @Test
+    fun `pending registration cannot merge away a disabled established account`() {
+        val emailOwner = buildSeller(userId = 11L, isEnabled = false)
+        val phoneOwner = buildSeller(userId = 12L, isEnabled = false).copy(registrationPending = false)
+        val request = UserRequestDTO(
+            name = "New User",
+            email = emailOwner.email,
+            phoneNumber = phoneOwner.phoneNumber,
+            password = "Password1!"
+        )
+        every { sellerRepository.findByEmail(request.email) } returns emailOwner
+        every { sellerRepository.findByPhoneNumber(request.phoneNumber) } returns phoneOwner
+
+        assertThrows(ConflictException::class.java) { service.createUserWithToken(request) }
+
+        verify(exactly = 0) { sellerRepository.deleteById(any()) }
+        verify(exactly = 0) { postRepository.deleteAll(any<List<Post>>()) }
     }
 
     private fun stubSellerDependencyCleanup(userId: Long, ownedPosts: List<Post> = emptyList()) {

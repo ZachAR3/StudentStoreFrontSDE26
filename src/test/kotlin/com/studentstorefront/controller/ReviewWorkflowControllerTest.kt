@@ -52,7 +52,7 @@ class ReviewWorkflowControllerTest {
     companion object {
         @Container
         @JvmField
-        val postgres: PostgreSQLContainer<*> = PostgreSQLContainer("postgres:15")
+        val postgres: PostgreSQLContainer<*> = PostgreSQLContainer("postgres:15.13")
 
         @JvmStatic
         @DynamicPropertySource
@@ -60,6 +60,8 @@ class ReviewWorkflowControllerTest {
             registry.add("spring.datasource.url", postgres::getJdbcUrl)
             registry.add("spring.datasource.username", postgres::getUsername)
             registry.add("spring.datasource.password", postgres::getPassword)
+            registry.add("spring.flyway.user", postgres::getUsername)
+            registry.add("spring.flyway.password", postgres::getPassword)
         }
     }
 
@@ -205,9 +207,12 @@ class ReviewWorkflowControllerTest {
 
     private fun saveSoldSale(): Sale {
         val soldAt = LocalDateTime.now()
-        val soldPost = postRepository.save(
+        // Flush the post update first: Hibernate orders inserts before updates,
+        // and the enforce_sale_participants trigger needs the post already sold.
+        val soldPost = postRepository.saveAndFlush(
             listing.copy(
                 isSold = true,
+                status = com.studentstorefront.enums.PostStatus.SOLD,
                 buyer = buyer,
                 soldAt = soldAt
             )
@@ -217,7 +222,8 @@ class ReviewWorkflowControllerTest {
                 post = soldPost,
                 seller = user,
                 buyer = buyer,
-                soldAt = soldAt
+                soldAt = soldAt,
+                buyerConfirmedAt = soldAt
             )
         )
     }

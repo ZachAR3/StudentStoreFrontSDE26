@@ -1,5 +1,6 @@
 package com.studentstorefront.service
 
+import com.studentstorefront.exception.ResourceNotFoundException
 import com.studentstorefront.dto.request.ReviewRequestDTO
 import com.studentstorefront.dto.response.PublicUserResponseDTO
 import com.studentstorefront.dto.response.ProfileReviewsResponseDTO
@@ -58,7 +59,8 @@ class ReviewService(
     @Transactional(readOnly = true)
     fun getReviewContext(postId: Long): ReviewContextResponseDTO {
         val sale = saleRepository.findByPostPostId(postId)
-            ?: throw IllegalArgumentException("No sale found for this post")
+            ?.takeIf { it.buyerConfirmedAt != null }
+            ?: throw IllegalArgumentException("This sale is awaiting buyer confirmation")
         val current = getCurrentUser()
         val direction = resolveDirection(sale, current)
         val reviewee = when (direction) {
@@ -80,11 +82,9 @@ class ReviewService(
     @Transactional(readOnly = true)
     fun getPendingReviewContexts(): List<ReviewContextResponseDTO> {
         val current = getCurrentUser()
-        val sales = (saleRepository.findBySellerUserId(current.userId!!) + saleRepository.findByBuyerUserId(current.userId!!))
-            .distinctBy { it.id }
+        val sales = saleRepository.findPendingReviewsForUser(current.userId!!, org.springframework.data.domain.PageRequest.of(0, MAX_PENDING_REVIEWS))
         return sales.mapNotNull { sale ->
                 val direction = runCatching { resolveDirection(sale, current) }.getOrNull() ?: return@mapNotNull null
-                if (reviewRepository.existsBySaleIdAndDirection(sale.id!!, direction)) return@mapNotNull null
                 val reviewee = when (direction) {
                     ReviewDirection.BUYER_TO_SELLER -> sale.seller
                     ReviewDirection.SELLER_TO_BUYER -> sale.buyer
@@ -104,30 +104,32 @@ class ReviewService(
     @Transactional(readOnly = true)
     fun getProfileReviews(userId: Long): ProfileReviewsResponseDTO {
         if (!userRepository.existsById(userId)) {
-            throw IllegalArgumentException("User not found with id: $userId")
+            throw ResourceNotFoundException()
         }
-        val sellerReviews = reviewRepository.findByRevieweeUserIdAndDirection(
+        val sellerSummary = reviewRepository.summarizeByRevieweeAndDirection(
             userId,
             ReviewDirection.BUYER_TO_SELLER
         )
-        val buyerReviews = reviewRepository.findByRevieweeUserIdAndDirection(
+        val buyerSummary = reviewRepository.summarizeByRevieweeAndDirection(
             userId,
             ReviewDirection.SELLER_TO_BUYER
         )
         val recentReviews = reviewRepository
-            .findByRevieweeUserIdOrderByCreatedAtDesc(userId, PageRequest.of(0, 5))
+            .findByRevieweeUserIdOrderByCreatedAtDescReviewIdDesc(userId, PageRequest.of(0, 5))
             .map { mapToResponseDTO(it) }
 
         return ProfileReviewsResponseDTO(
-            sellerRating = summarize(sellerReviews),
-            buyerRating = summarize(buyerReviews),
+            sellerRating = summarize(sellerSummary),
+            buyerRating = summarize(buyerSummary),
             recentReviews = recentReviews
         )
     }
 
     private fun findReviewableSale(saleId: Long): Sale {
         return saleRepository.findById(saleId)
-            .orElseThrow { IllegalArgumentException("Sale not found with id: $saleId") }
+            .orElseThrow { ResourceNotFoundException() }
+            .takeIf { it.buyerConfirmedAt != null }
+            ?: throw IllegalArgumentException("This sale is awaiting buyer confirmation")
     }
 
     private fun resolveDirection(sale: Sale, reviewer: User): ReviewDirection {
@@ -138,10 +140,10 @@ class ReviewService(
         }
     }
 
-    private fun summarize(reviews: List<Review>): RatingSummaryDTO {
-        if (reviews.isEmpty()) return RatingSummaryDTO(average = null, count = 0)
-        val average = reviews.map { it.rating }.average()
-        return RatingSummaryDTO(average = round(average * 10) / 10, count = reviews.size)
+    private fun summarize(summary: ReviewRepository.RatingAggregate): RatingSummaryDTO {
+        val count = summary.getReviewCount().toInt()
+        val average = summary.getAverageRating()?.let { round(it * 10) / 10 }
+        return RatingSummaryDTO(average = average, count = count)
     }
 
     private fun mapToResponseDTO(review: Review): ReviewResponseDTO {
@@ -149,7 +151,7 @@ class ReviewService(
             reviewId = review.reviewId!!,
             saleId = review.sale.id!!,
             postId = review.sale.post.postId!!,
-            postTitle = review.sale.post.title,
+            postTitle = review.sale.titleSnapshot,
             reviewer = mapUserToResponseDTO(review.reviewer),
             reviewee = mapUserToResponseDTO(review.reviewee),
             direction = review.direction,
@@ -169,7 +171,11 @@ class ReviewService(
     private fun getCurrentUser(): User {
         val email = SecurityContextHolder.getContext().authentication?.name
             ?: throw IllegalArgumentException("Not authenticated")
-        return userRepository.findByEmail(email)
+        return userRepository.findByEmail(IdentityNormalizer.email(email))
             ?: throw IllegalArgumentException("Authenticated user not found")
+    }
+
+    companion object {
+        private const val MAX_PENDING_REVIEWS = 100
     }
 }

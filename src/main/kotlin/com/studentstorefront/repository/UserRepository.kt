@@ -7,12 +7,19 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
+import org.springframework.data.jpa.repository.Lock
+import jakarta.persistence.LockModeType
 
 @Repository
 interface UserRepository: JpaRepository<User, Long> {
     fun findByEmail(email: String): User?
     fun existsByEmail(email: String): Boolean
     fun findByPhoneNumber(phoneNumber: String): User?
+    fun findByPendingEmail(pendingEmail: String): User?
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT u FROM User u WHERE u.userId = :userId")
+    fun findByIdForUpdate(@Param("userId") userId: Long): User?
 
     @Query(
         """

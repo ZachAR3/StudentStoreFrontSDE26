@@ -16,18 +16,19 @@ import org.junit.jupiter.api.Test
 import org.springframework.security.core.userdetails.UserDetailsService
 import org.springframework.security.core.userdetails.User as SecurityUser
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.*
 
 class WhatsAppQrLoginServiceTest {
 
     private val sessionRepository: WhatsAppLoginSessionRepository = mockk()
-    private val sellerRepository: UserRepository = mockk()
+    private val userRepository: UserRepository = mockk()
     private val jwtService: JwtService = mockk()
     private val userDetailsService: UserDetailsService = mockk()
 
     private val service = WhatsAppQrLoginService(
         sessionRepository = sessionRepository,
-        sellerRepository = sellerRepository,
+        userRepository = userRepository,
         jwtService = jwtService,
         userDetailsService = userDetailsService,
         botPhone = "15551234567"
@@ -36,6 +37,7 @@ class WhatsAppQrLoginServiceTest {
     @BeforeEach
     fun setUp() {
         every { sessionRepository.save(any()) } returnsArgument 0
+        every { userRepository.save(any()) } returnsArgument 0
     }
 
     // ── createSession ──────────────────────────────────────────────────────────
@@ -55,8 +57,8 @@ class WhatsAppQrLoginServiceTest {
 
     @Test
     fun `createSession sets expiresAt 5 minutes in the future`() {
-        val before = LocalDateTime.now().plusMinutes(4).plusSeconds(50)
-        val after  = LocalDateTime.now().plusMinutes(5).plusSeconds(10)
+        val before = LocalDateTime.now(ZoneOffset.UTC).plusMinutes(4).plusSeconds(50)
+        val after  = LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5).plusSeconds(10)
         val slot = slot<WhatsAppLoginSession>()
         every { sessionRepository.save(capture(slot)) } returnsArgument 0
 
@@ -95,7 +97,7 @@ class WhatsAppQrLoginServiceTest {
         val session = WhatsAppLoginSession(creatorIp = "127.0.0.1").apply {
             status = WhatsAppSessionStatus.COMPLETED
             this.claimToken = claimToken
-            completedAt = LocalDateTime.now()
+            completedAt = LocalDateTime.now(ZoneOffset.UTC)
         }
         every { sessionRepository.findBySessionId(session.sessionId) } returns session
 
@@ -146,7 +148,7 @@ class WhatsAppQrLoginServiceTest {
     fun `confirmLogin returns EXPIRED and saves session when TTL has elapsed`() {
         val session = WhatsAppLoginSession(
             creatorIp = "127.0.0.1",
-            expiresAt = LocalDateTime.now().minusSeconds(1)
+            expiresAt = LocalDateTime.now(ZoneOffset.UTC).minusSeconds(1)
         )
         every { sessionRepository.findByLoginToken(session.loginToken) } returns session
 
@@ -197,7 +199,7 @@ class WhatsAppQrLoginServiceTest {
     fun `confirmLogin returns PHONE_NOT_LINKED and saves session when no user matches phone`() {
         val session = WhatsAppLoginSession(creatorIp = "127.0.0.1")
         every { sessionRepository.findByLoginToken(session.loginToken) } returns session
-        every { sellerRepository.findByPhoneNumber("+99999999999") } returns null
+        every { userRepository.findByPhoneNumber("+99999999999") } returns null
 
         val result = service.confirmLogin(session.loginToken, "99999999999")
 
@@ -212,7 +214,7 @@ class WhatsAppQrLoginServiceTest {
         val user = buildSeller(isEnabled = false)
         val session = WhatsAppLoginSession(creatorIp = "127.0.0.1")
         every { sessionRepository.findByLoginToken(session.loginToken) } returns session
-        every { sellerRepository.findByPhoneNumber("+${user.phoneNumber}") } returns user
+        every { userRepository.findByPhoneNumber("+${user.phoneNumber}") } returns user
 
         val result = service.confirmLogin(session.loginToken, user.phoneNumber)
 
@@ -227,7 +229,7 @@ class WhatsAppQrLoginServiceTest {
         val user = buildSeller()
         val session = WhatsAppLoginSession(creatorIp = "127.0.0.1")
         every { sessionRepository.findByLoginToken(session.loginToken) } returns session
-        every { sellerRepository.findByPhoneNumber("+${user.phoneNumber}") } returns user
+        every { userRepository.findByPhoneNumber("+${user.phoneNumber}") } returns user
 
         val result = service.confirmLogin(session.loginToken, user.phoneNumber)
 
@@ -237,6 +239,8 @@ class WhatsAppQrLoginServiceTest {
         assertEquals("+${user.phoneNumber}", session.phoneNumber)
         assertNotNull(session.claimToken)
         assertNotNull(session.completedAt)
+        assertNotNull(user.phoneVerifiedAt)
+        verify { userRepository.save(user) }
         verify { sessionRepository.save(session) }
     }
 
@@ -254,7 +258,7 @@ class WhatsAppQrLoginServiceTest {
         val session = WhatsAppLoginSession(creatorIp = "127.0.0.1").apply {
             claimToken = UUID.randomUUID()
             status = WhatsAppSessionStatus.CLAIMED
-            completedAt = LocalDateTime.now().minusSeconds(10)
+            completedAt = LocalDateTime.now(ZoneOffset.UTC).minusSeconds(10)
         }
         every { sessionRepository.findByClaimToken(session.claimToken!!) } returns session
 
@@ -266,7 +270,7 @@ class WhatsAppQrLoginServiceTest {
         val session = WhatsAppLoginSession(creatorIp = "127.0.0.1").apply {
             status = WhatsAppSessionStatus.COMPLETED
             claimToken = UUID.randomUUID()
-            completedAt = LocalDateTime.now().minusMinutes(6)
+            completedAt = LocalDateTime.now(ZoneOffset.UTC).minusMinutes(6)
         }
         every { sessionRepository.findByClaimToken(session.claimToken!!) } returns session
 
@@ -280,10 +284,10 @@ class WhatsAppQrLoginServiceTest {
             status = WhatsAppSessionStatus.COMPLETED
             claimToken = UUID.randomUUID()
             userId = user.userId
-            completedAt = LocalDateTime.now().minusSeconds(30)
+            completedAt = LocalDateTime.now(ZoneOffset.UTC).minusSeconds(30)
         }
         every { sessionRepository.findByClaimToken(session.claimToken!!) } returns session
-        every { sellerRepository.findById(user.userId!!) } returns Optional.of(user)
+        every { userRepository.findById(user.userId!!) } returns Optional.of(user)
 
         val result = service.claimJwt(session.claimToken!!)
 
@@ -301,10 +305,11 @@ class WhatsAppQrLoginServiceTest {
             status = WhatsAppSessionStatus.COMPLETED
             claimToken = UUID.randomUUID()
             userId = user.userId
-            completedAt = LocalDateTime.now().minusSeconds(30)
+            phoneNumber = user.phoneNumber
+            completedAt = LocalDateTime.now(ZoneOffset.UTC).minusSeconds(30)
         }
         every { sessionRepository.findByClaimToken(session.claimToken!!) } returns session
-        every { sellerRepository.findById(user.userId!!) } returns Optional.of(user)
+        every { userRepository.findById(user.userId!!) } returns Optional.of(user)
         every { userDetailsService.loadUserByUsername(user.email) } returns userDetails
         every { jwtService.generateToken(userDetails) } returns "test.jwt.token"
 
@@ -318,6 +323,25 @@ class WhatsAppQrLoginServiceTest {
         assertEquals(WhatsAppSessionStatus.CLAIMED, session.status)
         assertNotNull(session.claimedAt)
         verify { sessionRepository.save(session) }
+    }
+
+    @Test
+    fun `claimJwt rejects a session confirmed before the account phone changed`() {
+        val user = buildSeller().copy(phoneNumber = "+15559990111")
+        val session = WhatsAppLoginSession(creatorIp = "127.0.0.1").apply {
+            status = WhatsAppSessionStatus.COMPLETED
+            claimToken = UUID.randomUUID()
+            userId = user.userId
+            phoneNumber = "+15551234567"
+            completedAt = LocalDateTime.now(ZoneOffset.UTC).minusSeconds(30)
+        }
+        every { sessionRepository.findByClaimToken(session.claimToken!!) } returns session
+        every { userRepository.findById(user.userId!!) } returns Optional.of(user)
+
+        assertNull(service.claimJwt(session.claimToken!!))
+        assertEquals(WhatsAppSessionStatus.PHONE_NOT_LINKED, session.status)
+        assertNull(session.claimToken)
+        verify(exactly = 0) { jwtService.generateToken(any<org.springframework.security.core.userdetails.UserDetails>()) }
     }
 
     @Test

@@ -40,7 +40,7 @@ class WhatsAppQrLoginControllerTest {
     companion object {
         @Container
         @JvmField
-        val postgres: PostgreSQLContainer<*> = PostgreSQLContainer("postgres:15")
+        val postgres: PostgreSQLContainer<*> = PostgreSQLContainer("postgres:15.13")
 
         @JvmStatic
         @DynamicPropertySource
@@ -48,6 +48,8 @@ class WhatsAppQrLoginControllerTest {
             registry.add("spring.datasource.url", postgres::getJdbcUrl)
             registry.add("spring.datasource.username", postgres::getUsername)
             registry.add("spring.datasource.password", postgres::getPassword)
+            registry.add("spring.flyway.user", postgres::getUsername)
+            registry.add("spring.flyway.password", postgres::getPassword)
         }
     }
 

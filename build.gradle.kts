@@ -26,13 +26,12 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-security")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.springframework.boot:spring-boot-starter-mail")
-	implementation("org.springframework.boot:spring-boot-starter-websocket")
 
 	// Swagger / OpenAPI
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.2")
 
 	// Kotlin support
-	implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+	implementation("tools.jackson.module:jackson-module-kotlin")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 
 	// Database
@@ -51,9 +50,6 @@ dependencies {
 	// Cloudinary (Image Uploads)
 	implementation("com.cloudinary:cloudinary-http45:1.39.0")
 
-	// Scheduling
-	implementation("org.springframework.boot:spring-boot-starter-quartz")
-
 	// Rate limiting
 	implementation("com.bucket4j:bucket4j-core:8.10.1")
 	implementation("com.github.ben-manes.caffeine:caffeine")
@@ -63,6 +59,7 @@ dependencies {
 
 	// Testing
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
+	testImplementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 	testImplementation("org.springframework.security:spring-security-test")
 	testImplementation(platform("org.testcontainers:testcontainers-bom:1.20.4"))
 	testImplementation("org.springframework.boot:spring-boot-test-autoconfigure")
@@ -71,17 +68,26 @@ dependencies {
 	testImplementation("io.mockk:mockk:1.13.8")
 }
 
+// Timestamps are stored as LocalDateTime converted through the JVM zone
+// (hibernate.jdbc.time_zone=UTC), so every JVM that touches the database must
+// run in the same zone. Keep in sync with APP_TIMEZONE in scripts/stack.sh.
+val appTimeZone = System.getenv("APP_TIMEZONE") ?: "Europe/Berlin"
+
 tasks.withType<Test> {
 	useJUnitPlatform()
+	jvmArgs("-Duser.timezone=$appTimeZone")
+	// Tests run without a JWT_SECRET; the test profile allows the per-process key.
+	systemProperty("spring.profiles.active", System.getenv("SPRING_PROFILES_ACTIVE") ?: "test")
 }
 
 tasks.bootRun {
 	environment("SPRING_PROFILES_ACTIVE", System.getenv("SPRING_PROFILES_ACTIVE") ?: "local")
+	jvmArgs("-Duser.timezone=$appTimeZone")
 }
 
 kotlin {
 	compilerOptions {
-		freeCompilerArgs.addAll("-Xjsr305=strict", "-Xannotation-default-target=param-property")
+		freeCompilerArgs.addAll("-Xjsr305=strict", "-Xannotation-default-target=param-property", "-Xemit-jvm-type-annotations")
 		jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21
 	}
 }

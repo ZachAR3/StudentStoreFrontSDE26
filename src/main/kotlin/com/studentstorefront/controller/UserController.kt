@@ -15,10 +15,10 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.*
+import java.security.MessageDigest
 
 @RestController
 @RequestMapping("/api/users")
-@CrossOrigin(originPatterns = ["http://localhost:*", "http://127.0.0.1:*", "http://free2:*", "https://*.duckdns.org"])
 class UserController(
     private val userService: UserService,
     @Value("\${whatsapp.bot.api-key}") private val botApiKey: String
@@ -77,7 +77,7 @@ class UserController(
         @RequestHeader("X-Bot-Api-Key") apiKey: String,
         @RequestParam phone: String
     ): ResponseEntity<UserResponseDTO> {
-        if (apiKey != botApiKey) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+        if (!matchesBotKey(apiKey)) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         val user = userService.getUserByPhone(phone)
             ?: return ResponseEntity.notFound().build()
         return ResponseEntity.ok(user)
@@ -99,4 +99,10 @@ class UserController(
         userService.deleteUser(userId)
         return ResponseEntity.noContent().build()
     }
+
+    private fun matchesBotKey(candidate: String): Boolean =
+        botApiKey.isNotBlank() && MessageDigest.isEqual(
+            candidate.toByteArray(Charsets.UTF_8),
+            botApiKey.toByteArray(Charsets.UTF_8)
+        )
 }

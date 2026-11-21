@@ -9,13 +9,13 @@ import com.studentstorefront.dto.request.VerifyEmailRequestDTO
 import com.studentstorefront.dto.response.AuthResponseDTO
 import com.studentstorefront.dto.response.UserResponseDTO
 import com.studentstorefront.dto.response.VerificationRequiredResponseDTO
-import com.studentstorefront.service.EmailService
 import com.studentstorefront.service.EmailVerificationService
+import com.studentstorefront.exception.TooManyAttemptsException
 import com.studentstorefront.service.JwtService
+import com.studentstorefront.service.LoginAttemptService
 import com.studentstorefront.service.PasswordResetService
 import com.studentstorefront.service.UserService
 import jakarta.validation.Valid
-import org.springframework.mail.MailException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.authentication.AuthenticationManager
@@ -25,7 +25,6 @@ import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(originPatterns = ["http://localhost:*", "http://127.0.0.1:*", "http://free2:*", "https://*.duckdns.org"])
 class AuthController(
     private val authenticationManager: AuthenticationManager,
     private val jwtService: JwtService,
@@ -33,7 +32,7 @@ class AuthController(
     private val userDetailsService: UserDetailsService,
     private val passwordResetService: PasswordResetService,
     private val emailVerificationService: EmailVerificationService,
-    private val emailService: EmailService
+    private val loginAttemptService: LoginAttemptService
 ) {
 
     /**
@@ -42,36 +41,25 @@ class AuthController(
      */
     @PostMapping("/register")
     fun register(@Valid @RequestBody registerRequest: UserRequestDTO): ResponseEntity<Any> {
-        val (createdUser, code) = userService.createUserWithToken(registerRequest)
-        try {
-            emailService.sendVerificationEmail(createdUser.email, code)
-        } catch (ex: MailException) {
-            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(
-                mapOf(
-                    "code" to "EMAIL_DELIVERY_FAILED",
-                    "message" to "Account was created, but the verification email could not be sent. Check MAIL_HOST, MAIL_USERNAME, MAIL_PASSWORD, and SMTP access.",
-                    "detail" to (ex.rootCause?.message ?: ex.message ?: "Mail sender rejected the message")
-                )
-            )
-        }
+        val email = userService.register(registerRequest)
         return ResponseEntity.status(HttpStatus.CREATED).body(
-            VerificationRequiredResponseDTO(email = createdUser.email)
+            VerificationRequiredResponseDTO(email = email)
         )
     }
 
     @PostMapping("/verify-email")
     fun verifyEmail(@Valid @RequestBody request: VerifyEmailRequestDTO): ResponseEntity<AuthResponseDTO> {
-        emailVerificationService.verifyCode(request.email, request.code)
-        val userDetails = userDetailsService.loadUserByUsername(request.email)
+        val verifiedUser = emailVerificationService.verifyCode(request.email, request.code)
+        val userDetails = userDetailsService.loadUserByUsername(verifiedUser.email)
         val token = jwtService.generateToken(userDetails)
-        val user = userService.getUserByEmail(request.email)
+        val user = userService.getUserByEmail(verifiedUser.email)
         return ResponseEntity.ok(AuthResponseDTO(token = token, user = user))
     }
 
     @PostMapping("/resend-verification")
     fun resendVerification(@Valid @RequestBody request: ResendVerificationRequestDTO): ResponseEntity<Map<String, String>> {
         emailVerificationService.resendCode(request.email)
-        return ResponseEntity.ok(mapOf("message" to "Verification code resent"))
+        return ResponseEntity.ok(mapOf("message" to "If that account is waiting for verification, a new code has been sent"))
     }
 
     /**
@@ -80,10 +68,18 @@ class AuthController(
      */
     @PostMapping("/login")
     fun login(@Valid @RequestBody loginRequest: LoginRequestDTO): ResponseEntity<AuthResponseDTO> {
-        // Authenticate user
-        val authentication = authenticationManager.authenticate(
-            UsernamePasswordAuthenticationToken(loginRequest.email, loginRequest.password)
-        )
+        loginAttemptService.lockedForSeconds(loginRequest.email)?.let { seconds ->
+            throw TooManyAttemptsException(seconds)
+        }
+        val authentication = try {
+            authenticationManager.authenticate(
+                UsernamePasswordAuthenticationToken(loginRequest.email, loginRequest.password)
+            )
+        } catch (ex: org.springframework.security.authentication.BadCredentialsException) {
+            loginAttemptService.recordFailure(loginRequest.email)
+            throw ex
+        }
+        loginAttemptService.recordSuccess(loginRequest.email)
 
         // Get user details from authentication
         val userDetails = authentication.principal as org.springframework.security.core.userdetails.UserDetails

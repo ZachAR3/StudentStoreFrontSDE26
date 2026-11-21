@@ -2,6 +2,7 @@ package com.studentstorefront.controller
 
 import com.studentstorefront.dto.request.PostRequestDTO
 import com.studentstorefront.dto.request.MarkSoldRequestDTO
+import com.studentstorefront.dto.response.BotSellerContactDTO
 import com.studentstorefront.dto.response.PostResponseDTO
 import com.studentstorefront.dto.update.PostUpdateDTO
 import com.studentstorefront.enums.Category
@@ -17,10 +18,10 @@ import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.*
+import java.security.MessageDigest
 
 @RestController
 @RequestMapping("/api/posts")
-@CrossOrigin(originPatterns = ["http://localhost:*", "http://127.0.0.1:*", "http://free2:*", "https://*.duckdns.org"])
 class PostController(
     private val postService: PostService,
     @Value("\${whatsapp.bot.api-key}") private val botApiKey: String
@@ -37,10 +38,10 @@ class PostController(
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     fun createPostWithImages(
         @RequestPart("post") @Valid postRequestDTO: PostRequestDTO,
-        @RequestPart("images") images: List<org.springframework.web.multipart.MultipartFile>,
+        @RequestPart("images", required = false) images: List<org.springframework.web.multipart.MultipartFile>?,
         @RequestParam(value = "coverIndex", defaultValue = "0") coverIndex: Int
     ): ResponseEntity<PostResponseDTO> {
-        val createdPost = postService.createPostWithImages(postRequestDTO, images, coverIndex)
+        val createdPost = postService.createPostWithImages(postRequestDTO, images ?: emptyList(), coverIndex)
         return ResponseEntity.status(HttpStatus.CREATED).body(createdPost)
     }
 
@@ -49,7 +50,7 @@ class PostController(
         @RequestHeader("X-Bot-Api-Key") apiKey: String,
         @Valid @RequestBody postRequestDTO: PostRequestDTO
     ): ResponseEntity<PostResponseDTO> {
-        if (apiKey != botApiKey) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+        if (!matchesBotKey(apiKey)) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         val createdPost = postService.createPostAsBot(postRequestDTO)
         return ResponseEntity.status(HttpStatus.CREATED).body(createdPost)
     }
@@ -57,11 +58,33 @@ class PostController(
     @PostMapping("/bot/renew/{postId}")
     fun renewPost(
         @RequestHeader("X-Bot-Api-Key") apiKey: String,
+        @RequestHeader("X-Bot-Phone", required = false) botPhone: String?,
         @PathVariable postId: Long
     ): ResponseEntity<PostResponseDTO> {
-        if (apiKey != botApiKey) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        val renewed = postService.renewPost(postId)
+        if (!matchesBotKey(apiKey)) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+        if (botPhone.isNullOrBlank()) return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        val renewed = postService.renewPost(postId, botPhone)
         return ResponseEntity.ok(renewed)
+    }
+
+    @GetMapping("/bot/{postId}/contact")
+    fun getSellerContactForBot(
+        @RequestHeader("X-Bot-Api-Key") apiKey: String,
+        @RequestHeader("X-Bot-Phone", required = false) botPhone: String?,
+        @PathVariable postId: Long
+    ): ResponseEntity<BotSellerContactDTO> {
+        if (!matchesBotKey(apiKey)) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+        if (botPhone.isNullOrBlank()) return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        return ResponseEntity.ok(postService.getSellerContactForBot(postId, botPhone))
+    }
+
+    @GetMapping("/bot/media/resolve")
+    fun resolveMediaByHash(
+        @RequestHeader("X-Bot-Api-Key") apiKey: String,
+        @RequestParam hashes: List<String>
+    ): ResponseEntity<Map<String, String>> {
+        if (!matchesBotKey(apiKey)) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+        return ResponseEntity.ok(postService.resolveMediaUrlsByHash(hashes))
     }
 
     @GetMapping
@@ -159,10 +182,22 @@ class PostController(
         return ResponseEntity.ok(updatedPost)
     }
 
+    /** Web renewal for the listing owner (X-02); the bot uses /bot/renew. */
+    @PostMapping("/{postId}/renew")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    fun renewOwnPost(@PathVariable postId: Long): ResponseEntity<PostResponseDTO> =
+        ResponseEntity.ok(postService.renewPost(postId))
+
     @DeleteMapping("/{postId}")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     fun deletePost(@PathVariable postId: Long): ResponseEntity<Void> {
         postService.deletePost(postId)
         return ResponseEntity.noContent().build()
     }
+
+    private fun matchesBotKey(candidate: String): Boolean =
+        botApiKey.isNotBlank() && MessageDigest.isEqual(
+            candidate.toByteArray(Charsets.UTF_8),
+            botApiKey.toByteArray(Charsets.UTF_8)
+        )
 }

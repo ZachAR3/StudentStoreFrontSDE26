@@ -77,41 +77,30 @@ class RateLimitFilterTest {
 
     // ── IP extraction ──────────────────────────────────────────────────────────
 
-    @Test
-    fun `X-Forwarded-For is used as the client IP`() {
-        repeat(3) {
-            MockHttpServletRequest("POST", "/api/auth/forgot-password").apply {
-                remoteAddr = "172.16.0.1"          // proxy address
-                addHeader("X-Forwarded-For", "203.0.113.42")
-            }.also { filter.doFilter(it, MockHttpServletResponse(), mockk(relaxed = true)) }
+    private fun forgotPassword(filter: RateLimitFilter, remote: String, forwardedFor: String?): Int {
+        val request = MockHttpServletRequest("POST", "/api/auth/forgot-password").apply {
+            remoteAddr = remote
+            forwardedFor?.let { addHeader("X-Forwarded-For", it) }
         }
-
         val response = MockHttpServletResponse()
-        MockHttpServletRequest("POST", "/api/auth/forgot-password").apply {
-            remoteAddr = "172.16.0.1"
-            addHeader("X-Forwarded-For", "203.0.113.42")
-        }.also { filter.doFilter(it, response, mockk(relaxed = true)) }
-
-        assertEquals(429, response.status)
+        filter.doFilter(request, response, mockk(relaxed = true))
+        return response.status
     }
 
     @Test
-    fun `X-Forwarded-For uses only the first IP when the header lists a chain`() {
-        // X-Forwarded-For: clientIp, proxy1, proxy2 — only clientIp should be used
-        repeat(3) {
-            MockHttpServletRequest("POST", "/api/auth/forgot-password").apply {
-                remoteAddr = "10.0.0.2"
-                addHeader("X-Forwarded-For", "1.2.3.4, 10.0.0.1")
-            }.also { filter.doFilter(it, MockHttpServletResponse(), mockk(relaxed = true)) }
-        }
+    fun `X-Forwarded-For is ignored when the peer is not a trusted proxy`() {
+        // A client talking to us directly can't escape its quota by forging the header.
+        repeat(3) { forgotPassword(filter, "198.51.100.7", "203.0.113.$it") }
+        assertEquals(429, forgotPassword(filter, "198.51.100.7", "203.0.113.99"))
+    }
 
-        val response = MockHttpServletResponse()
-        MockHttpServletRequest("POST", "/api/auth/forgot-password").apply {
-            remoteAddr = "10.0.0.2"
-            addHeader("X-Forwarded-For", "1.2.3.4, 10.0.0.1")
-        }.also { filter.doFilter(it, response, mockk(relaxed = true)) }
-
-        assertEquals(429, response.status)
+    @Test
+    fun `behind a trusted proxy the right-most untrusted hop is the client`() {
+        val proxied = RateLimitFilter(trustedProxyAddresses = "127.0.0.1")
+        // The left entries are client-supplied; only the hop the proxy appended counts.
+        repeat(3) { forgotPassword(proxied, "127.0.0.1", "10.9.9.$it, 203.0.113.42") }
+        assertEquals(429, forgotPassword(proxied, "127.0.0.1", "10.9.9.99, 203.0.113.42"))
+        assertEquals(200, forgotPassword(proxied, "127.0.0.1", "203.0.113.43"))
     }
 
     // ── bypass conditions ──────────────────────────────────────────────────────
@@ -127,8 +116,20 @@ class RateLimitFilterTest {
     }
 
     @Test
-    fun `non-auth paths are never rate limited`() {
-        repeat(10) { assertEquals(200, post("/api/posts").status) }
+    fun `listing writes are limited per account token`() {
+        fun createPost(token: String): Int {
+            val request = MockHttpServletRequest("POST", "/api/posts").apply {
+                remoteAddr = "10.0.0.1"
+                addHeader("Authorization", "Bearer $token")
+            }
+            val response = MockHttpServletResponse()
+            filter.doFilter(request, response, mockk(relaxed = true))
+            return response.status
+        }
+        repeat(20) { assertEquals(200, createPost("token-a")) }
+        assertEquals(429, createPost("token-a"))
+        // Another account behind the same address keeps its own quota.
+        assertEquals(200, createPost("token-b"))
     }
 
     // ── filter chain delegation ────────────────────────────────────────────────

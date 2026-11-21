@@ -4,6 +4,7 @@ import com.studentstorefront.enums.Category
 import com.studentstorefront.enums.PostStatus
 import jakarta.persistence.*
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.math.BigDecimal
 
 @Entity
@@ -23,20 +24,33 @@ data class Post (
     val category: Category = Category.OTHER,
     @Column(nullable = false)
     val isSold: Boolean = false,
+    @Version
+    @Column(nullable = false)
+    val version: Long? = null,
+    @Column(name = "idempotency_key", length = 128)
+    val idempotencyKey: String? = null,
     @Column(nullable = false, updatable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now(),
+    val createdAt: LocalDateTime = LocalDateTime.now(ZoneOffset.UTC),
     val expiresAt: LocalDateTime? = null,
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     val status: PostStatus = PostStatus.ACTIVE,
     val reminderSentAt: LocalDateTime? = null,
     val soldAt: LocalDateTime? = null,
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "seller_user_id", nullable = false)
     val user: User? = null,
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "buyer_user_id")
     val buyer: User? = null,
     @OneToMany(fetch = FetchType.LAZY ,mappedBy = "post", cascade = [CascadeType.ALL])
     val postMedia: List<PostMedia> = emptyList()
-)
+) {
+    override fun toString(): String =
+        "Post(postId=$postId, title=$title, price=$price, status=$status, isSold=$isSold, sellerUserId=${user?.userId})"
+
+    override fun equals(other: Any?): Boolean =
+        this === other || (other is Post && postId != null && postId == other.postId)
+
+    override fun hashCode(): Int = postId?.hashCode() ?: System.identityHashCode(this)
+}

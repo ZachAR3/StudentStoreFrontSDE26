@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import java.util.UUID
+import java.security.MessageDigest
 
 @RestController
 @RequestMapping("/api/auth/whatsapp")
@@ -39,7 +40,7 @@ class WhatsAppQrLoginController(
         @RequestHeader("X-Bot-Api-Key") apiKey: String,
         @RequestBody body: WhatsAppConfirmRequestDTO
     ): ResponseEntity<WhatsAppConfirmResponseDTO> {
-        if (apiKey != botApiKey) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+        if (!matchesBotKey(apiKey)) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         val loginToken = runCatching { UUID.fromString(body.loginToken) }.getOrNull()
             ?: return ResponseEntity.badRequest().build()
         return ResponseEntity.ok(whatsAppQrLoginService.confirmLogin(loginToken, body.phoneNumber))
@@ -53,4 +54,10 @@ class WhatsAppQrLoginController(
             ?: return ResponseEntity.status(HttpStatus.GONE).build()
         return ResponseEntity.ok(response)
     }
+
+    private fun matchesBotKey(candidate: String): Boolean =
+        botApiKey.isNotBlank() && MessageDigest.isEqual(
+            candidate.toByteArray(Charsets.UTF_8),
+            botApiKey.toByteArray(Charsets.UTF_8)
+        )
 }

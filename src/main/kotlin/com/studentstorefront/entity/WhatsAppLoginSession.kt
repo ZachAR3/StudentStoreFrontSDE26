@@ -3,6 +3,7 @@ package com.studentstorefront.entity
 import com.studentstorefront.enums.WhatsAppSessionStatus
 import jakarta.persistence.*
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.UUID
 
 @Entity
@@ -34,11 +35,16 @@ data class WhatsAppLoginSession(
     val creatorIp: String,
 
     @Column(nullable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now(),
+    val createdAt: LocalDateTime = LocalDateTime.now(ZoneOffset.UTC),
 
     @Column(nullable = false)
-    val expiresAt: LocalDateTime = LocalDateTime.now().plusMinutes(5),
+    val expiresAt: LocalDateTime = LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5),
 
     var completedAt: LocalDateTime? = null,
     var claimedAt: LocalDateTime? = null
-)
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other || (other is WhatsAppLoginSession && id == other.id)
+
+    override fun hashCode(): Int = id.hashCode()
+}

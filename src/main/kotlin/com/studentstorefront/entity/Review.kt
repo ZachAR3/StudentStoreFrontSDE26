@@ -3,6 +3,7 @@ package com.studentstorefront.entity
 import com.studentstorefront.enums.ReviewDirection
 import jakarta.persistence.*
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 
 @Entity
 @Table(
@@ -31,5 +32,10 @@ data class Review(
     val rating: Int,
     @Column(length = 500)
     val comment: String? = null,
-    val createdAt: LocalDateTime = LocalDateTime.now()
-)
+    val createdAt: LocalDateTime = LocalDateTime.now(ZoneOffset.UTC)
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other || (other is Review && reviewId != null && reviewId == other.reviewId)
+
+    override fun hashCode(): Int = reviewId?.hashCode() ?: System.identityHashCode(this)
+}

@@ -3,6 +3,7 @@ package com.studentstorefront.controller
 import com.studentstorefront.entity.Post
 import com.studentstorefront.entity.User
 import com.studentstorefront.enums.Category
+import com.studentstorefront.enums.PostStatus
 import com.studentstorefront.enums.Role
 import com.studentstorefront.repository.PostRepository
 import com.studentstorefront.repository.UserRepository
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.security.crypto.password.PasswordEncoder
+import org.springframework.security.test.context.support.WithMockUser
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
@@ -41,7 +43,7 @@ class PostSearchControllerTest {
     companion object {
         @Container
         @JvmField
-        val postgres: PostgreSQLContainer<*> = PostgreSQLContainer("postgres:15")
+        val postgres: PostgreSQLContainer<*> = PostgreSQLContainer("postgres:15.13")
 
         @JvmStatic
         @DynamicPropertySource
@@ -49,6 +51,8 @@ class PostSearchControllerTest {
             registry.add("spring.datasource.url", postgres::getJdbcUrl)
             registry.add("spring.datasource.username", postgres::getUsername)
             registry.add("spring.datasource.password", postgres::getPassword)
+            registry.add("spring.flyway.user", postgres::getUsername)
+            registry.add("spring.flyway.password", postgres::getPassword)
         }
     }
 
@@ -59,6 +63,7 @@ class PostSearchControllerTest {
 
     private lateinit var mockMvc: MockMvc
     private lateinit var user: User
+    private lateinit var posts: List<Post>
 
     @BeforeEach
     fun setup() {
@@ -77,7 +82,7 @@ class PostSearchControllerTest {
             )
         )
 
-        postRepository.saveAll(
+        posts = postRepository.saveAll(
             listOf(
                 post("Standing Desk", "Adjustable dorm desk", Category.FURNITURE, createdAt = LocalDateTime.now().minusHours(1)),
                 post("Desk Lamp", "Bright lamp for late study sessions", Category.ELECTRONICS, createdAt = LocalDateTime.now().minusHours(2)),
@@ -109,7 +114,31 @@ class PostSearchControllerTest {
     }
 
     @Test
-    fun `search responses include seller phone number for whatsapp contact`() {
+    fun `anonymous search responses hide seller contact details`() {
+        mockMvc.perform(
+            get("/api/posts/search")
+                .param("q", "standing")
+                .param("size", "10")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.totalElements").value(1))
+            .andExpect(jsonPath("$.content[0].whatsappPhone").doesNotExist())
+            .andExpect(jsonPath("$.content[0].email").doesNotExist())
+    }
+
+    @Test
+    @WithMockUser(username = "viewer@constructor.university")
+    fun `signed-in search responses include seller contact details`() {
+        sellerRepository.save(
+            User(
+                name = "Viewer",
+                email = "viewer@constructor.university",
+                phoneNumber = "15550002222",
+                password = passwordEncoder.encode("password") ?: "",
+                role = Role.USER
+            )
+        )
+
         mockMvc.perform(
             get("/api/posts/search")
                 .param("q", "standing")
@@ -118,7 +147,64 @@ class PostSearchControllerTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.totalElements").value(1))
             .andExpect(jsonPath("$.content[0].whatsappPhone").value("15550001111"))
+            .andExpect(jsonPath("$.content[0].email").value("search@constructor.university"))
     }
+
+    @Test
+    fun `bot contact endpoint rejects a wrong api key`() {
+        mockMvc.perform(
+            get("/api/posts/bot/${posts[0].postId}/contact")
+                .header("X-Bot-Api-Key", "wrong-key")
+                .header("X-Bot-Phone", "15550003333")
+        ).andExpect(status().isUnauthorized)
+    }
+
+    @Test
+    fun `bot contact endpoint refuses unregistered requesters`() {
+        mockMvc.perform(
+            get("/api/posts/bot/${posts[0].postId}/contact")
+                .header("X-Bot-Api-Key", "test-secret-key")
+                .header("X-Bot-Phone", "15550009999")
+        ).andExpect(status().isForbidden)
+    }
+
+    @Test
+    fun `bot contact endpoint returns seller phone to verified members`() {
+        saveVerifiedRequester()
+
+        mockMvc.perform(
+            get("/api/posts/bot/${posts[0].postId}/contact")
+                .header("X-Bot-Api-Key", "test-secret-key")
+                .header("X-Bot-Phone", "15550003333")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.postId").value(posts[0].postId!!))
+            .andExpect(jsonPath("$.sellerName").value("Search User"))
+            .andExpect(jsonPath("$.whatsappPhone").value("15550001111"))
+    }
+
+    @Test
+    fun `bot contact endpoint hides sold listings`() {
+        saveVerifiedRequester()
+        val sold = posts.first { it.isSold }
+
+        mockMvc.perform(
+            get("/api/posts/bot/${sold.postId}/contact")
+                .header("X-Bot-Api-Key", "test-secret-key")
+                .header("X-Bot-Phone", "15550003333")
+        ).andExpect(status().isNotFound)
+    }
+
+    private fun saveVerifiedRequester(): User = sellerRepository.save(
+        User(
+            name = "Bot Buyer",
+            email = "bot-buyer@constructor.university",
+            phoneNumber = "+15550003333",
+            password = passwordEncoder.encode("password") ?: "",
+            role = Role.USER,
+            isEnabled = true
+        ).apply { phoneVerifiedAt = LocalDateTime.now() }
+    )
 
     @Test
     fun `search returns bad request for invalid category`() {
@@ -139,6 +225,7 @@ class PostSearchControllerTest {
             description = description,
             category = category,
             isSold = isSold,
+            status = if (isSold) PostStatus.SOLD else PostStatus.ACTIVE,
             createdAt = createdAt,
             user = user
         )

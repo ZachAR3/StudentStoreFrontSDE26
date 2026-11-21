@@ -24,6 +24,9 @@ import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.context.TestPropertySource
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.setup.DefaultMockMvcBuilder
@@ -47,7 +50,7 @@ class PostUpdateControllerTest {
     companion object {
         @Container
         @JvmField
-        val postgres: PostgreSQLContainer<*> = PostgreSQLContainer("postgres:15")
+        val postgres: PostgreSQLContainer<*> = PostgreSQLContainer("postgres:15.13")
 
         @JvmStatic
         @DynamicPropertySource
@@ -55,6 +58,8 @@ class PostUpdateControllerTest {
             registry.add("spring.datasource.url", postgres::getJdbcUrl)
             registry.add("spring.datasource.username", postgres::getUsername)
             registry.add("spring.datasource.password", postgres::getPassword)
+            registry.add("spring.flyway.user", postgres::getUsername)
+            registry.add("spring.flyway.password", postgres::getPassword)
         }
     }
 
@@ -158,6 +163,60 @@ class PostUpdateControllerTest {
                 }
         )
             .andExpect(status().isForbidden)
+    }
+
+    @Test
+    @WithMockUser(username = "other-user@constructor.university", roles = ["USER"])
+    fun `authenticated buyer can view another seller active listing`() {
+        mockMvc.perform(get("/api/posts/${listing.postId}"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.title").value("Desk Chair"))
+    }
+
+    @Test
+    @WithMockUser(username = "listing-owner@constructor.university", roles = ["USER"])
+    fun `owner can update price without supplying a title`() {
+        mockMvc.perform(
+            put("/api/posts/${listing.postId}")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body("price" to BigDecimal("40.00")))
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.title").value("Desk Chair"))
+            .andExpect(jsonPath("$.price").value(40.00))
+    }
+
+    @Test
+    @WithMockUser(username = "listing-owner@constructor.university", roles = ["USER"])
+    fun `owner can reverse image order and change the cover`() {
+        val secondUrl = "https://cdn.example.com/second-chair.jpg"
+        postMediaRepository.saveAndFlush(PostMedia(post = listing, mediaUrl = secondUrl, displayOrder = 1))
+        mockMvc.perform(
+            multipart("/api/posts/${listing.postId}/upload")
+                .file(MockMultipartFile("post", "post.json", MediaType.APPLICATION_JSON_VALUE,
+                    body("imageOrder" to listOf(
+                        mapOf("kind" to "existing", "url" to secondUrl),
+                        mapOf("kind" to "existing", "url" to "https://cdn.example.com/original-chair.jpg")
+                    )).toByteArray()))
+                .with { request -> request.method = "PUT"; request }
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.mediaUrls[0]").value(secondUrl))
+            .andExpect(jsonPath("$.mediaUrls[1]").value("https://cdn.example.com/original-chair.jpg"))
+        postMediaRepository.flush()
+    }
+
+    @Test
+    @WithMockUser(username = "listing-owner@constructor.university", roles = ["USER"])
+    fun `mark sold flushes listing state before inserting the sale`() {
+        mockMvc.perform(
+            patch("/api/posts/${listing.postId}/mark-sold")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body("buyerUserId" to otherSeller.userId))
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.isSold").value(true))
+            .andExpect(jsonPath("$.status").value("SOLD"))
     }
 
     private fun testSeller(name: String, email: String, phone: String): User {

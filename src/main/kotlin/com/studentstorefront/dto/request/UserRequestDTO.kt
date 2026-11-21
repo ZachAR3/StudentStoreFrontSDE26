@@ -15,7 +15,7 @@ data class UserRequestDTO(
     @field:NotBlank(message = "Email is required")
     @field:Email(message = "Email should be valid")
     @field:Pattern(
-        regexp = ".*@constructor\\.university$",
+        regexp = "(?i).*@constructor\\.university$",
         message = "Email must end with @constructor.university"
     )
     val email: String,

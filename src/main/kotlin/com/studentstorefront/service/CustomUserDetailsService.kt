@@ -17,8 +17,9 @@ class CustomUserDetailsService(
 ) : UserDetailsService {
 
     override fun loadUserByUsername(email: String): UserDetails {
-        val user = userRepository.findByEmail(email)
-            ?: throw UsernameNotFoundException("User not found with email: $email")
+        val normalizedEmail = IdentityNormalizer.email(email)
+        val user = userRepository.findByEmail(normalizedEmail)
+            ?: throw UsernameNotFoundException("User not found")
 
         return User.builder()
             .username(user.email)

@@ -2,6 +2,7 @@ package com.studentstorefront.entity
 
 import jakarta.persistence.*
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 
 @Entity
 @Table(name = "sales")
@@ -22,8 +23,22 @@ data class Sale(
     val buyer: User,
 
     @Column(nullable = false)
-    val soldAt: LocalDateTime = LocalDateTime.now(),
+    val soldAt: LocalDateTime = LocalDateTime.now(ZoneOffset.UTC),
+
+    @Column(name = "buyer_confirmed_at")
+    var buyerConfirmedAt: LocalDateTime? = null,
+
+    @Column(nullable = false, length = 100)
+    val titleSnapshot: String = post.title,
+
+    @Column(nullable = false, precision = 10, scale = 2)
+    val priceSnapshot: java.math.BigDecimal = post.price,
 
     @Column(nullable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now()
-)
+    val createdAt: LocalDateTime = LocalDateTime.now(ZoneOffset.UTC)
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other || (other is Sale && id != null && id == other.id)
+
+    override fun hashCode(): Int = id?.hashCode() ?: System.identityHashCode(this)
+}

@@ -7,12 +7,14 @@ import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
 
 data class UserUpdateDTO(
+    val currentPassword: String? = null,
+
     @field:Size(min = 2, max = 100, message = "Name must be between 2 and 100 characters")
     val name: String? = null,
 
     @field:Email(message = "Email should be valid")
     @field:Pattern(
-        regexp = ".*@constructor\\.university$",
+        regexp = "(?i).*@constructor\\.university$",
         message = "Email must end with @constructor.university"
     )
     val email: String? = null,

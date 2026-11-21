@@ -2,6 +2,7 @@ package com.studentstorefront.entity
 
 import jakarta.persistence.*
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 
 @Entity
 @Table(
@@ -20,5 +21,10 @@ data class Favourite(
     val post: Post,
     
     @Column(nullable = false, updatable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now()
-)
+    val createdAt: LocalDateTime = LocalDateTime.now(ZoneOffset.UTC)
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other || (other is Favourite && id != null && id == other.id)
+
+    override fun hashCode(): Int = id?.hashCode() ?: System.identityHashCode(this)
+}
