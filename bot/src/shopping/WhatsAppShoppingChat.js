@@ -1,4 +1,4 @@
-const { MessageMedia } = require('whatsapp-web.js')
+const { fetchImageMedia } = require('../services/safeRemoteMedia')
 const { isDirectMessage, getDirectChatId } = require('../services/chatIdentity')
 
 const DEFAULT_PAGE_SIZE = 5
@@ -33,13 +33,13 @@ class WhatsAppShoppingChat {
         if (msg.fromMe || !command) return false
 
         if (isDirectMessage(msg)) {
-            return this.executeCommand(msg.from, command)
+            return this.executeCommand(msg.from, command, contact)
         }
 
         return this.handleGroupCommand(msg, contact, command)
     }
 
-    async executeCommand(chatId, command) {
+    async executeCommand(chatId, command, contact = null) {
         switch (command.type) {
             case 'help':
                 await this.showHelp(chatId)
@@ -66,7 +66,10 @@ class WhatsAppShoppingChat {
                 await this.sendItemDetails(chatId, command.itemRef)
                 return true
             case 'select':
-                await this.sendSellerLink(chatId, command.itemRef)
+                await this.sendSellerLink(chatId, command.itemRef, contact)
+                return true
+            case 'renew':
+                await this.renewListing(chatId, command.postId, contact)
                 return true
             case 'stop':
                 this.clearSession(chatId)
@@ -101,7 +104,7 @@ class WhatsAppShoppingChat {
         }
 
         await this.client.sendMessage(msg.from, 'I sent the shopping response to your DM so the group stays tidy.')
-        await this.executeCommand(directChatId, command)
+        await this.executeCommand(directChatId, command, contact)
         return true
     }
 
@@ -134,6 +137,9 @@ class WhatsAppShoppingChat {
         const contactMatch = normalized.match(/^\/?(contact|user|buy)\s+(\d+)$/i)
         if (contactMatch) return { type: 'select', itemRef: contactMatch[2] }
 
+        const renewMatch = normalized.match(/^\/?renew\s+(\d+)$/i)
+        if (renewMatch) return { type: 'renew', postId: renewMatch[1] }
+
         if (/^\d+$/.test(normalized)) return { type: 'select', itemRef: normalized }
 
         return null
@@ -155,6 +161,7 @@ class WhatsAppShoppingChat {
             'categories - list categories',
             'details 1 - view more about an item',
             '1 - get a user WhatsApp link',
+            'renew 123 - renew one of your expired listings',
             'n / p - change page',
             'stop - close this shopping session'
         ].join('\n'))
@@ -317,7 +324,7 @@ class WhatsAppShoppingChat {
         }
 
         try {
-            const media = await MessageMedia.fromUrl(imageUrl, { unsafeMime: true })
+            const media = await fetchImageMedia(imageUrl)
             await this.client.sendMessage(chatId, media, { caption })
         } catch (error) {
             console.error('Failed to send item cover image:', error.message)
@@ -325,20 +332,65 @@ class WhatsAppShoppingChat {
         }
     }
 
-    async sendSellerLink(chatId, itemRef) {
+    async sendSellerLink(chatId, itemRef, contact = null) {
         const item = await this.resolveItem(chatId, itemRef)
         if (!item) return
 
-        const sellerLink = this.buildSellerWhatsAppLink(item)
+        const requesterPhone = String(contact?.number || '').replace(/\D/g, '')
+        if (!requesterPhone) {
+            await this.client.sendMessage(chatId, 'I could not verify your phone number, so I cannot share seller contact details.')
+            return
+        }
+
+        let sellerContact
+        try {
+            sellerContact = await this.postService.getSellerContact(item.postId, requesterPhone)
+        } catch (error) {
+            const status = error.response?.status
+            if (status === 403) {
+                await this.client.sendMessage(chatId, [
+                    'Only registered Student-Store Front members can contact sellers.',
+                    `Sign up and link this WhatsApp number at ${this.appBaseUrl}, then try again.`
+                ].join('\n'))
+            } else if (status === 404) {
+                await this.client.sendMessage(chatId, 'That listing is no longer available.')
+            } else if (status === 400) {
+                await this.client.sendMessage(chatId, 'That is your own listing.')
+            } else {
+                console.error('Seller contact lookup failed:', error.message)
+                await this.client.sendMessage(chatId, 'I could not fetch the seller contact right now. Please try again shortly.')
+            }
+            return
+        }
+
+        const sellerLink = this.buildSellerWhatsAppLink(sellerContact)
         if (!sellerLink) {
             await this.client.sendMessage(chatId, 'This user does not have a usable WhatsApp number.')
             return
         }
 
         await this.client.sendMessage(chatId, [
-            `Message ${item.user?.name || 'the user'} about "${item.title}":`,
+            `Message ${sellerContact.sellerName || 'the user'} about "${sellerContact.title}":`,
             sellerLink
         ].join('\n'))
+    }
+
+    async renewListing(chatId, postId, contact) {
+        const phone = String(contact?.number || '').replace(/\D/g, '')
+        if (!phone) {
+            await this.client.sendMessage(chatId, 'I could not verify the sender phone number for that renewal.')
+            return
+        }
+        try {
+            await this.postService.renewPost(postId, phone)
+            await this.client.sendMessage(chatId, `Listing #${postId} was renewed for two more days.`)
+        } catch (error) {
+            const status = error.response?.status
+            await this.client.sendMessage(
+                chatId,
+                status === 403 ? 'You can only renew your own listings.' : 'That listing could not be renewed. It may still be active, sold, or unavailable.'
+            )
+        }
     }
 
     async resolveItem(chatId, itemRef) {
@@ -364,12 +416,12 @@ class WhatsAppShoppingChat {
         return null
     }
 
-    buildSellerWhatsAppLink(item) {
-        const phoneNumber = item?.user?.phoneNumber || ''
+    buildSellerWhatsAppLink(sellerContact) {
+        const phoneNumber = sellerContact?.whatsappPhone || ''
         const digits = phoneNumber.replace(/\D/g, '')
         if (digits.length < 10) return null
 
-        const message = `Hi, I am interested in your Student-Store Front listing: ${item.title} (#${item.postId})`
+        const message = `Hi, I am interested in your Student-Store Front listing: ${sellerContact.title} (#${sellerContact.postId})`
         return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`
     }
 
@@ -429,7 +481,10 @@ class WhatsAppShoppingChat {
 
     formatPrice(price) {
         if (price === null || price === undefined || price === '') return 'Price not listed'
-        return `${price} EUR`
+        const amount = Number(price)
+        if (!Number.isFinite(amount)) return `${price} EUR`
+        // Same format as the web app ("1.234,50 €").
+        return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(amount)
     }
 
     truncate(text, maxLength) {

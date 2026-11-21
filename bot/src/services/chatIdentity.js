@@ -11,8 +11,21 @@ function isDirectMessage(msg) {
     return isDirectChatId(msg?.from || '')
 }
 
+function isLidId(value = '') {
+    return String(value).endsWith('@lid')
+}
+
+/**
+ * The sender's phone number, or null. For privacy-addressed contacts (@lid)
+ * the id "user" part is a LID, not a phone number, so it is never used as
+ * one (WA-04); only contact.number is trusted there.
+ */
 function getContactNumber(contact, fallbackChatId = null) {
-    return contact?.number || contact?.id?.user || extractUserFromChatId(fallbackChatId || '')
+    if (contact?.number) return contact.number
+    const lidContact = contact?.id?.server === 'lid' || isLidId(contact?.id?._serialized)
+    if (contact?.id?.user && !lidContact) return contact.id.user
+    if (fallbackChatId && !isLidId(fallbackChatId)) return extractUserFromChatId(fallbackChatId)
+    return null
 }
 
 function getDirectChatId(contact, fallbackChatId = null) {
@@ -21,17 +34,13 @@ function getDirectChatId(contact, fallbackChatId = null) {
     const serializedId = contact?.id?._serialized
     if (isDirectChatId(serializedId || '')) return serializedId
 
+    // A phone number always addresses a @c.us chat.
     const user = getContactNumber(contact, fallbackChatId)
-    const server = contact?.id?.server
-    if (user && isDirectChatId(`${user}@${server || 'c.us'}`)) {
-        return `${user}@${server || 'c.us'}`
-    }
-
-    if (!user) return null
-    return `${user}@c.us`
+    return user ? `${user}@c.us` : null
 }
 
 function normalizePhoneNumber(phoneNumber = '') {
+    // null/undefined (no readable number) normalise to ''.
     if (!phoneNumber) return ''
     return phoneNumber.replace(/\D/g, '')
 }

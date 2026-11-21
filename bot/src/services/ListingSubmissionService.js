@@ -1,4 +1,6 @@
 const crypto = require('crypto')
+const { traceUserId } = require('./privacy')
+const KeyedMutex = require('./keyedMutex')
 const { downscaleImagesForLlm } = require('./imagePreprocessor')
 
 const VALID_CATEGORIES = new Set([
@@ -22,10 +24,35 @@ function normalizeCategory(category) {
     return VALID_CATEGORIES.has(normalized) ? normalized : 'OTHER'
 }
 
+// Reads "15", "12,50", "1,200", "1.200,50" and "1,200.50" (BOT-08). A single
+// separator followed by exactly three digits is a thousands separator.
 function normalizePrice(price) {
     if (typeof price === 'number') return price
-    const numericText = String(price || '').replace(',', '.').match(/\d+(\.\d+)?/)?.[0]
-    return numericText ? Number(numericText) : NaN
+    const match = String(price || '').match(/\d[\d.,' ]*/)
+    if (!match) return NaN
+    let text = match[0].replace(/[' ]/g, '').replace(/[.,]+$/, '')
+    const lastComma = text.lastIndexOf(',')
+    const lastDot = text.lastIndexOf('.')
+    if (lastComma >= 0 && lastDot >= 0) {
+        const decimal = lastComma > lastDot ? ',' : '.'
+        const thousands = decimal === ',' ? '.' : ','
+        text = text.split(thousands).join('').replace(decimal, '.')
+    } else if (lastComma >= 0 || lastDot >= 0) {
+        const separator = lastComma >= 0 ? ',' : '.'
+        const parts = text.split(separator)
+        const looksLikeThousands = parts.length > 2 || parts[parts.length - 1].length === 3
+        text = looksLikeThousands ? parts.join('') : parts.join('.')
+    }
+    const value = Number(text)
+    return Number.isFinite(value) ? value : NaN
+}
+
+function draftKey(listingDraft) {
+    if (listingDraft?.draftId) return listingDraft.draftId
+    const images = (listingDraft?.imageUrls || []).map(image => image?.hash || String(image?.data || '').slice(0, 64))
+    return crypto.createHash('sha256')
+        .update(JSON.stringify([listingDraft?.messages || [], images]))
+        .digest('hex')
 }
 
 function normalizeImageIndexes(imageIndexes, imageCount) {
@@ -69,11 +96,13 @@ class ListingSubmissionService {
         this.persistConsentedUsers = options.persistConsentedUsers
         this.uploadImage = options.uploadImage
         this.createPost = options.createPost
-                this.getSellerByPhone = options.getSellerByPhone
+        this.getSellerByPhone = options.getSellerByPhone
+        this.resolveMediaUrlsByHash = options.resolveMediaUrlsByHash
         this.messageParser = options.messageParser
         this.contextClassifier = options.contextClassifier
         this.langfuse = options.langfuse
         this.appBaseUrl = options.appBaseUrl
+        this.submissionLock = new KeyedMutex()
     }
 
     async classifyListingDraft(contact, listingDraft, existingTrace = null) {
@@ -86,11 +115,12 @@ class ListingSubmissionService {
         if (messages.length === 0) return 'YES'
 
         const decision = await this.contextClassifier(messages, {
-            sessionId: contact.number,
-            userId: contact.number,
+            sessionId: traceUserId(contact.number),
+            userId: traceUserId(contact.number),
             parent: existingTrace || undefined
         })
 
+        if (decision === 'ERROR') return 'ERROR'
         return decision === 'YES' ? 'YES' : 'NO'
     }
 
@@ -98,8 +128,8 @@ class ListingSubmissionService {
         const rawListingText = listingDraft.messages.join('\n').trim()
         const trace = this.langfuse.trace({
             name: 'ProcessListing',
-            sessionId: contact.number,
-            userId: contact.number
+            sessionId: traceUserId(contact.number),
+            userId: traceUserId(contact.number)
         })
 
         try {
@@ -108,6 +138,11 @@ class ListingSubmissionService {
                 safeTraceUpdate(trace, {
                     output: `CLASSIFICATION: ${classification}`
                 })
+
+                if (classification === 'ERROR') {
+                    safeTraceUpdate(trace, { level: 'ERROR', statusMessage: 'Classifier unavailable' })
+                    return { ok: false, reason: 'retryable-listing-failure', postedCount: 0 }
+                }
 
                 if (classification !== 'YES') {
                     safeTraceUpdate(trace, {
@@ -120,10 +155,17 @@ class ListingSubmissionService {
 
             const llmImages = await downscaleImagesForLlm(listingDraft.imageUrls)
             const parsedListing = await this.messageParser(rawListingText, llmImages, {
-                sessionId: contact.number,
-                userId: contact.number,
+                sessionId: traceUserId(contact.number),
+                userId: traceUserId(contact.number),
                 parent: trace
             })
+
+            if (parsedListing === null || parsedListing === undefined) {
+                // Every LLM provider failed. Keep the draft instead of
+                // discarding the user's text and photos as "invalid".
+                safeTraceUpdate(trace, { level: 'ERROR', statusMessage: 'Listing parser unavailable' })
+                return { ok: false, reason: 'retryable-listing-failure', postedCount: 0 }
+            }
 
             const validListings = this.normalizeParsedListings(parsedListing, rawListingText, listingDraft.imageUrls.length)
             if (!validListings.ok) {
@@ -156,13 +198,18 @@ class ListingSubmissionService {
 
             const springSpan = trace.span({ name: 'CreatePost' })
             const results = []
-            for (const listing of validListings.listings) {
+            for (const [listingIndex, listing] of validListings.listings.entries()) {
                 const listingMedia = this.selectMediaForListing(listing, media)
                 const listingPayload = {
                     title: listing.title,
                     price: listing.price,
                     description: listing.description,
-                    category: listing.category
+                    category: listing.category,
+                    // Keyed on the draft, not on the LLM's wording, so a retry
+                    // of the same draft can't post an item twice (BOT-04).
+                    idempotencyKey: crypto.createHash('sha256')
+                        .update(`${contact.number}:${draftKey(listingDraft)}:${listingIndex}`)
+                        .digest('hex')
                 }
                 results.push(await this.createPost(listingPayload, listingMedia.urls, user.userId, listingMedia.hashes))
             }
@@ -187,12 +234,22 @@ class ListingSubmissionService {
                     : 'listing-conflict'
             }
 
+            if (failedCount > 0) {
+                return {
+                    ok: false,
+                    reason: 'retryable-listing-failure',
+                    postedCount: successfulCount,
+                    conflictCount,
+                    failedCount
+                }
+            }
+
             safeTraceUpdate(trace, { output: 'FAILED' })
             return false
         } catch (error) {
             console.error('Listing processing failed:', error)
             safeTraceUpdate(trace, { level: 'ERROR', statusMessage: error.message })
-            return false
+            return { ok: false, reason: 'retryable-listing-failure', postedCount: 0 }
         } finally {
             await this.langfuse.flush()
         }
@@ -235,7 +292,7 @@ class ListingSubmissionService {
         if (byIndex.length === 0) {
             return {
                 urls: media.urls,
-                hashes: media.hashes
+                hashes: validHashList(media.urls, media.hashes)
             }
         }
 
@@ -250,13 +307,15 @@ class ListingSubmissionService {
 
         return {
             urls: urls.length > 0 ? urls : media.urls,
-            hashes: hashes.length > 0 ? hashes : media.hashes
+            hashes: validHashList(urls.length > 0 ? urls : media.urls, hashes.length > 0 ? hashes : media.hashes)
         }
     }
 
     async resolveDraftMedia(images = []) {
         const hashes = images.map(imageHash)
-        const existingByHash = {}
+        const existingByHash = typeof this.resolveMediaUrlsByHash === 'function'
+            ? await this.resolveMediaUrlsByHash(hashes)
+            : {}
         const uploadedByHash = {}
         const urls = []
         const resolvedHashes = []
@@ -277,7 +336,7 @@ class ListingSubmissionService {
 
             const base64 = `data:${image.mimetype};base64,${image.data}`
             const uploadedUrl = await this.uploadImage(base64)
-            if (!uploadedUrl) continue
+            if (!uploadedUrl) throw new Error('Image upload failed')
 
             if (hash) uploadedByHash[hash] = uploadedUrl
             urls.push(uploadedUrl)
@@ -287,7 +346,7 @@ class ListingSubmissionService {
 
         return {
             urls,
-            hashes: resolvedHashes,
+            hashes: validHashList(urls, resolvedHashes),
             reusedCount,
             uploadedCount
         }
@@ -335,7 +394,13 @@ class ListingSubmissionService {
         }
     }
 
-    async submitListingDraft({
+    // One submission at a time per phone (BOT-09); a second call that arrives
+    // while the first runs sees the cleared state and stops.
+    submitListingDraft(options) {
+        return this.submissionLock.run(options.phoneNumber, () => this.submitListingDraftNow(options))
+    }
+
+    async submitListingDraftNow({
         contact,
         phoneNumber,
         replyChatId,
@@ -344,7 +409,7 @@ class ListingSubmissionService {
         missingPriceMessage = 'I can tell what you are selling, but I still need a price before I can upload it. Reply with just the price (for example: "15"), and I will keep this draft for 24 hours.',
         listingConflictMessage = 'I could not upload this listing because the server reported a conflicting existing record. It may be an old or hidden listing, so please check your profile or edit the details and try again.',
         invalidListingMessage = 'This draft does not look like a real marketplace listing, so I did not post it. Send the item name, price, category, and a short description, then try again.',
-        registrationMessage = `You need to register first! Visit ${this.appBaseUrl} and click Sign Up. Once you verify your email, your listing will be uploaded automatically.`,
+        registrationMessage = `You need to finish account setup first! Visit ${this.appBaseUrl} and click Sign Up. Verify your email and link WhatsApp login, then your listing will be uploaded automatically.`,
         markConsentedOnSuccess = false,
         clearStateOnSuccess = true,
         clearStateOnFailure = true,
@@ -422,9 +487,14 @@ class ListingSubmissionService {
         }
 
         if (result?.reason === 'partial-listing-conflict') {
-            if (clearStateOnFailure) this.stateStore.clear(phoneNumber)
-            await this.client.sendMessage(replyChatId, `${result.postedCount} listing(s) uploaded, but ${result.conflictCount} could not be saved because the server reported a conflicting existing record.`)
+            await this.client.sendMessage(replyChatId, `${result.postedCount} listing(s) uploaded, but ${result.conflictCount} could not be saved because the server reported a conflicting existing record. The draft was kept so you can retry or cancel it.`)
             return 'partial-listing-conflict'
+        }
+
+        if (result?.reason === 'retryable-listing-failure') {
+            const savedCount = result.postedCount > 0 ? `${result.postedCount} listing(s) were saved. ` : ''
+            await this.client.sendMessage(replyChatId, `${savedCount}${failureMessage} The draft was kept so a retry will not lose the remaining items.`)
+            return 'retryable-listing-failure'
         }
 
         if (clearStateOnFailure) this.stateStore.clear(phoneNumber)
@@ -433,4 +503,12 @@ class ListingSubmissionService {
     }
 }
 
+function validHashList(urls, hashes) {
+    return Array.isArray(hashes) && hashes.length === urls.length &&
+        hashes.every(hash => typeof hash === 'string' && /^[a-f0-9]{64}$/i.test(hash))
+        ? hashes
+        : []
+}
+
 module.exports = ListingSubmissionService
+module.exports.normalizePrice = normalizePrice

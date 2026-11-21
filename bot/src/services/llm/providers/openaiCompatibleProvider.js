@@ -56,7 +56,10 @@ function createOpenAICompatibleProvider({ langfuse, baseURL: baseURLOverride, ap
 
     const client = apiKey ? new OpenAI({
         baseURL,
-        apiKey
+        apiKey,
+        // A hung provider call would otherwise stall that user's flow forever (BOT-10).
+        timeout: Number(process.env.LLM_TIMEOUT_MS || 45000),
+        maxRetries: 1
     }) : null
 
     function buildContent(prompt, images = []) {

@@ -17,9 +17,9 @@ The WhatsApp bot is an AI-powered bridge between a WhatsApp group chat and the S
 
 **How it works at a high level:**
 1. The bot monitors a specific WhatsApp group for messages.
-2. After the inactivity window, it sends the accumulated messages to the configured LLM provider to determine whether they represent a marketplace listing.
-3. If the classifier says yes, it DMs the user to ask for consent.
-4. Once consent is granted, it parses the listing text and images through the model router, reuses existing stored image URLs when duplicate image bytes are already known to the backend, uploads only missing originals to Cloudinary, and posts the result to the Spring Boot backend via a REST API. If the LLM finds multiple distinct priced items, the bot creates multiple marketplace posts.
+2. For a user who hasn't consented yet, it keeps only the message IDs (no text, no media) and, if a cheap local check says the message looks like a listing, DMs the user once to ask for consent. Nothing is sent to the LLM, Cloudinary or the backend before a YES.
+3. After a YES, it reloads the remembered messages by ID. For consented users, once the inactivity window passes, it sends the accumulated messages to the configured LLM provider to decide whether they represent a marketplace listing.
+4. If they do, it parses the listing text and images through the model router, reuses existing stored image URLs when duplicate image bytes are already known to the backend, uploads only missing originals to Cloudinary, and posts the result to the Spring Boot backend via a REST API. If the LLM finds multiple distinct priced items, the bot creates multiple marketplace posts.
 
 The bot also handles WhatsApp-based QR login, allowing users to authenticate on the web app by scanning a QR code and then DMing the bot a confirmation token.
 
@@ -69,7 +69,7 @@ bot/
 │   │   ├── imagePreprocessor.js   # Downscales images before LLM parsing
 │   │   ├── langfuseService.js      # Langfuse singleton for LLM observability tracing
 │   │   ├── springServices.js       # All Spring Boot REST API calls
-│   │   ├── webhookService.js       # Express server for the seller-registered webhook
+│   │   ├── webhookService.js       # Express server for the user-registered webhook
 │   │   ├── claudinary.js           # Cloudinary image upload helper
 │   │   └── Prompt-File.js          # Prompt templates (classification, parsing, image description)
 │   └── tests/
@@ -79,7 +79,9 @@ bot/
 │       ├── GeminiAPI-test-Mock.js  # Standalone test harness with mocked services
 │       ├── runBenchmark.js         # Text benchmark: Gemini vs Gemma vs ChatGPT
 │       └── Benchmark_Images.js     # Image description benchmark: Gemma vs ChatGPT vs Gemini
-├── consentedUsersPersistence.json  # Persisted list of phone numbers that gave consent
+├── consentedUsersPersistence.json  # Persisted list of phone numbers that gave consent (git-ignored)
+├── declinedUsersPersistence.json   # Persisted list of phone numbers that declined (git-ignored)
+├── processedMessageIds.json        # Recent message IDs, so restarts don't reprocess (git-ignored)
 ├── .env                            # Local secrets (not committed)
 ├── .env.example                    # Template showing required variables
 └── package.json
@@ -108,7 +110,8 @@ client.initialize()
 |---|---|---|
 | `stateStore` | `BotStateStore` | Tracks each user's active listing buffer, timers, mode, consent, and registration flags |
 | `consentedUsers` | `Set<phone>` | Phone numbers that have consented; persisted to disk |
-| `NOT_CONSENTED_TO_MESSAGE_UPLOAD` | `Set<phone>` | Phone numbers that explicitly declined; held in memory only |
+| `declinedUsers` | `PersistentSet<phone>` | Phone numbers that explicitly declined; persisted to `declinedUsersPersistence.json` |
+| `processedMessageIds` | `PersistentSet<id>` | Last 2000 handled message IDs; persisted to `processedMessageIds.json` |
 
 The `UserState` object shape:
 ```js
@@ -200,27 +203,27 @@ Required `.env` variables: `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFU
 
 This service wrapper covers seller lookup, bot post creation, duplicate-image resolution by hash, shopping queries, and QR login confirmation. Bot-only write operations authenticate via the `X-Bot-Api-Key` header.
 
-#### `getSellerByPhone(phoneNumber) → SellerObject | null`
+#### `getSellerByPhone(phoneNumber) → UserObject | null`
 
 ```
-GET /api/sellers/by-phone?phone=+<digits>
+GET /api/users/by-phone?phone=+<digits>
 ```
-Normalizes the phone number to digits-only, then prefixes with `+` for the API call. Returns the seller object (containing `sellerId`) or `null` if the seller is not registered (404) or the number is invalid.
+Normalizes the phone number to digits-only, then prefixes with `+` for the API call. The request carries `X-Bot-Api-Key`. Returns an enabled user object (containing `userId`) or `null` for a 404/invalid number; other API failures are surfaced.
 
-#### `createPost(geminiListing, cloudinaryUrls, sellerId, imageHashes) → { ok, status, data? }`
+#### `createPost(geminiListing, cloudinaryUrls, userId, imageHashes) → { ok, status, data? }`
 
 ```
 POST /api/posts/bot
 X-Bot-Api-Key: <BOT_API_KEY>
 ```
-Creates a marketplace post. Sets `expiresAt` to 48 hours from now. The `category` field is uppercased to match the backend enum.
+Creates a marketplace post. The backend owns the two-day expiry and idempotency key; the bot does not send a second expiry value. The `category` field is uppercased to match the backend enum.
 
 When available, the bot also sends `imageHashList`, allowing the backend to reuse an existing stored image URL for duplicate image bytes even when the listing itself is new.
 
 #### `resolveMediaUrlsByHash(imageHashes) → Object`
 
 ```
-POST /api/posts/bot/media/resolve
+GET /api/posts/bot/media/resolve
 X-Bot-Api-Key: <BOT_API_KEY>
 ```
 
@@ -241,7 +244,7 @@ Used in the QR login flow. Sends the login token + phone number to Spring, which
 Starts an Express server that Spring Boot can call **after a user completes registration on the website**. This closes the loop when a user was asked to register before their listing could be processed.
 
 ```
-POST /webhook/seller-registered
+POST /webhook/user-registered
 x-bot-api-key: <BOT_API_KEY>
 Content-Type: application/json
 
@@ -250,12 +253,26 @@ Content-Type: application/json
 
 **Behavior:**
 1. Validates the `X-Bot-Api-Key` header.
-2. Looks up the phone number in `BotStateStore`. Returns 404 if no pending registration exists.
+2. Looks up the phone number in `BotStateStore`. A number with no pending registration is treated as an idempotent no-op.
 3. Responds immediately with `200 { status: 'processing' }` so Spring is not blocked.
 4. Asynchronously submits the pending listing draft and DMs the user with the result.
 5. On success, persists the phone number to `consentedUsers`.
 
 Default port: `3001` (configurable via `BOT_WEBHOOK_PORT`).
+
+Account deletion cleanup uses the same authenticated bridge:
+
+```
+POST /webhook/account-deleted
+x-bot-api-key: <BOT_API_KEY>
+Content-Type: application/json
+
+{ "phoneNumber": "+40712345678" }
+```
+
+The handler removes the phone-keyed draft, pending consent/registration state,
+and persisted consent flag. Spring sends this notification through the durable
+notification outbox after a successful account deletion transaction.
 
 ---
 
@@ -304,37 +321,36 @@ Bot accumulates text + images in stateStore[phone].listing
          │
          │  After 5 minutes of silence:
          ▼
-  ContextClassifier(messages[]) ──► 'NO'? → delete stateStore entry, done
-         │
-         │  'YES':
-         ▼
-  User in NOT_CONSENTED set? ──► Yes → skip silently
+  User in declinedUsers? ──► Yes → ignore (nothing stored)
          │
          │  No — has user consented before?
-         ├──► Yes (in consentedUsers) → submit listing draft directly
-         └──► No              → DM user asking for consent
+         ├──► No  → remember message ID only; if it looks like a listing,
+         │          DM the consent prompt once (no LLM call, no media download)
+         │
+         └──► Yes → buffer the message; after the inactivity window:
+                    ContextClassifier(messages[]) ──► 'NO'? → drop draft
+                                                  └─► 'YES' → submit listing draft
 ```
 
-> **Note:** The timer is currently set to 30 seconds (`30000 ms`) for development. The `TODO` comment in `WhatsappBot.js:141` marks where to change it back to `300000` (5 minutes) for production.
+> **Note:** The timer defaults to five minutes (`300000 ms`). Set `LISTING_INACTIVITY_MS` explicitly only for local experiments.
 
 ---
 
 ### 5.2 Consent Mechanism (DM Responses)
 
 ```
-Bot DMs: "Do you consent...? Reply YES or NO."
+Bot DMs the consent prompt (what is sent where). Replies such as "yes", "y",
+"ok" or "no", "n", "nope" are accepted; anything else gets a short nudge.
          │
     ┌────┴────┐
    YES        NO
     │          │
     ▼          ▼
-submit listing  Add to NOT_CONSENTED_TO_MESSAGE_UPLOAD
-    │           Delete stateStore entry
-    │
-    ▼  On success:
-Add to consentedUsers Set
-Write consentedUsersPersistence.json to disk   ← persistence across restarts
-Delete stateStore entry
+Add to consentedUsers      Add to declinedUsers (persisted)
+(persisted)                Drop remembered message IDs
+Reload remembered messages
+by ID, then classify and
+submit as usual
 ```
 
 **Persistence file format** (`consentedUsersPersistence.json`):
@@ -356,14 +372,14 @@ stateStore[phone].registrationPending = true
          ┌──────────────────────┬────────────────────────┐
          │                      │                        │
   User replies          Spring calls webhook      (timeout — state
-  "registered"       /webhook/seller-registered   expires in 12h)
+  "registered"       /webhook/user-registered   expires in 12h)
          │                      │
          └──────────┬───────────┘
                     ▼
              submit listing draft
 ```
 
-The webhook path is the automated route — Spring triggers it immediately after successful registration. The `"registered"` DM reply is a manual fallback.
+The webhook path is the automated route — Spring triggers it after email verification and again after phone linking. The `"registered"` DM reply is a manual fallback.
 
 ---
 
@@ -426,7 +442,7 @@ Orchestrates the full upload pipeline:
 1. If `listingDraft.isListing` is not already `true`, call `ContextClassifier(messages[])` and reject the draft when it returns `NO`.
 2. Downscale image copies for LLM parsing.
 3. Call `MessageParser(rawListingText, llmImages, tracingParams)` to extract one or more structured listing items.
-4. Call `getSellerByPhone` to retrieve the `sellerId`.
+4. Call `getSellerByPhone` to retrieve the `userId`.
 5. Resolve image hashes against backend-known media URLs, then upload only unresolved images.
 6. For each parsed listing item, pick item-scoped images using `imageIndexes` (fallback: all draft images) and call `createPost` as a distinct marketplace post.
 
@@ -457,11 +473,11 @@ cp .env.example .env
 | `SPRING_BASE_URL` | Yes | `http://localhost:8080` | Base URL of the Spring Boot backend. No trailing slash. |
 | `BOT_API_KEY` | Yes | — | Shared secret between the bot and Spring. Must match the value configured in the Spring app. Used in `X-Bot-Api-Key` headers. |
 | `BOT_WEBHOOK_PORT` | No | `3001` | Port the Express webhook server listens on. |
-| `TARGET_GROUP_JID` | No | `120363406751456779@g.us` | WhatsApp group JID monitored for seller listing capture. |
+| `TARGET_GROUP_JID` | **Yes** | none (the bot exits if unset) | WhatsApp group JID monitored for seller listing capture. |
 | `CLOUDINARY_CLOUD_NAME` | Yes | — | Your Cloudinary cloud name (from the dashboard). |
 | `CLOUDINARY_API_KEY` | Yes | — | Cloudinary API key. |
 | `CLOUDINARY_API_SECRET` | Yes | — | Cloudinary API secret. |
-| `APP_BASE_URL` | No | `http://localhost:8080` | URL shown to unregistered users in DMs (e.g., `https://yourdomain.com`). |
+| `APP_BASE_URL` | **Yes** | none (the bot exits if unset) | URL shown to unregistered users in DMs (e.g., `https://yourdomain.com`). |
 | `LLM_PRIMARY_PROVIDER` | No | `gemini` | Primary runtime provider (`gemini` or `openai-compatible`). |
 | `LLM_FALLBACK_PROVIDERS` | No | empty | Comma-separated provider fallback chain. |
 | `LLM_PARSE_PROVIDERS` | No | empty | Optional comma-separated provider order for parsing. Uses the primary/fallback chain when empty. |
@@ -478,7 +494,7 @@ The bot monitors exactly one WhatsApp group, identified by its JID:
 
 ```js
 // src/WhatsappBot.js:24
-const TARGET_GROUP = process.env.TARGET_GROUP_JID || '120363406751456779@g.us'
+const TARGET_GROUP = requireEnv('TARGET_GROUP_JID')
 ```
 
 To change the target group:
@@ -528,12 +544,10 @@ The timer in the test harness is set to 2 seconds for fast iteration.
 
 ### Adjusting the Inactivity Timer
 
-The listing detection timer defaults to 30 seconds in development. Before deploying to production, change it to 5 minutes:
+The listing detection timer defaults to 5 minutes. For a local experiment, set `LISTING_INACTIVITY_MS`:
 
 ```js
-// src/WhatsappBot.js:141
-}, 30000)   //TODO: change back to 300000 (5 min) for production
-//   ↑ change to 300000
+LISTING_INACTIVITY_MS=30000
 ```
 
 ### Running the Benchmarks

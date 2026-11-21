@@ -1,5 +1,5 @@
 const fs = require('fs')
-const path = require('path')
+const crypto = require('crypto')
 
 class BotStateStore {
     constructor({ filePath, listingExpiryHours }) {
@@ -11,11 +11,25 @@ class BotStateStore {
 
     createListingDraft() {
         return {
+            // Stable ID for this draft; listing idempotency keys derive from it.
+            draftId: crypto.randomUUID(),
             imageUrls: [],
             messages: [],
+            // Group messages from someone who hasn't consented yet are kept
+            // only as WhatsApp message IDs: no text, no media (WA-02).
+            pendingMessageIds: [],
             createdAt: Date.now(),
             isListing: false
         }
+    }
+
+    appendPendingMessageId(phoneNumber, messageId) {
+        if (!messageId) return
+        const state = this.ensure(phoneNumber)
+        const ids = state.listing.pendingMessageIds || (state.listing.pendingMessageIds = [])
+        if (!ids.includes(messageId)) ids.push(messageId)
+        if (ids.length > 20) ids.splice(0, ids.length - 20)
+        state.listing.createdAt = Date.now()
     }
 
     createState() {
@@ -56,7 +70,9 @@ class BotStateStore {
                 console.log(`Dropped ${droppedStaleDrafts} stale user state(s) from disk`)
                 this.save()
             }
-        } catch (_) {}
+        } catch (error) {
+            console.warn(`Could not restore bot state from ${this.filePath}:`, error.message)
+        }
     }
 
     save() {

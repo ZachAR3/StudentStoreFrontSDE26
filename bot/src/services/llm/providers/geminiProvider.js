@@ -25,6 +25,9 @@ function parseModelList(raw) {
     return [...new Set(models.length ? models : DEFAULT_MODELS)]
 }
 
+// A hung provider call would otherwise stall that user's flow forever (BOT-10).
+const LLM_TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS || 45000)
+
 function createObservation(langfuse, tracingParams, name, model, input) {
     const { sessionId, userId, parent } = tracingParams || {}
 
@@ -94,7 +97,7 @@ function createGeminiProvider({ langfuse }) {
                         temperature: 0,
                         maxOutputTokens: Number(process.env.LISTING_PARSE_MAX_TOKENS || DEFAULT_LISTING_PARSE_MAX_TOKENS)
                     }
-                })
+                }, { timeout: LLM_TIMEOUT_MS })
                 const result = await model.generateContent(buildParts(prompt, images))
                 const response = result.response
 
@@ -160,7 +163,7 @@ function createGeminiProvider({ langfuse }) {
             const startTime = new Date()
 
             try {
-                const model = client.getGenerativeModel({ model: modelName })
+                const model = client.getGenerativeModel({ model: modelName }, { timeout: LLM_TIMEOUT_MS })
                 const result = await model.generateContent(parts)
                 const response = result.response
                 const text = response.text()

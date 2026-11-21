@@ -7,3 +7,5 @@ node_modules/
 bot/LANGFUSE_DOCUMENTATION.md
 consentedUsersPersistence.json
 userStatePersistence.json
+declinedUsersPersistence.json
+processedMessageIds.json

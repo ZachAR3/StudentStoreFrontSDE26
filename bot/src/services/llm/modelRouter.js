@@ -92,7 +92,9 @@ async function ContextClassifier(messages, tracingParams = {}) {
         return await runWithFallback("ContextClassifier", provider => provider.classifyContext(messages, tracingParams))
     } catch (error) {
         console.error("LLM Classifier error:", error.message)
-        return "NO"
+        // Distinguish an outage from a real "not a listing" verdict so callers
+        // can keep the draft and retry.
+        return "ERROR"
     }
 }
 

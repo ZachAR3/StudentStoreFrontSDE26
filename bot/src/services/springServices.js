@@ -8,11 +8,10 @@ if (!process.env.BOT_API_KEY) {
     console.error('CRITICAL ERROR: BOT_API_KEY is not set in .env file');
 }
 
-const POST_EXPIRY_HOURS = 48
 const DEFAULT_POST_SORT = 'createdAt,desc'
 const AXIOS_TIMEOUT = 10000
 
-async function createPost(geminiListing, cloudinaryUrls, userId) {
+async function createPost(geminiListing, cloudinaryUrls, userId, imageHashes = []) {
     try {
         const response = await axios.post(`${process.env.SPRING_BASE_URL}/api/posts/bot`, {
             title: geminiListing.title,
@@ -20,11 +19,11 @@ async function createPost(geminiListing, cloudinaryUrls, userId) {
             description: geminiListing.description,
             category: geminiListing.category?.toUpperCase(),
             imageUrlList: cloudinaryUrls,
-                        userId: userId,
-            isSold: false,
-            expiresAt: new Date(Date.now() + POST_EXPIRY_HOURS * 60 * 60 * 1000).toISOString().slice(0, 19)
+            imageHashList: imageHashes,
+            userId,
+            idempotencyKey: geminiListing.idempotencyKey
 
-        }, { headers: { 'X-Bot-Api-Key': process.env.BOT_API_KEY } })
+        }, { headers: { 'X-Bot-Api-Key': process.env.BOT_API_KEY }, timeout: AXIOS_TIMEOUT })
         return {
             ok: true,
             status: response.status,
@@ -83,8 +82,51 @@ async function getSellerByPhone(phoneNumber) {
         if (error.response?.status !== 404) {
             console.error('User lookup error:', error.message)
         }
-        return null
+        if (error.response?.status === 404) return null
+        throw error
     }
+}
+
+async function renewPost(postId, phoneNumber) {
+    const response = await axios.post(
+        `${process.env.SPRING_BASE_URL}/api/posts/bot/renew/${postId}`,
+        {},
+        {
+            headers: {
+                'X-Bot-Api-Key': process.env.BOT_API_KEY,
+                'X-Bot-Phone': phoneNumber
+            },
+            timeout: AXIOS_TIMEOUT
+        }
+    )
+    return response.data
+}
+
+// Seller contact for a WhatsApp requester. The backend only answers for
+// registered, phone-verified members; callers map 403/404/400 to replies.
+async function getSellerContact(postId, requesterPhone) {
+    const response = await axios.get(
+        `${process.env.SPRING_BASE_URL}/api/posts/bot/${encodeURIComponent(postId)}/contact`,
+        {
+            headers: {
+                'X-Bot-Api-Key': process.env.BOT_API_KEY,
+                'X-Bot-Phone': requesterPhone
+            },
+            timeout: AXIOS_TIMEOUT
+        }
+    )
+    return response.data
+}
+
+async function resolveMediaUrlsByHash(imageHashes = []) {
+    const hashes = [...new Set(imageHashes.filter(hash => /^[a-f0-9]{64}$/i.test(hash)))]
+    if (hashes.length === 0) return {}
+    const response = await axios.get(`${process.env.SPRING_BASE_URL}/api/posts/bot/media/resolve`, {
+        params: { hashes },
+        headers: { 'X-Bot-Api-Key': process.env.BOT_API_KEY },
+        timeout: AXIOS_TIMEOUT
+    })
+    return response.data || {}
 }
 
 async function confirmWhatsAppLogin(loginToken, phoneNumber) {
@@ -153,7 +195,8 @@ async function getPostById(postId) {
 async function getPostsBySeller(userId, { page = 0, size = 50, sort = DEFAULT_POST_SORT } = {}) {
     try {
         const response = await axios.get(`${process.env.SPRING_BASE_URL}/api/posts/user/${userId}`, {
-            params: { page, size, sort }
+            params: { page, size, sort },
+            timeout: AXIOS_TIMEOUT
         })
         return response.data
     } catch (error) {
@@ -165,6 +208,8 @@ async function getPostsBySeller(userId, { page = 0, size = 50, sort = DEFAULT_PO
 module.exports = {
     createPost,
     resolveMediaUrlsByHash,
+    renewPost,
+    getSellerContact,
     getSellerByPhone,
     confirmWhatsAppLogin,
     searchPosts,
